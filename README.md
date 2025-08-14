@@ -61,21 +61,6 @@ target
 
 ### Future Expansion (MySQL / JPA Integration)
 **1. Remove from backend/src/main/resources/application.properties**
-spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration,org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
 **2. Add dependencies in pom.xml**
-<dependency>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-data-jpa</artifactId>
-</dependency>
-<dependency>
-    <groupId>com.mysql</groupId>
-    <artifactId>mysql-connector-j</artifactId>
-    <scope>runtime</scope>
-</dependency>
 **3. Configure datasource in application.properties:**
-spring.datasource.url=jdbc:mysql://localhost:3306/yourdb?useSSL=false&serverTimezone=UTC
-spring.datasource.username=youruser
-spring.datasource.password=yourpass
-spring.jpa.hibernate.ddl-auto=update
-spring.jpa.show-sql=true
 **4. Create @Entity classes and Repository interfaces.**
