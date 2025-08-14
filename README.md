@@ -1,3 +1,4 @@
+# 
 # Eighty-two — Minimal Frontend/Backend Skeleton
  
 - Backend: Spring Boot (JDK 21+), provides a health check endpoint and CORS support  
@@ -14,38 +15,35 @@ Database integration (MySQL / JPA) can be added later with minimal changes.
 - Maven Wrapper (included)
 
 **Run:**
-```bash
-cd backend
-./mvnw spring-boot:run
+`cd backend
+./mvnw spring-boot:run`
 
-**Test endpoint**:
+**Test endpoint:**
 GET http://localhost:8080/api/health
 → Response: OK
 
 ### Frontend (React + Vite)
-
 **Requirements:**
 - Node.js 18+
 - npm / yarn / pnpm
 
 **Run:**
-```bash
-cd frontend
+`cd frontend
 npm install
 cp .env.example .env   # update VITE_API_BASE to match your backend URL if needed
-npm run dev
+npm run dev`
 
 **Visit**:
 http://localhost:5173/
 
-##Environment Variables：
+### Environment Variables：
 **Frontend .env.example**
 VITE_API_BASE=http://localhost:8080
 **.env is ignored in .gitignore and should not be committed**
 **Modify .env locally to point to different backend endpoints*
 
 
-##.gitignore Overview
+### .gitignore Overview
 **frontend/.gitignore**
 node_modules
 dist
@@ -55,11 +53,10 @@ target
 .env
 .DS_Store
 
-
-###Future Expansion (MySQL / JPA Integration)
-**Remove from backend/src/main/resources/application.properties**
+### Future Expansion (MySQL / JPA Integration)
+**1. Remove from backend/src/main/resources/application.properties**
 spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration,org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
-**Add dependencies in pom.xml**
+**2. Add dependencies in pom.xml**
 <dependency>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-data-jpa</artifactId>
@@ -69,10 +66,10 @@ spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.jdbc.DataSou
     <artifactId>mysql-connector-j</artifactId>
     <scope>runtime</scope>
 </dependency>
-**Configure datasource in application.properties:**
+**3. Configure datasource in application.properties:**
 spring.datasource.url=jdbc:mysql://localhost:3306/yourdb?useSSL=false&serverTimezone=UTC
 spring.datasource.username=youruser
 spring.datasource.password=yourpass
 spring.jpa.hibernate.ddl-auto=update
 spring.jpa.show-sql=true
-**Create @Entity classes and Repository interfaces.**
+**4. Create @Entity classes and Repository interfaces.**
