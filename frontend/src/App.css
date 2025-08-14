@@ -1,0 +1,35 @@
+.badge {
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+.badge.ok {
+  background: #bff7cf;
+  color: #137333;
+}
+
+.badge.bad {
+  background: #f99ca8;
+  color: #b00020;
+}
+
+button {
+  padding: 8px 14px;
+  border: 1px solid #99e3fd;
+  border-radius: 6px;
+  background-color: rgb(18, 106, 173);
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+button:hover {
+  background-color: #531cb9;
+}
+
+code {
+  background-color: #f7f7f7;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
