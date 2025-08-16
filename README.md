@@ -28,7 +28,7 @@ Database integration (MySQL / JPA) can be added later with minimal changes.
 GET http://localhost:8080/api/health
 → Response: OK
 
-### Frontend (React + Vite)
+### Frontend (Vue3 + Vite)
 **Requirements:**
 - Node.js 18+
 - npm / yarn / pnpm
@@ -40,7 +40,7 @@ cp .env.example .env   # update VITE_API_BASE to match your backend URL if neede
 npm run dev`
 
 **Visit**:
-http://localhost:5173/
+http://localhost:5174/
 
 ### Environment Variables：
 **Frontend .env.example**
