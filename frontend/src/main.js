@@ -1,5 +1,10 @@
 import { createApp } from 'vue'
-import './style.css'
 import App from './App.vue'
 
-createApp(App).mount('#app')
+import Antd from 'ant-design-vue' // import UI component library
+import 'ant-design-vue/dist/reset.css' 
+
+//import './style.css'
+
+createApp(App).use(Antd).mount('#app')
+
