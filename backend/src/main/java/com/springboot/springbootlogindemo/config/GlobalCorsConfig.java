@@ -12,7 +12,7 @@ public class GlobalCorsConfig {
         return new WebMvcConfigurer() {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
-                registry.addMapping("/**")    //添加映射路径，“/**”表示对所有的路径实行全局跨域访问权限的设置
+                registry.addMapping("/**")   
                         .allowedOrigins("*")    // Which IPs, ports, and domain names are allowed to access
                         .allowCredentials(true)  // Whether to allow sending Cookie information
                         .allowedMethods("GET", "POST", "PUT", "DELETE")     // Which HTTP methods are allowed for cross-origin access
