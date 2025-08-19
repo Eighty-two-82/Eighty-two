@@ -17,9 +17,9 @@ public class UserController {
     public Result<User> loginController(@RequestParam String uname, @RequestParam String password){
         User user = userService.loginService(uname, password);
         if(user!=null){
-            return Result.success(user,"登录成功！");
+            return Result.success(user,"Login successful!");
         }else{
-            return Result.error("123","账号或密码错误！");
+            return Result.error("123","Account or password incorrect!");
         }
     }
 
@@ -27,9 +27,9 @@ public class UserController {
     public Result<User> registController(@RequestBody User newUser){
         User user = userService.registService(newUser);
         if(user!=null){
-            return Result.success(user,"注册成功！");
+            return Result.success(user,"Registration successful!");
         }else{
-            return Result.error("456","用户名已存在！");
+            return Result.error("456","Username already exists!");
         }
     }
 }

@@ -6,6 +6,6 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface UserDao extends JpaRepository<User, Long> {
-    User findByUname(String uname); //通过用户名uname查找用户，注意要按照JPA的格式使用驼峰命名法
-    User findByUnameAndPassword(String uname, String password);//通过用户名uname和密码查找用户
+    User findByUname(String uname); // Find user by username uname, note to follow JPA format using camelCase naming
+    User findByUnameAndPassword(String uname, String password);// Find user by username uname and password
 }
