@@ -5,7 +5,7 @@ import javax.persistence.*;
 @Table(name = "users")
 @Entity
 public class User {
-    // 注意属性名要与数据表中的字段名一致
+
     // Primary key auto-increment int(10) corresponds to long
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
