@@ -12,12 +12,16 @@ services:
       MYSQL_USER: appuser
       MYSQL_PASSWORD: apppassword
     ports:
-      - "3306:3306"
+      - "3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
       - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - eighty-two-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
 
   # Spring Boot Backend
   backend:
@@ -26,6 +30,9 @@ services:
       dockerfile: Dockerfile
     container_name: eighty-two-backend
     restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/logindemo?serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true
       SPRING_DATASOURCE_USERNAME: appuser
@@ -34,8 +41,6 @@ services:
       SERVER_PORT: 8080
     ports:
       - "8080:8080"
-    depends_on:
-      - mysql
     networks:
       - eighty-two-network
 
