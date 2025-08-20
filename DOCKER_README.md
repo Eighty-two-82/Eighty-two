@@ -13,11 +13,10 @@ docker-compose up -d
 ```
 
 ### Access the Application
-- **Frontend**: http://localhost:3000
 - **Backend API**: http://localhost:8080
-- **Database**: localhost:3306
+- **Database**: localhost:3307
 
-### Stop the Application
+### Stop the Applicatio
 ```bash
 docker-compose down
 ```
@@ -29,7 +28,6 @@ docker-compose logs
 
 # View specific service logs
 docker-compose logs backend
-docker-compose logs frontend
 docker-compose logs mysql
 ```
 
@@ -49,12 +47,7 @@ cd backend
 ./mvnw spring-boot:run
 ```
 
-3. **Run frontend locally**:
-```bash
-cd frontend
-npm install
-npm run dev
-```
+
 
 ### Reset Data
 ```bash
