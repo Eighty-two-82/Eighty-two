@@ -12,12 +12,12 @@ public class GlobalCorsConfig {
         return new WebMvcConfigurer() {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
-                registry.addMapping("/**")   
-                        .allowedOrigins("*")    // Which IPs, ports, and domain names are allowed to access
-                        .allowCredentials(true)  // Whether to allow sending Cookie information
-                        .allowedMethods("GET", "POST", "PUT", "DELETE")     // Which HTTP methods are allowed for cross-origin access
-                        .allowedHeaders("*")     // Which Header information is allowed to be carried in HTTP requests
-                        .exposedHeaders("*");   // Expose which header information (because cross-origin access cannot get all header information by default)
+                registry.addMapping("/**")
+                        .allowedOriginPatterns("*")   // ✅ 改成 allowedOriginPatterns
+                        .allowCredentials(true)
+                        .allowedMethods("GET", "POST", "PUT", "DELETE")
+                        .allowedHeaders("*")
+                        .exposedHeaders("*");
             }
         };
     }
