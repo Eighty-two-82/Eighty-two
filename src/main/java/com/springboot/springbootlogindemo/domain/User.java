@@ -1,34 +1,28 @@
 package com.springboot.springbootlogindemo.domain;
 
-import javax.persistence.*;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
 
-@Table(name = "users")
-@Entity
+@Document(collection = "users")  // 指定 MongoDB 集合名
 public class User {
 
-    // Primary key auto-increment int(10) corresponds to long
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private long uid;
+    private String id;   // MongoDB 默认主键是 String (ObjectId)
 
-    // Username property varchar corresponds to String
     private String uname;
-
-    // Password property varchar corresponds to String
     private String password;
 
-    public long getUid() {
-        return uid;
+    // getter & setter
+    public String getId() {
+        return id;
     }
-
-    public void setUid(long uid) {
-        this.uid = uid;
+    public void setId(String id) {
+        this.id = id;
     }
 
     public String getUname() {
         return uname;
     }
-
     public void setUname(String uname) {
         this.uname = uname;
     }
@@ -36,7 +30,6 @@ public class User {
     public String getPassword() {
         return password;
     }
-
     public void setPassword(String password) {
         this.password = password;
     }

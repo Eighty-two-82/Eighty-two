@@ -14,10 +14,10 @@ public class UserController {
     private UserService userService;
 
     @PostMapping("/login")
-    public Result<User> loginController(@RequestBody User loginUser){
-        User user = userService.loginService(loginUser.getUname(), loginUser.getPassword());
-        if(user != null){
-            return Result.success(user,"Login successful!");
+    public Result<User> loginController(@RequestBody User user) {
+        User u = userService.loginService(user.getUname(), user.getPassword());
+        if (u != null) {
+            return Result.success(u,"Login successful!");
         } else {
             return Result.error("123","Account or password incorrect!");
         }
