@@ -14,11 +14,11 @@ public class UserController {
     private UserService userService;
 
     @PostMapping("/login")
-    public Result<User> loginController(@RequestParam String uname, @RequestParam String password){
-        User user = userService.loginService(uname, password);
-        if(user!=null){
+    public Result<User> loginController(@RequestBody User loginUser){
+        User user = userService.loginService(loginUser.getUname(), loginUser.getPassword());
+        if(user != null){
             return Result.success(user,"Login successful!");
-        }else{
+        } else {
             return Result.error("123","Account or password incorrect!");
         }
     }
@@ -26,9 +26,9 @@ public class UserController {
     @PostMapping("/register")
     public Result<User> registController(@RequestBody User newUser){
         User user = userService.registService(newUser);
-        if(user!=null){
+        if(user != null){
             return Result.success(user,"Registration successful!");
-        }else{
+        } else {
             return Result.error("456","Username already exists!");
         }
     }
