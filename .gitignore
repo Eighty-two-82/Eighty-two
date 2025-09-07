@@ -7,14 +7,18 @@ target/
 *.war
 *.ear
 
-# Maven Wrapper logs
+# Maven Wrapper
 .mvn/wrapper/maven-wrapper.jar
+.mvn/wrapper/maven-wrapper.properties
+mvnw
+mvnw.cmd
 
 # -----------------------------
 # Spring Boot
 # -----------------------------
 application-*.yml
 application-*.properties
+!src/main/resources/application.properties   # 保留默认配置
 
 # -----------------------------
 # IDE / Editors
@@ -46,3 +50,4 @@ frontend/.env.production
 # OS / Misc
 # -----------------------------
 .DS_Store
+Thumbs.db
