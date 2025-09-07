@@ -1,13 +1,12 @@
-package com.springboot.springbootlogindemo;
+package com.careapp;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class SpringbootLoginDemoApplicationTests {
+class CareAppApplicationTests {
 
     @Test
     void contextLoads() {
     }
-
 }

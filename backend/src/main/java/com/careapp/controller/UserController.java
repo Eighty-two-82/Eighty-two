@@ -1,8 +1,8 @@
-package com.springboot.springbootlogindemo.controller;
+package com.careapp.controller;
 
-import com.springboot.springbootlogindemo.domain.User;
-import com.springboot.springbootlogindemo.service.UserService;
-import com.springboot.springbootlogindemo.utils.Result;
+import com.careapp.domain.User;
+import com.careapp.service.UserService;
+import com.careapp.utils.Result;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
@@ -17,19 +17,19 @@ public class UserController {
     public Result<User> loginController(@RequestBody User user) {
         User u = userService.loginService(user.getUname(), user.getPassword());
         if (u != null) {
-            return Result.success(u,"Login successful!");
+            return Result.success(u, "Login successful!");
         } else {
-            return Result.error("123","Account or password incorrect!");
+            return Result.error("123", "Account or password incorrect!");
         }
     }
 
     @PostMapping("/register")
-    public Result<User> registController(@RequestBody User newUser){
+    public Result<User> registerController(@RequestBody User newUser) {
         User user = userService.registService(newUser);
-        if(user != null){
-            return Result.success(user,"Registration successful!");
+        if (user != null) {
+            return Result.success(user, "Registration successful!");
         } else {
-            return Result.error("456","Username already exists!");
+            return Result.error("456", "Username already exists!");
         }
     }
 }

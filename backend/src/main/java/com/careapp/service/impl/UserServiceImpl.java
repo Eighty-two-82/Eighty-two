@@ -1,8 +1,8 @@
-package com.springboot.springbootlogindemo.service.serviceImpl;
+package com.careapp.service.impl;
 
-import com.springboot.springbootlogindemo.domain.User;
-import com.springboot.springbootlogindemo.repository.UserDao;
-import com.springboot.springbootlogindemo.service.UserService;
+import com.careapp.domain.User;
+import com.careapp.repository.UserRepository;
+import com.careapp.service.UserService;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
@@ -10,29 +10,24 @@ import javax.annotation.Resource;
 @Service
 public class UserServiceImpl implements UserService {
     @Resource
-    private UserDao userDao;
+    private UserRepository userRepository;
 
     @Override
     public User loginService(String uname, String password) {
-        // If both account and password are correct, return the logged-in user object, if either is wrong return null
-        User user = userDao.findByUnameAndPassword(uname, password);
-        // Clear sensitive information
-        if(user != null){
-            user.setPassword("");
+        User user = userRepository.findByUnameAndPassword(uname, password);
+        if (user != null) {
+            user.setPassword(""); // 清空敏感信息
         }
         return user;
     }
 
     @Override
     public User registService(User user) {
-        // When the username of the new user already exists
-        if(userDao.findByUname(user.getUname())!=null){
-            // Cannot register
+        if (userRepository.findByUname(user.getUname()) != null) {
             return null;
-        }else{
-            // Return the created user object (with uid)
-            User newUser = userDao.save(user);
-            if(newUser != null){
+        } else {
+            User newUser = userRepository.save(user);
+            if (newUser != null) {
                 newUser.setPassword("");
             }
             return newUser;

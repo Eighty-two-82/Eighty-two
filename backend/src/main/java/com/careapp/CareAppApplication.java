@@ -1,13 +1,11 @@
-package com.springboot.springbootlogindemo;
+package com.careapp;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class SpringbootLoginDemoApplication {
-
+public class CareAppApplication {
     public static void main(String[] args) {
-        SpringApplication.run(SpringbootLoginDemoApplication.class, args);
+        SpringApplication.run(CareAppApplication.class, args);
     }
-
 }

@@ -1,40 +1,21 @@
-package com.springboot.springbootlogindemo.utils;
+package com.careapp.utils;
 
 public class Result<T> {
     private String code;
     private String msg;
     private T data;
 
-    public String getCode() {
-        return code;
-    }
+    public String getCode() { return code; }
+    public void setCode(String code) { this.code = code; }
 
-    public void setCode(String code) {
-        this.code = code;
-    }
+    public String getMsg() { return msg; }
+    public void setMsg(String msg) { this.msg = msg; }
 
-    public String getMsg() {
-        return msg;
-    }
+    public T getData() { return data; }
+    public void setData(T data) { this.data = data; }
 
-    public void setMsg(String msg) {
-        this.msg = msg;
-    }
-
-    public T getData() {
-        return data;
-    }
-
-    public void setData(T data) {
-        this.data = data;
-    }
-
-    public Result() {
-    }
-
-    public Result(T data) {
-        this.data = data;
-    }
+    public Result() {}
+    public Result(T data) { this.data = data; }
 
     public static Result success() {
         Result result = new Result<>();
@@ -50,7 +31,7 @@ public class Result<T> {
         return result;
     }
 
-    public static <T> Result<T> success(T data,String msg) {
+    public static <T> Result<T> success(T data, String msg) {
         Result<T> result = new Result<>(data);
         result.setCode("0");
         result.setMsg(msg);

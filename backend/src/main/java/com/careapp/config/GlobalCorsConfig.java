@@ -1,4 +1,4 @@
-package com.springboot.springbootlogindemo.config;
+package com.careapp.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -13,7 +13,7 @@ public class GlobalCorsConfig {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/**")
-                        .allowedOriginPatterns("*")   // ✅ 改成 allowedOriginPatterns
+                        .allowedOriginPatterns("*")
                         .allowCredentials(true)
                         .allowedMethods("GET", "POST", "PUT", "DELETE")
                         .allowedHeaders("*")
