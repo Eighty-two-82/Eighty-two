@@ -3,7 +3,7 @@
 
     <a-form
       :model="formState"
-      name="basic"
+      name="Login"
       :label-col="{ span: 6 }"
       :wrapper-col="{ span: 18 }"
       autocomplete="off"
@@ -28,11 +28,11 @@
         </a-input>
       </a-form-item>
 
+
       <a-form-item
         name="password"
         :rules="[{ required: true, message: 'Please input your password!' }]"
-        :wrapper-col="{ span: 24 }"
->
+        :wrapper-col="{ span: 24 }">
         <a-input-password v-model:value="formState.password" placeholder="Enter password">
           <template #prefix>
             <LockOutlined />
@@ -76,6 +76,7 @@ const formState = reactive({
   username: '',
   password: '',
   remember: true,
+  role: ''
 });
 
 const loading = ref(false);
