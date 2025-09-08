@@ -80,5 +80,48 @@ const onBack = () => window.location.href = '/login';
 </script>
 
 <style scoped>
-@import './auth.css';
+.login-container {
+  display: flex;
+  justify-content: center;   
+  align-items: center;       
+  height: 100vh;             
+  background: #f0f2f5;       
+}
+
+.login-form {
+  width: 360px;
+  padding: 24px 28px;
+  background: white;
+  border-radius: 14px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.12);
+}
+
+.login-input {
+  width: 320px;
+  margin: 0 auto;
+  display: block;
+}
+
+
+/* title formate */
+.login-title {
+  text-align: center;
+  font-size: 24px;
+  font-weight: bold;
+  margin-bottom: 20px;
+}
+
+.row-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+
+.muted {
+  text-align: center;
+  color: #6b7280;
+  font-size: 13px;
+  margin: 8px 0 6px;
+}
 </style>

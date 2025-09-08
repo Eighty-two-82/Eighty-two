@@ -7,6 +7,6 @@ import 'ant-design-vue/dist/reset.css'
 
 //import './style.css'
 
-createApp(App).use(Antd).mount('#app')
-createApp(App).use(router).mount('#app')
+createApp(App).use(router).use(Antd).mount('#app')
+
 
