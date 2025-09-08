@@ -17,11 +17,11 @@
       <h1 class="login-title">Sign in</h1>
 
       <a-form-item
-        name="username"
-        :rules="[{ required: true, message: 'Please input your username!' }]"
+        name="Email"
+        :rules="[{ required: true, message: 'Please input your Email!' }]"
         :wrapper-col="{ span: 24 }"
 >
-        <a-input v-model:value="formState.username" placeholder="Enter username">
+        <a-input v-model:value="formState.Email" placeholder="Enter Email">
           <template #prefix>
             <UserOutlined />
           </template>
