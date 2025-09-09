@@ -3,7 +3,7 @@
 
     <a-form
       :model="formState"
-      name="Login"
+      name="basic"
       :label-col="{ span: 6 }"
       :wrapper-col="{ span: 18 }"
       autocomplete="off"
@@ -17,22 +17,22 @@
       <h1 class="login-title">Sign in</h1>
 
       <a-form-item
-        name="Email"
-        :rules="[{ required: true, message: 'Please input your Email!' }]"
+        name="username"
+        :rules="[{ required: true, message: 'Please input your username!' }]"
         :wrapper-col="{ span: 24 }"
 >
-        <a-input v-model:value="formState.Email" placeholder="Enter Email">
+        <a-input v-model:value="formState.username" placeholder="Enter username">
           <template #prefix>
             <UserOutlined />
           </template>
         </a-input>
       </a-form-item>
 
-
       <a-form-item
         name="password"
         :rules="[{ required: true, message: 'Please input your password!' }]"
-        :wrapper-col="{ span: 24 }">
+        :wrapper-col="{ span: 24 }"
+>
         <a-input-password v-model:value="formState.password" placeholder="Enter password">
           <template #prefix>
             <LockOutlined />
@@ -67,16 +67,12 @@
 import { reactive, ref } from 'vue';
 import { message } from 'ant-design-vue';
 import { UserOutlined, LockOutlined } from '@ant-design/icons-vue';
-import { useRouter } from 'vue-router';
-
-const router = useRouter();
 
 
 const formState = reactive({
   username: '',
   password: '',
   remember: true,
-  role: ''
 });
 
 const loading = ref(false);
@@ -115,14 +111,8 @@ const onFinishFailed = (errorInfo) => {
   message.error('Please check the form');
 }
 
-const onForgot = () => {
-  router.push('/forgot-password');
-}
-
-const onRegister = () => {
-  router.push('/register');
-}
-
+const onForgot = () => message.info('Please contact admin to reset password.');
+const onRegister = () => message.info('Register is not implemented (mock).');
 </script>
 
 <style scoped>
