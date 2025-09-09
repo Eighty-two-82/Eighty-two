@@ -3,7 +3,7 @@
 
     <a-form
       :model="formState"
-      name="basic"
+      name="Login"
       :label-col="{ span: 6 }"
       :wrapper-col="{ span: 18 }"
       autocomplete="off"
@@ -17,22 +17,22 @@
       <h1 class="login-title">Sign in</h1>
 
       <a-form-item
-        name="username"
-        :rules="[{ required: true, message: 'Please input your username!' }]"
+        name="Email"
+        :rules="[{ required: true, message: 'Please input your Email!' }]"
         :wrapper-col="{ span: 24 }"
 >
-        <a-input v-model:value="formState.username" placeholder="Enter username">
+        <a-input v-model:value="formState.Email" placeholder="Enter Email">
           <template #prefix>
             <UserOutlined />
           </template>
         </a-input>
       </a-form-item>
 
+
       <a-form-item
         name="password"
         :rules="[{ required: true, message: 'Please input your password!' }]"
-        :wrapper-col="{ span: 24 }"
->
+        :wrapper-col="{ span: 24 }">
         <a-input-password v-model:value="formState.password" placeholder="Enter password">
           <template #prefix>
             <LockOutlined />
@@ -76,6 +76,7 @@ const formState = reactive({
   username: '',
   password: '',
   remember: true,
+  role: ''
 });
 
 const loading = ref(false);
