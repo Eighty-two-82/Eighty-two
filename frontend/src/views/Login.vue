@@ -67,9 +67,12 @@
 import { reactive, ref } from 'vue';
 import { message } from 'ant-design-vue';
 import { UserOutlined, LockOutlined } from '@ant-design/icons-vue';
+<<<<<<< HEAD
 import { useRouter } from 'vue-router';
 
 const router = useRouter();
+=======
+>>>>>>> backend-setup
 
 
 const formState = reactive({
@@ -114,6 +117,7 @@ const onFinishFailed = (errorInfo) => {
   message.error('Please check the form');
 }
 
+<<<<<<< HEAD
 const onForgot = () => {
   router.push('/forgot-password');
 }
@@ -122,6 +126,10 @@ const onRegister = () => {
   router.push('/register');
 }
 
+=======
+const onForgot = () => message.info('Please contact admin to reset password.');
+const onRegister = () => message.info('Register is not implemented (mock).');
+>>>>>>> backend-setup
 </script>
 
 <style scoped>

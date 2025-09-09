@@ -1,10 +1,18 @@
 <script setup>
+<<<<<<< HEAD
 
+=======
+import Login from './views/Login.vue'
+>>>>>>> backend-setup
 </script>
 
 <template>
   <a-app>
+<<<<<<< HEAD
     <router-view />
+=======
+    <Login />
+>>>>>>> backend-setup
   </a-app>
 </template>
 

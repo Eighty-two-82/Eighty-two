@@ -6,13 +6,23 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+<<<<<<< HEAD
     "preview": "vite preview"
+=======
+    "preview": "vite preview",
+    "start": "serve -s dist"
+>>>>>>> backend-setup
   },
   "dependencies": {
     "ant-design-vue": "^4.2.6",
     "axios": "^1.11.0",
     "vue": "^3.5.18",
+<<<<<<< HEAD
     "vue-router": "^4.5.1"
+=======
+    "vue-router": "^4.5.1",
+    "serve": "^14.2.1"
+>>>>>>> backend-setup
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.1",
