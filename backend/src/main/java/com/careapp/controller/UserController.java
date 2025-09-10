@@ -8,8 +8,9 @@ import org.springframework.web.bind.annotation.*;
 import javax.annotation.Resource;
 
 @RestController
-@RequestMapping("/user")
+@RequestMapping("/api/auth")
 public class UserController {
+
     @Resource
     private UserService userService;
 
@@ -19,17 +20,17 @@ public class UserController {
         if (u != null) {
             return Result.success(u, "Login successful!");
         } else {
-            return Result.error("123", "Account or password incorrect!");
+            return Result.error("401", "Invalid username or password!");
         }
     }
 
     @PostMapping("/register")
     public Result<User> registerController(@RequestBody User newUser) {
-        User user = userService.registService(newUser);
+        User user = userService.registerService(newUser);
         if (user != null) {
             return Result.success(user, "Registration successful!");
         } else {
-            return Result.error("456", "Username already exists!");
+            return Result.error("409", "Username already exists!");
         }
     }
 }
