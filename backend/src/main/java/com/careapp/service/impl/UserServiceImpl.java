@@ -9,6 +9,7 @@ import javax.annotation.Resource;
 
 @Service
 public class UserServiceImpl implements UserService {
+
     @Resource
     private UserRepository userRepository;
 
@@ -16,21 +17,20 @@ public class UserServiceImpl implements UserService {
     public User loginService(String uname, String password) {
         User user = userRepository.findByUnameAndPassword(uname, password);
         if (user != null) {
-            user.setPassword(""); // 清空敏感信息
+            user.setPassword(null); // 避免返回敏感信息
         }
         return user;
     }
 
     @Override
-    public User registService(User user) {
+    public User registerService(User user) {
         if (userRepository.findByUname(user.getUname()) != null) {
-            return null;
-        } else {
-            User newUser = userRepository.save(user);
-            if (newUser != null) {
-                newUser.setPassword("");
-            }
-            return newUser;
+            return null; // 已存在同名用户
         }
+        User newUser = userRepository.save(user);
+        if (newUser != null) {
+            newUser.setPassword(null);
+        }
+        return newUser;
     }
 }
