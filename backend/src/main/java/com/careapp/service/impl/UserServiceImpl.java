@@ -17,16 +17,30 @@ public class UserServiceImpl implements UserService {
     public User loginService(String uname, String password) {
         User user = userRepository.findByUnameAndPassword(uname, password);
         if (user != null) {
-            user.setPassword(null); // 避免返回敏感信息
+            user.setPassword(null); // avoid returning sensitive information
+        }
+        return user;
+    }
+
+    @Override
+    public User loginByEmailService(String email, String password) {
+        User user = userRepository.findByEmailAndPassword(email, password);
+        if (user != null) {
+            user.setPassword(null); // avoid returning sensitive information
         }
         return user;
     }
 
     @Override
     public User registerService(User user) {
-        if (userRepository.findByUname(user.getUname()) != null) {
-            return null; // 已存在同名用户
+        // check if email is already in use
+        if (userRepository.findByEmail(user.getEmail()) != null) {
+            return null; // email already in use
         }
+        
+        // set uname to email (backward compatibility)
+        user.setUname(user.getEmail());
+        
         User newUser = userRepository.save(user);
         if (newUser != null) {
             newUser.setPassword(null);

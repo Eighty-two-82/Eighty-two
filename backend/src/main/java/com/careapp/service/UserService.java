@@ -3,9 +3,10 @@ package com.careapp.service;
 import com.careapp.domain.User;
 
 public interface UserService {
-    // 登录
+    // Login services
     User loginService(String uname, String password);
+    User loginByEmailService(String email, String password);
 
-    // 注册
+    // Registration service
     User registerService(User user);
 }
