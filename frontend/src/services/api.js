@@ -1,7 +1,7 @@
 // src/services/api.js
 import axios from "axios";
 
-// 根据环境切换 API 地址
+// Switch API address based on environment
 const API_BASE_URL =
     import.meta.env.MODE === "production"
         ? "https://care-scheduling-app-e8951cd9f9c6.herokuapp.com"

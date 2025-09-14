@@ -1,9 +1,8 @@
 <template>
   <div class="login-container">
-
     <a-form
       :model="formState"
-      name="basic"
+      name="Login"
       :label-col="{ span: 6 }"
       :wrapper-col="{ span: 18 }"
       autocomplete="off"
@@ -12,35 +11,34 @@
       :disabled="loading"
       class="login-form"
     >
-
-      <!-- heading -->
       <h1 class="login-title">Sign in</h1>
 
+      <!-- Email -->
       <a-form-item
-        name="username"
-        :rules="[{ required: true, message: 'Please input your username!' }]"
+        name="email"
+        :rules="[
+          { required: true, message: 'Please input your Email!' },
+          { type: 'email', message: 'Email format is invalid' }
+        ]"
         :wrapper-col="{ span: 24 }"
->
-        <a-input v-model:value="formState.username" placeholder="Enter username">
-          <template #prefix>
-            <UserOutlined />
-          </template>
+      >
+        <a-input v-model:value="formState.email" placeholder="Enter Email">
+          <template #prefix><UserOutlined /></template>
         </a-input>
       </a-form-item>
 
+      <!-- Password -->
       <a-form-item
         name="password"
         :rules="[{ required: true, message: 'Please input your password!' }]"
         :wrapper-col="{ span: 24 }"
->
+      >
         <a-input-password v-model:value="formState.password" placeholder="Enter password">
-          <template #prefix>
-            <LockOutlined />
-          </template>
+          <template #prefix><LockOutlined /></template>
         </a-input-password>
       </a-form-item>
 
-
+      <!-- Remember + Forgot -->
       <a-form-item :wrapper-col="{ span: 24 }">
         <div class="row-between">
           <a-checkbox v-model:checked="formState.remember">Remember me</a-checkbox>
@@ -48,15 +46,14 @@
         </div>
       </a-form-item>
 
-
-
+      <!-- Submit -->
       <a-form-item :wrapper-col="{ span: 24 }">
         <a-button type="primary" html-type="submit" :loading="loading" block>Sign in</a-button>
       </a-form-item>
 
-      <!-- sign up -->
-      <div class="muted"> 
-        Don't have an account? 
+      <!-- Sign up -->
+      <div class="muted">
+        Don't have an account?
         <a-typography-link @click="onRegister">Register</a-typography-link>
       </div>
     </a-form>
@@ -64,66 +61,96 @@
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue';
-import { message } from 'ant-design-vue';
-import { UserOutlined, LockOutlined } from '@ant-design/icons-vue';
+import { reactive, ref } from 'vue'
+import { message } from 'ant-design-vue'
+import { UserOutlined, LockOutlined } from '@ant-design/icons-vue'
+import { useRouter, useRoute } from 'vue-router'
+import { login } from '@/services/userService'
 
+const router = useRouter()
+const route = useRoute()
 
 const formState = reactive({
-  username: '',
+  email: '',
   password: '',
   remember: true,
-});
+})
 
-const loading = ref(false);
+const loading = ref(false)
 
-function simulateLogin({ username, password }) {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      if (username && password) {
-        resolve({ token: 'fake-token-123' });
-      } else {
-        reject(new Error('Empty username or password'));
-      }
-    }, 1000);
-  });
-}
-
-const onFinish = async (values) => {
-  loading.value = true;
+const onFinish = async () => {
+  loading.value = true
   try {
-    const res = await simulateLogin(values);
-    const token = res.token;
-    if (formState.remember) {
-      localStorage.setItem('token', token);
+    const res = await login({
+      email: formState.email,
+      password: formState.password,
+    })
+
+    const token = res?.data?.token
+    if (token) {
+      if (formState.remember) {
+        localStorage.setItem('token', token)
+      } else {
+        sessionStorage.setItem('token', token)
+      }
     }
-    message.success('Signed in (mock)');
-    window.location.href = '/';
+    message.success('Signed in')
+
+    // Clear router cache to ensure fresh data
+    if (window.clearRouterCache) {
+      window.clearRouterCache()
+    }
+
+    //check user role and invite code status
+    try {
+      const userInfo = res?.data?.user || { role: 'user' }
+      const role = userInfo.role
+      
+      if (role === 'worker' || role === 'manager') {
+        const inviteStatus = res?.data?.inviteStatus || { valid: false }
+        if (!inviteStatus.valid) {
+          router.replace('/invitecode')
+          return
+        }
+      }
+      
+      // regular users or users with valid invite codes, redirect to target page
+      const redirect = route.query.redirect || '/app/menu'
+      router.replace(String(redirect))
+    } catch (e) {
+      // if getting user info fails, redirect to default page
+      const redirect = route.query.redirect || '/app/menu'
+      router.replace(String(redirect))
+    }
   } catch (e) {
-    message.error(e?.message || 'Mock login failed');
+    const msg = e?.response?.data?.message || e?.message || 'Login failed'
+    message.error(msg)
   } finally {
-    loading.value = false;
+    loading.value = false
   }
 }
 
-const onFinishFailed = (errorInfo) => {
-  console.log('Failed:', errorInfo);
-  message.error('Please check the form');
+const onFinishFailed = () => {
+  message.error('Please check the form')
 }
 
-const onForgot = () => message.info('Please contact admin to reset password.');
-const onRegister = () => message.info('Register is not implemented (mock).');
+const onForgot = () => {
+  router.push('/forgot-password')
+}
+
+const onRegister = () => {
+  router.push('/register')
+}
 </script>
 
 <style scoped>
 .login-container {
   display: flex;
-  justify-content: center;   
-  align-items: center;       
-  height: 100vh;             
-  background: #f0f2f5;       
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background: #f0f2f5;
 }
-
 .login-form {
   width: 450px;
   padding: 36px 32px;
@@ -131,29 +158,18 @@ const onRegister = () => message.info('Register is not implemented (mock).');
   border-radius: 14px;
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.12);
 }
-
-.login-input {
-  width: 320px;
-  margin: 0 auto;
-  display: block;
-}
-
-
-/* title formate */
 .login-title {
   text-align: center;
   font-size: 24px;
   font-weight: bold;
   margin-bottom: 20px;
 }
-
 .row-between {
   display: flex;
   justify-content: space-between;
   align-items: center;
   font-size: 13px;
 }
-
 .muted {
   text-align: center;
   color: #6b7280;
