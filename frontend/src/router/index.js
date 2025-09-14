@@ -3,7 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import Login from '../views/Login.vue'
 import Register from '../views/Register.vue'
 import ForgotPassword from '../views/Forget.vue'
-import Invitecode from '../views/Invitecode.vue'
+import InviteCode from '../views/InviteCode.vue'
 
 // Simple authentication check function
 function isAuthed() {
@@ -33,7 +33,7 @@ const routes = [
   { path: '/login', component: Login },
   { path: '/register', component: Register },
   { path: '/forgot-password', component: ForgotPassword },
-  { path: '/invitecode', component: Invitecode },
+  { path: '/invitecode', component: InviteCode },
   // Routes that require authentication with layout
   { 
     path: '/app', 
