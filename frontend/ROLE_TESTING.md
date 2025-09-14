@@ -1,49 +1,49 @@
-# 角色测试说明
+# Role Testing Guide
 
-## 如何修改用户角色进行测试
+## How to Modify User Roles for Testing
 
-### 方法1：修改 userService.js（推荐）
-打开 `src/services/userService.js` 文件，找到以下两处：
+### Method 1: Modify userService.js (Recommended)
+Open the `src/services/userService.js` file and find the following two locations:
 
-1. **第14行** - login函数中：
+1. **Line 14** - In the login function:
 ```javascript
-role: "manager", // 改为 'poa', 'manager', 或 'worker'
+role: "manager", // Change to 'poa', 'manager', or 'worker'
 ```
 
-2. **第31行** - getMe函数中：
+2. **Line 31** - In the getMe function:
 ```javascript
-role: "manager", // 改为 'poa', 'manager', 或 'worker'
+role: "manager", // Change to 'poa', 'manager', or 'worker'
 ```
 
-### 方法2：修改 router/index.js（备用）
-打开 `src/router/index.js` 文件，找到第18行：
+### Method 2: Modify router/index.js (Alternative)
+Open the `src/router/index.js` file and find line 18:
 ```javascript
-return { role: 'manager' } // 改为 'poa', 'manager', 或 'worker'
+return { role: 'manager' } // Change to 'poa', 'manager', or 'worker'
 ```
 
-## 角色说明
+## Role Descriptions
 
-- **poa**: POA/FM角色 - 显示完整菜单（Home, Tasks, Carer Team, Budget, Upload, Setting）
-- **manager**: 管理员角色 - 显示管理菜单（Home, Worker Management, Budget, Tasks, Upload, Communication, Setting）
-- **worker**: 员工角色 - 显示基础菜单（Home, Tasks, Upload, Setting）
+- **poa**: POA/FM role - Shows complete menu (Home, Tasks, Carer Team, Budget, Upload, Setting)
+- **manager**: Manager role - Shows management menu (Home, Worker Management, Budget, Tasks, Upload, Communication, Setting)
+- **worker**: Worker role - Shows basic menu (Home, Tasks, Upload, Setting)
 
-## 邀请码测试
+## Invite Code Testing
 
-在 `userService.js` 中还可以修改邀请码状态：
+You can also modify the invite code status in `userService.js`:
 ```javascript
-// 第19行和第43行
-valid: false, // 改为 true 可以跳过邀请码流程
+// Lines 19 and 43
+valid: false, // Change to true to skip invite code flow
 ```
 
-## 测试流程
+## Testing Process
 
-1. 修改角色设置
-2. 保存文件
-3. 刷新浏览器
-4. 重新登录测试
+1. Modify role settings
+2. Save files
+3. Refresh browser
+4. Re-login to test
 
-## 注意事项
+## Important Notes
 
-- 修改后需要保存文件并刷新浏览器
-- 确保两个文件中的角色设置一致
-- manager 和 worker 角色会触发邀请码流程（如果 valid: false）
+- Save files and refresh browser after making changes
+- Ensure role settings are consistent in both files
+- Manager and worker roles will trigger invite code flow (if valid: false)
