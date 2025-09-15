@@ -14,7 +14,8 @@ public class User {
     private String email;        // email
     private String role;         // role: POA, Worker, Admin
     private String password;     // password
-    
+    private String status  = "PENDING";
+
     // Authorization system fields
     private String userType;     // FM, POA, MANAGER, WORKER
     private String organizationId; // organization ID
@@ -22,6 +23,10 @@ public class User {
     
     // keep uname field for backward compatibility
     private String uname;
+
+    // Password reset fields
+    private String passwordResetToken;   // reset token
+    private Long passwordResetExpires;   // epoch millis when token expires
 
     // getters & setters
     public String getId() { return id; }
@@ -55,4 +60,15 @@ public class User {
     // Backward compatibility uname field
     public String getUname() { return uname; }
     public void setUname(String uname) { this.uname = uname; }
+
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+
+    public String getPasswordResetToken() { return passwordResetToken; }
+    public void setPasswordResetToken(String passwordResetToken) { this.passwordResetToken = passwordResetToken; }
+
+    public Long getPasswordResetExpires() { return passwordResetExpires; }
+    public void setPasswordResetExpires(Long passwordResetExpires) { this.passwordResetExpires = passwordResetExpires; }
+
+
 }

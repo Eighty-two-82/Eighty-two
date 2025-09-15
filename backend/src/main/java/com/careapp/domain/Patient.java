@@ -16,7 +16,8 @@ public class Patient {
     private String notes;
     private String familyMemberId; // associated family member ID
     private String poaId; // associated POA ID
-    
+    private String medicalRecordNumber;
+
     // getters & setters
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
@@ -43,4 +44,12 @@ public class Patient {
 
     public String getPoaId() { return poaId; }
     public void setPoaId(String poaId) { this.poaId = poaId; }
+
+    public String getMedicalRecordNumber() {
+        return medicalRecordNumber;
+    }
+
+    public void setMedicalRecordNumber(String medicalRecordNumber) {
+        this.medicalRecordNumber = medicalRecordNumber;
+    }
 }
