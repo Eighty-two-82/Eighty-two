@@ -130,7 +130,7 @@ public class AuthorizationServiceImpl implements AuthorizationService {
                 .stream()
                 .filter(auth -> "WORKER".equals(auth.getAuthorizationType()))
                 .filter(auth -> isWorkerUnderManager(auth.getAuthorizedTo(), managerId))
-                .collect(Collectors.toList());
+                .toList();
         
         // Revoke all worker access
         for (Authorization auth : workerAuthorizations) {
@@ -163,4 +163,12 @@ public class AuthorizationServiceImpl implements AuthorizationService {
         // Check if they're in the same organization
         return workerAuth.getOrganizationId().equals(managerAuth.getOrganizationId());
     }
+    public List<String> getAccessibleOrganizations(String familyId) {
+        List<Authorization> authorizations = authorizationRepository.findByAuthorizedTo(familyId);
+        return authorizations.stream()
+                .map(Authorization::getOrganizationId)
+                .distinct()
+                .toList();
+    }
+
 }

@@ -6,6 +6,7 @@ import com.careapp.utils.Result;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -45,4 +46,72 @@ public class UserController {
             return Result.<User>error("409", "Email already exists!");
         }
     }
+
+    @GetMapping("/worker/{userId}/status")
+    public Result<String> getWorkerStatus(@PathVariable String userId) {
+        String status = userService.getWorkerStatus(userId);
+        return Result.success(status, "Worker status retrieved!");
+    }
+
+    // Worker bind patient
+    @PostMapping("/worker/{userId}/bind/{patientId}")
+    public Result<String> bindWorkerToPatient(@PathVariable String userId,
+                                              @PathVariable String patientId) {
+        boolean success = userService.bindWorkerToPatient(userId, patientId);
+        if (success) {
+            return Result.success("Worker bound to patient successfully!");
+        } else {
+            return Result.<User>error("400", "Failed to bind worker to patient!");
+        }
+    }
+
+    // Worker get bound patient
+    @GetMapping("/worker/{userId}/patient")
+    public Result<String> getWorkerPatient(@PathVariable String userId) {
+        String patientId = userService.getWorkerPatient(userId);
+        if (patientId != null) {
+            return Result.success(patientId, "Worker patient retrieved successfully!");
+        } else {
+            return Result.<User>error("404", "Worker not bound to any patient!");
+        }
+    }
+
+
+    // Change password with old password verification
+    @PostMapping("/change-password")
+    public Result<Boolean> changePassword(@RequestBody Map<String, String> body) {
+        String identifier = body.get("identifier"); // email or uname
+        String oldPassword = body.get("oldPassword");
+        String newPassword = body.get("newPassword");
+        boolean ok = userService.changePassword(identifier, oldPassword, newPassword);
+        if (ok) {
+            return Result.success(true, "Password updated successfully!");
+        }
+        return Result.<User>error("400", "Invalid credentials or parameters");
+    }
+
+    // Forgot password: generate token
+    @PostMapping("/forgot-password")
+    public Result<String> forgotPassword(@RequestBody Map<String, String> body) {
+        String identifier = body.get("identifier"); // email or uname
+        String token = userService.createPasswordResetToken(identifier);
+        if (token != null) {
+            return Result.success(token, "Reset token generated!");
+        }
+        return Result.<User>error("404", "User not found");
+    }
+
+    // Reset password by token
+    @PostMapping("/reset-password")
+    public Result<Boolean> resetPassword(@RequestBody Map<String, String> body) {
+        String token = body.get("token");
+        String newPassword = body.get("newPassword");
+        boolean ok = userService.resetPasswordByToken(token, newPassword);
+        if (ok) {
+            return Result.success(true, "Password reset successfully!");
+        }
+        return Result.<User>error("400", "Invalid or expired token");
+    }
+
+
 }

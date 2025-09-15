@@ -105,4 +105,12 @@ public class AuthorizationController {
             return Result.<String>error("400", "Failed to revoke all access!");
         }
     }
+    // Get organizations accessible by Family/POA
+    @GetMapping("/accessible-orgs/{familyId}")
+    public Result<List<String>> getAccessibleOrganizations(@PathVariable String familyId) {
+        List<String> orgIds = authorizationService.getAccessibleOrganizations(familyId);
+        return Result.<List<String>>success(orgIds, "Accessible organizations retrieved successfully!");
+    }
+
+
 }
