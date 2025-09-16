@@ -28,4 +28,6 @@ public interface AuthorizationService {
     
     // Revoke all access by authorizer
     boolean revokeAllAccessByAuthorizer(String authorizerId);
+
+    List<String> getAccessibleOrganizations(String familyId);
 }
