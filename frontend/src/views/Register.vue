@@ -45,11 +45,11 @@
         <span style="margin-right: 16px; white-space: nowrap;"><span style="color: #ff4d4f;">*</span> Role</span>
         <div style="flex: 1; display: flex; align-items: center;">
           <a-radio-group v-model:value="formState.role" style="flex: 1;">
-            <a-radio value="poa">POA / Family Member</a-radio>
+            <a-radio value="poa">Power of Attorney / Family Member</a-radio>
             <a-radio value="worker">Worker</a-radio>
             <a-radio value="manager">Manager</a-radio>
           </a-radio-group>
-          <a-tooltip title="Select your role: POA/Family Member, Worker, or Manager">
+          <a-tooltip title="Select your role: Power of Attorney/Family Member, Worker, or Manager">
             <span class="help-icon">?</span>
           </a-tooltip>
         </div>
