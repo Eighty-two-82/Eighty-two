@@ -2,15 +2,973 @@
   <div class="budget-page">
     <a-card>
       <template #title>
+        <div style="display: flex; align-items: center; gap: 8px;">
         <h2>Budget</h2>
+          <a-tooltip :title="getPageTooltip()" placement="top">
+            <QuestionCircleOutlined style="color: #999; cursor: help;" />
+          </a-tooltip>
+        </div>
       </template>
       
+      <!-- Total Budget Overview -->
+      <div style="margin-top: 20px;">
+        <div style="margin-bottom: 16px; padding: 12px; background: #f6f8fa; border-left: 4px solid #1890ff; border-radius: 4px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-weight: 600; color: #1890ff;">📊 Total Budget Overview</span>
+            <a-tooltip title="This section shows your overall budget status including total budget, amount used, remaining budget, and usage percentage. Green indicates healthy usage, orange shows moderate usage, and red indicates high usage or overspending." placement="top">
+              <QuestionCircleOutlined style="color: #999; cursor: help;" />
+            </a-tooltip>
+          </div>
+          <p style="margin: 8px 0 0 0; color: #666; font-size: 14px;">
+            Monitor your overall financial health with key budget metrics. Click the question mark for detailed explanations.
+          </p>
+        </div>
+        <a-row :gutter="16">
+          <a-col :span="6">
+            <a-card size="small">
+              <div style="text-align: center;">
+                <div style="font-size: 14px; color: #666; margin-bottom: 4px;">Total Budget</div>
+                <div style="font-size: 24px; font-weight: bold; color: #1890ff;">
+                  ${{ budgetData.totalBudget.toLocaleString() }}
+                </div>
+              </div>
+            </a-card>
+          </a-col>
+          <a-col :span="6">
+            <a-card size="small">
+              <div style="text-align: center;">
+                <div style="font-size: 14px; color: #666; margin-bottom: 4px;">Used</div>
+                <div style="font-size: 24px; font-weight: bold; color: #fa8c16;">
+                  ${{ getTotalUsed().toLocaleString() }}
+                </div>
+              </div>
+            </a-card>
+          </a-col>
+          <a-col :span="6">
+            <a-card size="small">
+              <div style="text-align: center;">
+                <div style="font-size: 14px; color: #666; margin-bottom: 4px;">Remaining Budget</div>
+                <div style="font-size: 24px; font-weight: bold;" :style="{ color: getTotalBalance() < 0 ? '#ff4d4f' : '#52c41a' }">
+                  ${{ getTotalBalance().toLocaleString() }}
+                </div>
+              </div>
+            </a-card>
+          </a-col>
+          <a-col :span="6">
+            <a-card size="small">
+              <div style="text-align: center;">
+                <div style="font-size: 14px; color: #666; margin-bottom: 4px;">Usage Rate</div>
+                <div style="font-size: 24px; font-weight: bold;" :style="{ 
+                  color: getTotalUsagePercentage() > 80 ? '#ff4d4f' : getTotalUsagePercentage() > 60 ? '#fa8c16' : '#52c41a' 
+                }">
+                  {{ getTotalUsagePercentage() }}%
+                </div>
+              </div>
+            </a-card>
+          </a-col>
+        </a-row>
+        
+        <!-- Power of Attorney Budget Adjustment Button -->
+        <div v-if="userRole === 'poa'" style="margin-top: 16px; text-align: right;">
+          <div style="display: flex; align-items: center; gap: 8px; justify-content: flex-end; margin-bottom: 8px;">
+            <span style="font-size: 12px; color: #666;">Adjust your budget settings</span>
+            <a-tooltip title="Click this button to open the budget adjustment modal where you can modify total budget, reallocate funds between categories, or adjust sub-item budgets." placement="top">
+              <QuestionCircleOutlined style="color: #999; cursor: help;" />
+            </a-tooltip>
+          </div>
+          <a-button type="primary" @click="showBudgetAdjustModal">
+            Edit Adjust Budget
+          </a-button>
+        </div>
+      </div>
+      
+      <!-- Budget Management Table -->
+      <div style="margin-top: 20px;">
+        <div style="margin-bottom: 16px; padding: 12px; background: #f6f8fa; border-left: 4px solid #52c41a; border-radius: 4px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-weight: 600; color: #52c41a;">📋 Budget Management Table</span>
+            <a-tooltip title="This table shows detailed budget breakdown by categories and sub-items. Click on any row to expand and view monthly usage details. Power of Attorney users can add new categories and sub-items using the buttons above." placement="top">
+              <QuestionCircleOutlined style="color: #999; cursor: help;" />
+            </a-tooltip>
+          </div>
+          <p style="margin: 8px 0 0 0; color: #666; font-size: 14px;">
+            View and manage your budget by categories. Expand rows to see monthly spending details and sub-item breakdowns.
+          </p>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <h3>Budget Management Overview</h3>
+          <div v-if="userRole === 'poa'">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+              <span style="font-size: 12px; color: #666;">Add new budget items</span>
+              <a-tooltip title="Use these buttons to add new budget categories or sub-items. " placement="top">
+                <QuestionCircleOutlined style="color: #999; cursor: help;" />
+              </a-tooltip>
+            </div>
+            <a-button type="dashed" @click="showAddCategoryModal" style="margin-right: 8px;">
+              + Add Category
+            </a-button>
+            <a-button type="dashed" @click="showAddSubElementModal">
+              + Add Sub-element
+            </a-button>
+          </div>
+        </div>
+        <a-table 
+          :dataSource="budgetData.categories" 
+          :columns="budgetColumns"
+          :pagination="false"
+          rowKey="id"
+          :expandRowByClick="true"
+        >
+          <template #expandedRowRender="{ record }">
+            <a-table 
+              :dataSource="record.subElements" 
+              :columns="subElementColumns"
+              :pagination="false"
+              rowKey="id"
+              size="small"
+            >
+              <template #expandedRowRender="{ record: subElement }">
+                <div style="padding: 16px; background: #fafafa; border-radius: 6px;">
+                  <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                    <h4 style="margin: 0;">{{ subElement.name }} - Monthly Usage Details</h4>
+                    <a-tooltip title="This shows the monthly spending breakdown for this sub-item. Each card represents one month (1M-12M) with the amount spent. The summary below shows annual total, budget, and remaining balance." placement="top">
+                      <QuestionCircleOutlined style="color: #999; cursor: help;" />
+                    </a-tooltip>
+                  </div>
+                  <a-row :gutter="8">
+                    <a-col v-for="(amount, index) in subElement.monthlyUsage" :key="index" :span="2">
+                      <a-card size="small" style="text-align: center;">
+                        <div style="font-size: 12px; color: #666;">{{ index + 1 }}M</div>
+                        <div style="font-weight: bold; color: #1890ff;">${{ amount }}</div>
+                      </a-card>
+                    </a-col>
+                  </a-row>
+                  <div style="margin-top: 12px; padding: 8px; background: #e6f7ff; border-radius: 4px;">
+                    <strong>Annual Total:</strong>${{ subElement.totalUtilised.toLocaleString() }} | 
+                    <strong>Budget:</strong>${{ subElement.subElementBudget.toLocaleString() }} | 
+                    <strong>Balance:</strong>
+                    <span :style="{ color: subElement.balance < 0 ? 'red' : 'green' }">
+                      ${{ subElement.balance.toLocaleString() }}
+                    </span>
+                  </div>
+                </div>
+              </template>
+            </a-table>
+          </template>
+        </a-table>
+      </div>
+      
+      <!-- Budget Warning Information -->
+      <div v-if="getWarningInfo().length > 0" style="margin-top: 20px;">
+        <div style="margin-bottom: 16px; padding: 12px; background: #fff7e6; border-left: 4px solid #fa8c16; border-radius: 4px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-weight: 600; color: #fa8c16;">⚠️ Budget Warnings</span>
+            <a-tooltip title="This section displays budget alerts when spending reaches 80% or more of the allocated budget. Red alerts indicate critical overspending, while orange alerts show approaching budget limits. Take action to adjust budgets or control spending." placement="top">
+              <QuestionCircleOutlined style="color: #999; cursor: help;" />
+            </a-tooltip>
+          </div>
+          <p style="margin: 8px 0 0 0; color: #666; font-size: 14px;">
+            Important budget alerts that require your attention. Review and take action on items approaching or exceeding budget limits.
+          </p>
+        </div>
+        <h3>Budget Warnings</h3>
+        <a-alert
+          v-for="warning in getWarningInfo()"
+          :key="`${warning.category}-${warning.subElement}`"
+          :type="warning.level === 'critical' ? 'error' : 'warning'"
+          :message="`${warning.category} - ${warning.subElement}`"
+          :description="`Used ${warning.percentage}% (${warning.utilised}/${warning.budget}), Balance: ${warning.balance > 0 ? '+' : ''}${warning.balance}`"
+          show-icon
+          style="margin-bottom: 10px;"
+        />
+      </div>
     </a-card>
+
+    <!-- First Visit Welcome Modal -->
+    <a-modal
+      v-model:open="firstVisitModalVisible"
+      title="Welcome to Budget Page"
+      :footer="null"
+      :closable="false"
+      :maskClosable="false"
+      width="600px"
+    >
+      <div style="line-height: 1.6;">
+        <div style="text-align: center; margin-bottom: 20px;">
+          <div style="font-size: 48px; color: #1890ff; margin-bottom: 16px;">💰</div>
+          <h3>Welcome to the Budget Page!</h3>
+        </div>
+        
+        <p style="margin-bottom: 16px;">
+          Here you can view budget overview, expense details, spending charts and warning information. If you have questions about any area, please click the question mark next to it.
+        </p>
+        
+        <h4 style="color: #1890ff; margin-bottom: 12px;">Budget page includes:</h4>
+        <ul style="margin-bottom: 16px;">
+          <li><strong>Overview:</strong> Monthly budget total, used, remaining, percentage</li>
+          <li><strong>Expense Details:</strong> Each expense with time, type, amount, status</li>
+          <li><strong>Charts:</strong> Bar/pie charts showing categorized spending</li>
+          <li><strong>Warning Alerts:</strong> For example, budgets over 85% will be highlighted</li>
+        </ul>
+        
+        <h4 style="color: #fa8c16; margin-bottom: 12px;">Budget Management Features:</h4>
+        <ul style="margin-bottom: 20px;">
+          <li><strong>Category Budget:</strong> Manage annual budget by category</li>
+          <li><strong>Sub-element Budget:</strong> Specific sub-elements under each category</li>
+          <li><strong>Monthly Tracking:</strong> Usage for months 1-12</li>
+          <li><strong>Smart Warnings:</strong> Automatic alerts when reaching 80%</li>
+          <li><strong>Budget Adjustment:</strong> Support for fund reallocation</li>
+        </ul>
+        
+        <div style="text-align: center;">
+          <a-button type="primary" @click="closeFirstVisitModal" size="large">
+            Start Using Budget Management
+          </a-button>
+        </div>
+      </div>
+    </a-modal>
+
+    <!-- Budget Adjustment Modal -->
+    <a-modal
+      v-model:open="budgetAdjustModalVisible"
+      title="Budget Adjustment"
+      width="800px"
+      @ok="handleBudgetAdjust"
+      @cancel="cancelBudgetAdjust"
+    >
+      <div style="line-height: 1.6;">
+        <a-alert
+          message="Budget Adjustment Instructions"
+          description="You can adjust the budget in the following ways: 1) Adjust total budget – increase or decrease the overall budget. 2) Reallocate between categories – move budget from one category to another. 3) Reallocate between sub-items – move budget from one sub-item to another within the same category."
+          type="info"
+          show-icon
+          style="margin-bottom: 20px;"
+        />
+        
+        <a-tabs v-model:activeKey="adjustTab">
+          <a-tab-pane key="total" tab="Adjust Total Budget">
+            <div style="padding: 20px;">
+              <a-form :model="budgetAdjustForm" layout="vertical">
+                <a-form-item label="Current Total Budget">
+                  <a-input :value="`$${budgetData.totalBudget.toLocaleString()}`" disabled />
+                </a-form-item>
+                <a-form-item label="New Total Budget" required>
+                  <a-input-number
+                    v-model:value="budgetAdjustForm.newTotalBudget"
+                    :min="0"
+                    :step="1000"
+                    style="width: 100%"
+                    :formatter="(value) => `$${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')"
+                    :parser="(value) => value.replace(/\$\s?|(,*)/g, '')"
+                  />
+                </a-form-item>
+                <a-form-item label="Adjustment Reason">
+                  <a-textarea v-model:value="budgetAdjustForm.totalAdjustReason" placeholder="Please explain the reason for adjusting the total budget" />
+                </a-form-item>
+              </a-form>
+            </div>
+          </a-tab-pane>
+          
+          <a-tab-pane key="category" tab="Category Reallocation">
+            <div style="padding: 20px;">
+              <a-form :model="budgetAdjustForm" layout="vertical">
+                <a-form-item label="From Category" required>
+                  <a-select v-model:value="budgetAdjustForm.fromCategory" placeholder="Select category to reduce budget">
+                    <a-select-option v-for="category in budgetData.categories" :key="category.id" :value="category.id">
+                      {{ category.name }} (Current: ${{ category.categoryBudget.toLocaleString() }})
+                    </a-select-option>
+                  </a-select>
+                </a-form-item>
+                <a-form-item label="To Category" required>
+                  <a-select v-model:value="budgetAdjustForm.toCategory" placeholder="Select category to increase budget">
+                    <a-select-option v-for="category in budgetData.categories" :key="category.id" :value="category.id">
+                      {{ category.name }} (Current: ${{ category.categoryBudget.toLocaleString() }})
+                    </a-select-option>
+                  </a-select>
+                </a-form-item>
+                <a-form-item label="Adjustment Amount" required>
+                  <a-input-number
+                    v-model:value="budgetAdjustForm.categoryAdjustAmount"
+                    :min="0"
+                    :step="1000"
+                    style="width: 100%"
+                    :formatter="(value) => `$${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')"
+                    :parser="(value) => value.replace(/\$\s?|(,*)/g, '')"
+                  />
+                </a-form-item>
+                <a-form-item label="Adjustment Reason">
+                  <a-textarea v-model:value="budgetAdjustForm.categoryAdjustReason" placeholder="Please explain the reason for inter-category adjustment" />
+                </a-form-item>
+              </a-form>
+            </div>
+          </a-tab-pane>
+          
+          <a-tab-pane key="subelement" tab="Sub-item Reallocation">
+            <div style="padding: 20px;">
+              <a-form :model="budgetAdjustForm" layout="vertical">
+                <a-form-item label="Select Category" required>
+                  <a-select v-model:value="budgetAdjustForm.selectedCategory" placeholder="Select category" @change="onCategoryChange">
+                    <a-select-option v-for="category in budgetData.categories" :key="category.id" :value="category.id">
+                      {{ category.name }}
+                    </a-select-option>
+                  </a-select>
+                </a-form-item>
+                <a-form-item label="From Sub-element" required>
+                  <a-select v-model:value="budgetAdjustForm.fromSubElement" placeholder="Select sub-element to reduce budget">
+                    <a-select-option v-for="subElement in getSelectedCategorySubElements()" :key="subElement.id" :value="subElement.id">
+                      {{ subElement.name }} (Current: ${{ subElement.subElementBudget.toLocaleString() }})
+                    </a-select-option>
+                  </a-select>
+                </a-form-item>
+                <a-form-item label="To Sub-element" required>
+                  <a-select v-model:value="budgetAdjustForm.toSubElement" placeholder="Select sub-element to increase budget">
+                    <a-select-option v-for="subElement in getSelectedCategorySubElements()" :key="subElement.id" :value="subElement.id">
+                      {{ subElement.name }} (Current: ${{ subElement.subElementBudget.toLocaleString() }})
+                    </a-select-option>
+                  </a-select>
+                </a-form-item>
+                <a-form-item label="Adjustment Amount" required>
+                  <a-input-number
+                    v-model:value="budgetAdjustForm.subElementAdjustAmount"
+                    :min="0"
+                    :step="1000"
+                    style="width: 100%"
+                    :formatter="(value) => `$${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')"
+                    :parser="(value) => value.replace(/\$\s?|(,*)/g, '')"
+                  />
+                </a-form-item>
+                <a-form-item label="Adjustment Reason">
+                  <a-textarea v-model:value="budgetAdjustForm.subElementAdjustReason" placeholder="Please explain the reason for sub-element adjustment" />
+                </a-form-item>
+              </a-form>
+            </div>
+          </a-tab-pane>
+        </a-tabs>
+      </div>
+    </a-modal>
+
+    <!-- Add Category Modal -->
+    <a-modal
+      v-model:open="addCategoryModalVisible"
+      title="Add New Category"
+      @ok="handleAddCategory"
+      @cancel="cancelAddCategory"
+    >
+      <a-form :model="addCategoryForm" layout="vertical">
+        <a-form-item label="Category Name" required>
+          <a-input v-model:value="addCategoryForm.name" placeholder="e.g.: Food & Groceries" />
+        </a-form-item>
+        <a-form-item label="Annual Budget" required>
+          <a-input-number
+            v-model:value="addCategoryForm.budget"
+            :min="0"
+            :step="1000"
+            style="width: 100%"
+            :formatter="(value) => `$${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')"
+            :parser="(value) => value.replace(/\$\s?|(,*)/g, '')"
+          />
+        </a-form-item>
+        <a-form-item label="Category Description">
+          <a-textarea v-model:value="addCategoryForm.description" placeholder="Describe the purpose of this category" />
+        </a-form-item>
+      </a-form>
+    </a-modal>
+
+    <!-- Add Sub-element Modal -->
+    <a-modal
+      v-model:open="addSubElementModalVisible"
+      title="Add New Sub-element"
+      @ok="handleAddSubElement"
+      @cancel="cancelAddSubElement"
+    >
+      <a-form :model="addSubElementForm" layout="vertical">
+        <a-form-item label="Select Category" required>
+          <a-select v-model:value="addSubElementForm.categoryId" placeholder="Select category to add sub-element">
+            <a-select-option v-for="category in budgetData.categories" :key="category.id" :value="category.id">
+              {{ category.name }}
+            </a-select-option>
+          </a-select>
+        </a-form-item>
+        <a-form-item label="Sub-element Name" required>
+          <a-input v-model:value="addSubElementForm.name" placeholder="e.g.: Breakfast Items" />
+        </a-form-item>
+        <a-form-item label="Sub-element Budget" required>
+          <a-input-number
+            v-model:value="addSubElementForm.budget"
+            :min="0"
+            :step="100"
+            style="width: 100%"
+            :formatter="(value) => `$${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')"
+            :parser="(value) => value.replace(/\$\s?|(,*)/g, '')"
+          />
+        </a-form-item>
+        <a-form-item label="Sub-element Description">
+          <a-textarea v-model:value="addSubElementForm.description" placeholder="Describe the purpose of this sub-element" />
+        </a-form-item>
+      </a-form>
+    </a-modal>
   </div>
 </template>
 
 <script setup>
-// Budget page component
+import { ref, onMounted } from 'vue'
+import { QuestionCircleOutlined } from '@ant-design/icons-vue'
+import { getMe } from '@/services/userService'
+
+const userRole = ref('worker')
+const firstVisitModalVisible = ref(false)
+const budgetAdjustModalVisible = ref(false)
+const adjustTab = ref('total')
+const addCategoryModalVisible = ref(false)
+const addSubElementModalVisible = ref(false)
+
+// Budget adjustment form
+const budgetAdjustForm = ref({
+  newTotalBudget: null,
+  totalAdjustReason: '',
+  fromCategory: null,
+  toCategory: null,
+  categoryAdjustAmount: null,
+  categoryAdjustReason: '',
+  selectedCategory: null,
+  fromSubElement: null,
+  toSubElement: null,
+  subElementAdjustAmount: null,
+  subElementAdjustReason: ''
+})
+
+// Add category form
+const addCategoryForm = ref({
+  name: '',
+  budget: null,
+  description: ''
+})
+
+// Add sub-element form
+const addSubElementForm = ref({
+  categoryId: null,
+  name: '',
+  budget: null,
+  description: ''
+})
+
+onMounted(async () => {
+  try {
+    const userInfo = await getMe()
+    userRole.value = userInfo?.data?.role || 'worker'
+    
+    // Check if this is the first visit to budget page
+    checkFirstVisit()
+  } catch (e) {
+    console.error('Failed to get user info:', e)
+  }
+})
+
+// Check if this is the user's first visit to budget page
+const checkFirstVisit = () => {
+  const hasVisitedBudget = localStorage.getItem('budgetPage_hasVisited')
+  if (!hasVisitedBudget) {
+    firstVisitModalVisible.value = true
+  }
+}
+
+// Close first visit modal and mark as visited
+const closeFirstVisitModal = () => {
+  firstVisitModalVisible.value = false
+  localStorage.setItem('budgetPage_hasVisited', 'true')
+}
+
+const getPageTooltip = () => {
+  switch (userRole.value) {
+    case 'manager':
+      return 'Budget management page for viewing and managing financial budgets, expense statistics and financial reports'
+    case 'poa':
+      return 'Budget management page where Power of Attorney/Family Members can modify and manage budgets'
+    default:
+      return 'Budget management page'
+  }
+}
+
+// Budget management data structure - based on actual family needs
+const budgetData = ref({
+  totalBudget: 80000, // Total budget
+  categories: [
+    {
+      id: 1,
+      name: 'Hygiene Products',
+      categoryBudget: 12000,
+      subElements: [
+        {
+          id: 1,
+          name: 'Soap',
+          subElementBudget: 3000,
+          monthlyUsage: [200, 250, 220, 280, 300, 320, 350, 300, 250, 200, 180, 150],
+          totalUtilised: 3000,
+          balance: 0,
+          comments: 'Budget exhausted',
+          warningLevel: 'critical'
+        },
+        {
+          id: 2,
+          name: 'Body Wash',
+          subElementBudget: 4000,
+          monthlyUsage: [300, 350, 320, 380, 400, 420, 450, 400, 350, 300, 280, 250],
+          totalUtilised: 4000,
+          balance: 0,
+          comments: 'Budget exhausted',
+          warningLevel: 'critical'
+        },
+        {
+          id: 3,
+          name: 'Towels',
+          subElementBudget: 3000,
+          monthlyUsage: [200, 250, 220, 280, 300, 320, 350, 300, 250, 200, 180, 150],
+          totalUtilised: 2800,
+          balance: 200,
+          comments: 'Normal usage',
+          warningLevel: 'normal'
+        },
+        {
+          id: 4,
+          name: 'Toothpaste',
+          subElementBudget: 2000,
+          monthlyUsage: [150, 180, 160, 200, 220, 240, 260, 220, 180, 150, 130, 110],
+          totalUtilised: 2100,
+          balance: -100,
+          comments: 'Slight overspending',
+          warningLevel: 'warning'
+        }
+      ]
+    },
+    {
+      id: 2,
+      name: 'Clothing',
+      categoryBudget: 15000,
+      subElements: [
+        {
+          id: 5,
+          name: 'T-shirts',
+          subElementBudget: 5000,
+          monthlyUsage: [300, 400, 350, 500, 600, 700, 800, 600, 400, 300, 200, 150],
+          totalUtilised: 4900,
+          balance: 100,
+          comments: 'Normal usage',
+          warningLevel: 'normal'
+        },
+        {
+          id: 6,
+          name: 'Trousers',
+          subElementBudget: 6000,
+          monthlyUsage: [400, 500, 450, 600, 700, 800, 900, 700, 500, 400, 300, 200],
+          totalUtilised: 6250,
+          balance: -250,
+          comments: 'Slight overspending',
+          warningLevel: 'warning'
+        },
+        {
+          id: 7,
+          name: 'Socks',
+          subElementBudget: 4000,
+          monthlyUsage: [200, 300, 250, 400, 500, 600, 700, 500, 300, 200, 150, 100],
+          totalUtilised: 3850,
+          balance: 150,
+          comments: 'Normal usage',
+          warningLevel: 'normal'
+        }
+      ]
+    },
+    {
+      id: 3,
+      name: 'Health',
+      categoryBudget: 25000,
+      subElements: [
+        {
+          id: 8,
+          name: 'Dental Visits',
+          subElementBudget: 8000,
+          monthlyUsage: [500, 600, 700, 800, 900, 1000, 1100, 1000, 800, 600, 500, 400],
+          totalUtilised: 8900,
+          balance: -900,
+          comments: 'Overspent, additional funds needed',
+          warningLevel: 'critical'
+        },
+        {
+          id: 9,
+          name: 'Sun Glasses',
+          subElementBudget: 10000,
+          monthlyUsage: [600, 700, 800, 900, 1000, 1100, 1200, 1100, 900, 700, 600, 500],
+          totalUtilised: 10000,
+          balance: 0,
+          comments: 'Budget exhausted',
+          warningLevel: 'critical'
+        },
+        {
+          id: 10,
+          name: 'Sun hats',
+          subElementBudget: 7000,
+          monthlyUsage: [400, 500, 600, 700, 800, 900, 1000, 900, 700, 500, 400, 300],
+          totalUtilised: 7300,
+          balance: -300,
+          comments: 'Slight overspending',
+          warningLevel: 'warning'
+        }
+      ]
+    },
+    {
+      id: 4,
+      name: 'Entertainment',
+      categoryBudget: 8000,
+      subElements: [
+        {
+          id: 11,
+          name: 'Mobile Phone',
+          subElementBudget: 3000,
+          monthlyUsage: [200, 250, 300, 350, 400, 450, 500, 450, 300, 250, 200, 150],
+          totalUtilised: 3350,
+          balance: -350,
+          comments: 'Slight overspending',
+          warningLevel: 'warning'
+        },
+        {
+          id: 12,
+          name: 'Subscriptions',
+          subElementBudget: 2000,
+          monthlyUsage: [150, 180, 200, 220, 250, 280, 300, 280, 200, 150, 120, 100],
+          totalUtilised: 2230,
+          balance: -230,
+          comments: 'Slight overspending',
+          warningLevel: 'warning'
+        },
+        {
+          id: 13,
+          name: 'Purchase of DVD/CD or other',
+          subElementBudget: 1500,
+          monthlyUsage: [100, 120, 150, 180, 200, 220, 250, 220, 150, 100, 80, 60],
+          totalUtilised: 1730,
+          balance: -230,
+          comments: 'Overspent',
+          warningLevel: 'critical'
+        },
+        {
+          id: 14,
+          name: 'Games',
+          subElementBudget: 1500,
+          monthlyUsage: [80, 100, 120, 150, 180, 200, 220, 180, 120, 80, 60, 40],
+          totalUtilised: 1530,
+          balance: -30,
+          comments: 'Slight overspending',
+          warningLevel: 'warning'
+        }
+      ]
+    }
+  ]
+})
+
+// Calculate warning level
+const calculateWarningLevel = (utilised, budget) => {
+  const percentage = (utilised / budget) * 100
+  if (percentage >= 100) return 'critical'
+  if (percentage >= 80) return 'warning'
+  return 'normal'
+}
+
+// Get warning information
+const getWarningInfo = () => {
+  const warnings = []
+  budgetData.value.categories.forEach(category => {
+    category.subElements.forEach(subElement => {
+      const percentage = (subElement.totalUtilised / subElement.subElementBudget) * 100
+      if (percentage >= 80) {
+        warnings.push({
+          category: category.name,
+          subElement: subElement.name,
+          percentage: Math.round(percentage),
+          utilised: subElement.totalUtilised,
+          budget: subElement.subElementBudget,
+          balance: subElement.balance,
+          level: subElement.warningLevel
+        })
+      }
+    })
+  })
+  return warnings
+}
+
+// Calculate total used amount
+const getTotalUsed = () => {
+  return budgetData.value.categories.reduce((total, category) => {
+    return total + category.subElements.reduce((categoryTotal, subElement) => {
+      return categoryTotal + subElement.totalUtilised
+    }, 0)
+  }, 0)
+}
+
+// Calculate total balance
+const getTotalBalance = () => {
+  return budgetData.value.totalBudget - getTotalUsed()
+}
+
+// Calculate total usage percentage
+const getTotalUsagePercentage = () => {
+  return Math.round((getTotalUsed() / budgetData.value.totalBudget) * 100)
+}
+
+// Show budget adjustment modal
+const showBudgetAdjustModal = () => {
+  budgetAdjustModalVisible.value = true
+  // Reset form
+  budgetAdjustForm.value = {
+    newTotalBudget: budgetData.value.totalBudget,
+    totalAdjustReason: '',
+    fromCategory: null,
+    toCategory: null,
+    categoryAdjustAmount: null,
+    categoryAdjustReason: '',
+    selectedCategory: null,
+    fromSubElement: null,
+    toSubElement: null,
+    subElementAdjustAmount: null,
+    subElementAdjustReason: ''
+  }
+}
+
+// Cancel budget adjustment
+const cancelBudgetAdjust = () => {
+  budgetAdjustModalVisible.value = false
+}
+
+// Handle budget adjustment
+const handleBudgetAdjust = () => {
+  if (adjustTab.value === 'total') {
+    // Adjust total budget
+    if (budgetAdjustForm.value.newTotalBudget && budgetAdjustForm.value.newTotalBudget > 0) {
+      budgetData.value.totalBudget = budgetAdjustForm.value.newTotalBudget
+      console.log('Total budget adjusted to:', budgetAdjustForm.value.newTotalBudget)
+      console.log('Adjustment reason:', budgetAdjustForm.value.totalAdjustReason)
+    }
+  } else if (adjustTab.value === 'category') {
+    // Inter-category adjustment
+    if (budgetAdjustForm.value.fromCategory && budgetAdjustForm.value.toCategory && 
+        budgetAdjustForm.value.categoryAdjustAmount && budgetAdjustForm.value.categoryAdjustAmount > 0) {
+      
+      const fromCategory = budgetData.value.categories.find(c => c.id === budgetAdjustForm.value.fromCategory)
+      const toCategory = budgetData.value.categories.find(c => c.id === budgetAdjustForm.value.toCategory)
+      
+      if (fromCategory && toCategory) {
+        fromCategory.categoryBudget -= budgetAdjustForm.value.categoryAdjustAmount
+        toCategory.categoryBudget += budgetAdjustForm.value.categoryAdjustAmount
+        console.log('Inter-category budget adjustment completed')
+        console.log('Adjustment reason:', budgetAdjustForm.value.categoryAdjustReason)
+      }
+    }
+  } else if (adjustTab.value === 'subelement') {
+    // Inter-sub-element adjustment
+    if (budgetAdjustForm.value.selectedCategory && budgetAdjustForm.value.fromSubElement && 
+        budgetAdjustForm.value.toSubElement && budgetAdjustForm.value.subElementAdjustAmount && 
+        budgetAdjustForm.value.subElementAdjustAmount > 0) {
+      
+      const category = budgetData.value.categories.find(c => c.id === budgetAdjustForm.value.selectedCategory)
+      if (category) {
+        const fromSubElement = category.subElements.find(s => s.id === budgetAdjustForm.value.fromSubElement)
+        const toSubElement = category.subElements.find(s => s.id === budgetAdjustForm.value.toSubElement)
+        
+        if (fromSubElement && toSubElement) {
+          fromSubElement.subElementBudget -= budgetAdjustForm.value.subElementAdjustAmount
+          toSubElement.subElementBudget += budgetAdjustForm.value.subElementAdjustAmount
+          console.log('Inter-sub-element budget adjustment completed')
+          console.log('Adjustment reason:', budgetAdjustForm.value.subElementAdjustReason)
+        }
+      }
+    }
+  }
+  
+  budgetAdjustModalVisible.value = false
+}
+
+// Category selection change
+const onCategoryChange = () => {
+  budgetAdjustForm.value.fromSubElement = null
+  budgetAdjustForm.value.toSubElement = null
+}
+
+// Get selected category sub-elements
+const getSelectedCategorySubElements = () => {
+  if (!budgetAdjustForm.value.selectedCategory) return []
+  const category = budgetData.value.categories.find(c => c.id === budgetAdjustForm.value.selectedCategory)
+  return category ? category.subElements : []
+}
+
+// Show add category modal
+const showAddCategoryModal = () => {
+  addCategoryModalVisible.value = true
+  addCategoryForm.value = {
+    name: '',
+    budget: null,
+    description: ''
+  }
+}
+
+// Show add sub-element modal
+const showAddSubElementModal = () => {
+  addSubElementModalVisible.value = true
+  addSubElementForm.value = {
+    categoryId: null,
+    name: '',
+    budget: null,
+    description: ''
+  }
+}
+
+// Handle add category
+const handleAddCategory = () => {
+  if (addCategoryForm.value.name && addCategoryForm.value.budget && addCategoryForm.value.budget > 0) {
+    const newCategory = {
+      id: Math.max(...budgetData.value.categories.map(c => c.id)) + 1,
+      name: addCategoryForm.value.name,
+      categoryBudget: addCategoryForm.value.budget,
+      subElements: []
+    }
+    
+    budgetData.value.categories.push(newCategory)
+    console.log('New category added:', newCategory)
+    
+    addCategoryModalVisible.value = false
+  }
+}
+
+// Cancel add category
+const cancelAddCategory = () => {
+  addCategoryModalVisible.value = false
+}
+
+// Handle add sub-element
+const handleAddSubElement = () => {
+  if (addSubElementForm.value.categoryId && addSubElementForm.value.name && 
+      addSubElementForm.value.budget && addSubElementForm.value.budget > 0) {
+    
+    const category = budgetData.value.categories.find(c => c.id === addSubElementForm.value.categoryId)
+    if (category) {
+      const newSubElement = {
+        id: Math.max(...budgetData.value.categories.flatMap(c => c.subElements).map(s => s.id)) + 1,
+        name: addSubElementForm.value.name,
+        subElementBudget: addSubElementForm.value.budget,
+        monthlyUsage: new Array(12).fill(0),
+        totalUtilised: 0,
+        balance: addSubElementForm.value.budget,
+        comments: addSubElementForm.value.description || 'Newly added sub-element',
+        warningLevel: 'normal'
+      }
+      
+      category.subElements.push(newSubElement)
+      console.log('New sub-element added:', newSubElement)
+      
+      addSubElementModalVisible.value = false
+    }
+  }
+}
+
+// Cancel add sub-element
+const cancelAddSubElement = () => {
+  addSubElementModalVisible.value = false
+}
+
+// Main table: Category summary (does not depend on totalUsed/totalBalance/usagePercentage written back in onMounted)
+const budgetColumns = [
+  { title: 'Category', dataIndex: 'name', key: 'name' },
+  {
+    title: 'Category Total Budget',
+    dataIndex: 'categoryBudget',
+    key: 'categoryBudget',
+    align: 'right',
+    customRender: ({ text }) => `$${Number(text ?? 0).toLocaleString()}`
+  },
+  {
+    title: 'Used Amount',
+    key: 'totalUsed',
+    align: 'right',
+    customRender: ({ record }) => {
+      const used = (record.subElements || []).reduce((s, it) => s + Number(it?.totalUtilised ?? 0), 0)
+      return `$${used.toLocaleString()}`
+    }
+  },
+  {
+    title: 'Remaining Budget',
+    key: 'totalBalance',
+    align: 'right',
+    customRender: ({ record }) => {
+      const budget = Number(record?.categoryBudget ?? 0)
+      const used = (record.subElements || []).reduce((s, it) => s + Number(it?.totalUtilised ?? 0), 0)
+      return `$${(budget - used).toLocaleString()}`
+    }
+  },
+  {
+    title: 'Usage Rate',
+    key: 'usagePercentage',
+    align: 'right',
+    customRender: ({ record }) => {
+      const budget = Number(record?.categoryBudget ?? 0)
+      const used = (record.subElements || []).reduce((s, it) => s + Number(it?.totalUtilised ?? 0), 0)
+      const pct = budget > 0 ? Math.round((used / budget) * 100) : 0
+      return `${pct}%`
+    }
+  }
+]
+
+// Sub-table: Sub-element details (all values with fallback)
+const subElementColumns = [
+  { title: 'Sub-element', dataIndex: 'name', key: 'name' },
+  {
+    title: 'Budget',
+    dataIndex: 'subElementBudget',
+    key: 'subElementBudget',
+    align: 'right',
+    customRender: ({ text }) => `$${Number(text ?? 0).toLocaleString()}`
+  },
+  {
+    title: 'Used',
+    dataIndex: 'totalUtilised',
+    key: 'totalUtilised',
+    align: 'right',
+    customRender: ({ text }) => `$${Number(text ?? 0).toLocaleString()}`
+  },
+  {
+    title: 'Balance',
+    dataIndex: 'balance',
+    key: 'balance',
+    align: 'right',
+    customRender: ({ text }) => `$${Number(text ?? 0).toLocaleString()}`
+  },
+  {
+    title: 'Usage Rate',
+    key: 'usagePercentage',
+    align: 'right',
+    customRender: ({ record }) => {
+      const budget = Number(record?.subElementBudget ?? 0)
+      const used = Number(record?.totalUtilised ?? 0)
+      const pct = budget > 0 ? Math.round((used / budget) * 100) : 0
+      return `${pct}%`
+    }
+  },
+  {
+    title: 'Status',
+    dataIndex: 'warningLevel',
+    key: 'warningLevel',
+    customRender: ({ text }) => ({ normal: 'Normal', warning: 'Warning', critical: 'Critical' }[text] || 'Normal')
+  },
+  { title: 'Comments', dataIndex: 'comments', key: 'comments' },
+  {
+    title: 'Monthly Usage',
+    key: 'monthlyUsage',
+    customRender: ({ record }) => {
+      const arr = Array.isArray(record?.monthlyUsage) ? record.monthlyUsage : []
+      const total = arr.reduce((s, n) => s + Number(n ?? 0), 0)
+      const avg = arr.length ? Math.round(total / arr.length) : 0
+      const max = arr.length ? Math.max(...arr) : 0
+      const maxMonth = arr.length ? arr.indexOf(max) + 1 : '-'
+      return `Total: $${total.toLocaleString()} | Average: $${avg} | Highest: $${max}(${maxMonth}M)`
+    }
+  }
+]
 </script>
 
 <style scoped>
