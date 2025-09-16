@@ -131,14 +131,14 @@
                 <div style="padding: 16px; background: #fafafa; border-radius: 6px;">
                   <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
                     <h4 style="margin: 0;">{{ subElement.name }} - Monthly Usage Details</h4>
-                    <a-tooltip title="This shows the monthly spending breakdown for this sub-item. Each card represents one month (1M-12M) with the amount spent. The summary below shows annual total, budget, and remaining balance." placement="top">
+                    <a-tooltip title="This shows the monthly spending breakdown for this sub-item. Each card represents one month (Jan-Dec) with the amount spent. The summary below shows annual total, budget, and remaining balance." placement="top">
                       <QuestionCircleOutlined style="color: #999; cursor: help;" />
                     </a-tooltip>
                   </div>
                   <a-row :gutter="8">
                     <a-col v-for="(amount, index) in subElement.monthlyUsage" :key="index" :span="2">
                       <a-card size="small" style="text-align: center;">
-                        <div style="font-size: 12px; color: #666;">{{ index + 1 }}M</div>
+                        <div style="font-size: 12px; color: #666;">{{ getMonthName(index) }}</div>
                         <div style="font-weight: bold; color: #1890ff;">${{ amount }}</div>
                       </a-card>
                     </a-col>
@@ -177,7 +177,7 @@
           :key="`${warning.category}-${warning.subElement}`"
           :type="warning.level === 'critical' ? 'error' : 'warning'"
           :message="`${warning.category} - ${warning.subElement}`"
-          :description="`Used ${warning.percentage}% (${warning.utilised}/${warning.budget}), Balance: ${warning.balance > 0 ? '+' : ''}${warning.balance}`"
+          :description="`Used ${warning.percentage}% (${warning.utilised}/${warning.budget}), Balance: ${warning.balance}`"
           show-icon
           style="margin-bottom: 10px;"
         />
@@ -487,6 +487,12 @@ const getPageTooltip = () => {
     default:
       return 'Budget management page'
   }
+}
+
+// Convert month index to month name
+const getMonthName = (index) => {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  return months[index] || 'Unknown'
 }
 
 // Budget management data structure - based on actual family needs
@@ -964,8 +970,9 @@ const subElementColumns = [
       const total = arr.reduce((s, n) => s + Number(n ?? 0), 0)
       const avg = arr.length ? Math.round(total / arr.length) : 0
       const max = arr.length ? Math.max(...arr) : 0
-      const maxMonth = arr.length ? arr.indexOf(max) + 1 : '-'
-      return `Total: $${total.toLocaleString()} | Average: $${avg} | Highest: $${max}(${maxMonth}M)`
+      const maxMonth = arr.length ? arr.indexOf(max) : -1
+      const maxMonthName = maxMonth >= 0 ? getMonthName(maxMonth) : '-'
+      return `Total: $${total.toLocaleString()} | Average: $${avg} | Highest: $${max}(${maxMonthName})`
     }
   }
 ]
