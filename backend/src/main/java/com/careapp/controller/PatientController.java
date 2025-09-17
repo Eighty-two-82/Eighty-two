@@ -80,4 +80,6 @@ public class PatientController {
             return Result.<String>error("400", "Failed to delete patient!");
         }
     }
+
+
 }
