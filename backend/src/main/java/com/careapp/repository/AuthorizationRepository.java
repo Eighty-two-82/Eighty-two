@@ -34,5 +34,9 @@ public interface AuthorizationRepository extends MongoRepository<Authorization, 
     
     // Find active authorizations by organization
     List<Authorization> findByOrganizationIdAndIsActiveTrue(String organizationId);
+    
+    // Find active authorization by user, patient, and organization
+    List<Authorization> findByAuthorizedToAndPatientIdAndOrganizationIdAndIsActiveTrue(
+        String authorizedTo, String patientId, String organizationId);
 
 }
