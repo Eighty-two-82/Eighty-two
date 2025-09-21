@@ -81,7 +81,7 @@ const handleBeforeUpload = (file: File) => {
     name: file.name,
     category: 'Worker Upload',
     uploadedBy: 'You',
-    time: new Date().toLocaleString(),
+    time: new Date().toLocaleDateString(),
     comment: ''
   })
   return false // 阻止默认上传，改为本地存储
