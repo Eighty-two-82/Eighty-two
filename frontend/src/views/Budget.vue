@@ -47,7 +47,7 @@
           <a-col :span="6">
             <a-card size="small">
               <div style="text-align: center;">
-                <div style="font-size: 14px; color: #666; margin-bottom: 4px;">Remaining Budget</div>
+                <div style="font-size: 14px; color: #666; margin-bottom: 4px;">Money Left</div>
                 <div style="font-size: 24px; font-weight: bold;" :style="{ color: getTotalBalance() < 0 ? '#ff4d4f' : '#52c41a' }">
                   ${{ getTotalBalance().toLocaleString() }}
                 </div>
@@ -96,7 +96,15 @@
           </p>
         </div>
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-          <h3>Budget Management Overview</h3>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <h3>Budget Management Overview</h3>
+            <div v-if="getWarningInfo().length > 0" style="display: flex; align-items: center; gap: 8px;">
+              <span style="background: #ff4d4f; color: white; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: bold;">
+                {{ getWarningInfo().length }} Warning{{ getWarningInfo().length > 1 ? 's' : '' }}
+              </span>
+              <span style="color: #ff4d4f; font-size: 16px;">🚨</span>
+            </div>
+          </div>
           <div v-if="userRole === 'poa'">
             <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
               <span style="font-size: 12px; color: #666;">Add new budget items</span>
@@ -118,6 +126,7 @@
           :pagination="false"
           rowKey="id"
           :expandRowByClick="true"
+          :rowClassName="getRowClassName"
         >
           <template #expandedRowRender="{ record }">
             <a-table 
@@ -146,7 +155,7 @@
                   <div style="margin-top: 12px; padding: 8px; background: #e6f7ff; border-radius: 4px;">
                     <strong>Annual Total:</strong>${{ subElement.totalUtilised.toLocaleString() }} | 
                     <strong>Budget:</strong>${{ subElement.subElementBudget.toLocaleString() }} | 
-                    <strong>Balance:</strong>
+                    <strong>Money Left:</strong>
                     <span :style="{ color: subElement.balance < 0 ? 'red' : 'green' }">
                       ${{ subElement.balance.toLocaleString() }}
                     </span>
@@ -177,7 +186,7 @@
           :key="`${warning.category}-${warning.subElement}`"
           :type="warning.level === 'critical' ? 'error' : 'warning'"
           :message="`${warning.category} - ${warning.subElement}`"
-          :description="`Used ${warning.percentage}% (${warning.utilised}/${warning.budget}), Balance: ${warning.balance}`"
+          :description="`Used ${warning.percentage}% (${warning.utilised}/${warning.budget}), Money Left: ${warning.balance}`"
           show-icon
           style="margin-bottom: 10px;"
         />
@@ -407,20 +416,93 @@
         </a-form-item>
       </a-form>
     </a-modal>
+
+    <!-- Refund Modal -->
+    <a-modal
+      v-model:open="refundModalVisible"
+      title="Process Refund"
+      @ok="handleRefund"
+      @cancel="cancelRefund"
+      width="600px"
+    >
+      <div v-if="currentRefundItem" style="line-height: 1.6;">
+        <a-alert
+          message="Refund Information"
+          :description="`Processing refund for: ${currentRefundItem.name} (Current Used: $${currentRefundItem.totalUtilised.toLocaleString()})`"
+          type="info"
+          show-icon
+          style="margin-bottom: 20px;"
+        />
+        
+        <a-form :model="refundForm" layout="vertical">
+          <a-form-item label="Refund Amount" required>
+            <a-input-number
+              v-model:value="refundForm.amount"
+              :min="0"
+              :max="currentRefundItem.totalUtilised"
+              :step="10"
+              style="width: 100%"
+              :formatter="(value) => `$${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')"
+              :parser="(value) => value.replace(/\$\s?|(,*)/g, '')"
+              placeholder="Enter refund amount"
+            />
+            <div style="font-size: 12px; color: #666; margin-top: 4px;">
+              Maximum refundable: ${{ currentRefundItem.totalUtilised.toLocaleString() }}
+            </div>
+          </a-form-item>
+          
+          <a-form-item label="Refund Reason" required>
+            <a-select v-model:value="refundForm.reason" placeholder="Select refund reason">
+              <a-select-option value="defective">Defective product</a-select-option>
+              <a-select-option value="wrong_brand">Wrong brand</a-select-option>
+              <a-select-option value="wrong_size">Wrong size</a-select-option>
+              <a-select-option value="quality_issue">Quality issue</a-select-option>
+              <a-select-option value="duplicate_order">Duplicate order</a-select-option>
+              <a-select-option value="customer_request">Customer request</a-select-option>
+              <a-select-option value="other">Other reason</a-select-option>
+            </a-select>
+          </a-form-item>
+          
+          <a-form-item label="Additional Comments">
+            <a-textarea 
+              v-model:value="refundForm.comment" 
+              placeholder="Add any additional details about this refund..."
+              :rows="3"
+            />
+          </a-form-item>
+        </a-form>
+        
+        <div style="margin-top: 16px; padding: 12px; background: #f6f8fa; border-radius: 4px;">
+          <h4 style="margin: 0 0 8px 0; color: #1890ff;">Refund Impact Preview:</h4>
+          <div v-if="refundForm.amount" style="font-size: 14px;">
+            <div><strong>Current Used:</strong> ${{ currentRefundItem.totalUtilised.toLocaleString() }}</div>
+            <div><strong>Refund Amount:</strong> ${{ refundForm.amount.toLocaleString() }}</div>
+            <div><strong>New Used Amount:</strong> ${{ (currentRefundItem.totalUtilised - (refundForm.amount || 0)).toLocaleString() }}</div>
+            <div><strong>New Money Left:</strong> ${{ (currentRefundItem.balance + (refundForm.amount || 0)).toLocaleString() }}</div>
+          </div>
+        </div>
+      </div>
+    </a-modal>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { QuestionCircleOutlined } from '@ant-design/icons-vue'
+import { ref, onMounted, h, resolveComponent } from 'vue'
+import { QuestionCircleOutlined, UndoOutlined } from '@ant-design/icons-vue'
+import { Button } from 'ant-design-vue'
+import { useRouter } from 'vue-router'
+import { Modal, message } from 'ant-design-vue'
 import { getMe } from '@/services/userService'
 
+const router = useRouter()
 const userRole = ref('worker')
 const firstVisitModalVisible = ref(false)
 const budgetAdjustModalVisible = ref(false)
 const adjustTab = ref('total')
 const addCategoryModalVisible = ref(false)
 const addSubElementModalVisible = ref(false)
+const refundModalVisible = ref(false)
+const currentRefundItem = ref(null)
 
 // Budget adjustment form
 const budgetAdjustForm = ref({
@@ -450,6 +532,13 @@ const addSubElementForm = ref({
   name: '',
   budget: null,
   description: ''
+})
+
+// Refund form
+const refundForm = ref({
+  amount: null,
+  reason: '',
+  comment: ''
 })
 
 onMounted(async () => {
@@ -531,8 +620,8 @@ const budgetData = ref({
           monthlyUsage: [200, 250, 220, 280, 300, 320, 350, 300, 250, 200, 180, 150],
           totalUtilised: 2800,
           balance: 200,
-          comments: 'Normal usage',
-          warningLevel: 'normal'
+          comments: 'High usage - approaching budget limit',
+          warningLevel: 'warning'
         },
         {
           id: 4,
@@ -541,8 +630,8 @@ const budgetData = ref({
           monthlyUsage: [150, 180, 160, 200, 220, 240, 260, 220, 180, 150, 130, 110],
           totalUtilised: 2100,
           balance: -100,
-          comments: 'Slight overspending',
-          warningLevel: 'warning'
+          comments: 'Critical overspending - budget exceeded',
+          warningLevel: 'critical'
         }
       ]
     },
@@ -678,6 +767,20 @@ const calculateWarningLevel = (utilised, budget) => {
   return 'normal'
 }
 
+// Get row class name for warning background
+const getRowClassName = (record) => {
+  const budget = Number(record?.categoryBudget ?? 0)
+  const used = (record.subElements || []).reduce((s, it) => s + Number(it?.totalUtilised ?? 0), 0)
+  const percentage = budget > 0 ? (used / budget) * 100 : 0
+  
+  if (percentage >= 100) {
+    return 'warning-row-critical'
+  } else if (percentage > 80) {
+    return 'warning-row-warning'
+  }
+  return ''
+}
+
 // Get warning information
 const getWarningInfo = () => {
   const warnings = []
@@ -685,6 +788,12 @@ const getWarningInfo = () => {
     category.subElements.forEach(subElement => {
       const percentage = (subElement.totalUtilised / subElement.subElementBudget) * 100
       if (percentage >= 80) {
+        // Dynamically calculate warning level
+        let level = 'warning'
+        if (percentage >= 100) {
+          level = 'critical'
+        }
+        
         warnings.push({
           category: category.name,
           subElement: subElement.name,
@@ -692,7 +801,7 @@ const getWarningInfo = () => {
           utilised: subElement.totalUtilised,
           budget: subElement.subElementBudget,
           balance: subElement.balance,
-          level: subElement.warningLevel
+          level: level
         })
       }
     })
@@ -878,6 +987,110 @@ const cancelAddSubElement = () => {
   addSubElementModalVisible.value = false
 }
 
+// Show refund modal
+const showRefundModal = (subElement) => {
+  currentRefundItem.value = subElement
+  refundModalVisible.value = true
+  // Reset form
+  refundForm.value = {
+    amount: null,
+    reason: '',
+    comment: ''
+  }
+}
+
+// Cancel refund
+const cancelRefund = () => {
+  refundModalVisible.value = false
+  currentRefundItem.value = null
+}
+
+// Handle refund
+const handleRefund = () => {
+  if (!refundForm.value.amount || refundForm.value.amount <= 0) {
+    return
+  }
+  
+  if (!refundForm.value.reason) {
+    return
+  }
+  
+  if (refundForm.value.amount > currentRefundItem.value.totalUtilised) {
+    return
+  }
+  
+  // Update the sub-element data
+  const refundAmount = refundForm.value.amount
+  const oldUsed = currentRefundItem.value.totalUtilised
+  const oldBalance = currentRefundItem.value.balance
+  
+  // Update used amount and balance
+  currentRefundItem.value.totalUtilised -= refundAmount
+  currentRefundItem.value.balance += refundAmount
+  
+  // Update warning level
+  const newPercentage = (currentRefundItem.value.totalUtilised / currentRefundItem.value.subElementBudget) * 100
+  if (newPercentage >= 100) {
+    currentRefundItem.value.warningLevel = 'critical'
+  } else if (newPercentage >= 80) {
+    currentRefundItem.value.warningLevel = 'warning'
+  } else {
+    currentRefundItem.value.warningLevel = 'normal'
+  }
+  
+  // Create refund comment
+  const reasonText = {
+    'defective': 'Defective product',
+    'wrong_brand': 'Wrong brand',
+    'wrong_size': 'Wrong size',
+    'quality_issue': 'Quality issue',
+    'duplicate_order': 'Duplicate order',
+    'customer_request': 'Customer request',
+    'other': 'Other reason'
+  }[refundForm.value.reason] || refundForm.value.reason
+  
+  const refundComment = `Refund: $${refundAmount.toLocaleString()} - ${reasonText}${refundForm.value.comment ? ` (${refundForm.value.comment})` : ''}`
+  
+  // Update comments
+  if (currentRefundItem.value.comments && currentRefundItem.value.comments !== 'Newly added sub-element') {
+    currentRefundItem.value.comments += `; ${refundComment}`
+  } else {
+    currentRefundItem.value.comments = refundComment
+  }
+  
+  console.log('Refund processed:', {
+    subElement: currentRefundItem.value.name,
+    refundAmount,
+    oldUsed,
+    newUsed: currentRefundItem.value.totalUtilised,
+    oldBalance,
+    newBalance: currentRefundItem.value.balance,
+    reason: reasonText,
+    comment: refundForm.value.comment
+  })
+  
+  // Close modal
+  refundModalVisible.value = false
+  currentRefundItem.value = null
+  
+  // Show success message and ask about uploading receipt
+  message.success(`Refund of $${refundAmount.toLocaleString()} processed successfully!`)
+  
+  // Ask if user wants to upload refund receipt
+  Modal.confirm({
+    title: 'Upload Refund Receipt?',
+    content: 'Would you like to upload the refund receipt for this transaction?',
+    okText: 'Yes, Upload',
+    cancelText: 'No, Thanks',
+    onOk() {
+      router.push('/app/upload')
+    },
+    onCancel() {
+      console.log('User chose not to upload receipt')
+    }
+  })
+}
+
 // Main table: Category summary (does not depend on totalUsed/totalBalance/usagePercentage written back in onMounted)
 const budgetColumns = [
   { title: 'Category', dataIndex: 'name', key: 'name' },
@@ -898,7 +1111,7 @@ const budgetColumns = [
     }
   },
   {
-    title: 'Remaining Budget',
+    title: 'Money Left',
     key: 'totalBalance',
     align: 'right',
     customRender: ({ record }) => {
@@ -915,7 +1128,16 @@ const budgetColumns = [
       const budget = Number(record?.categoryBudget ?? 0)
       const used = (record.subElements || []).reduce((s, it) => s + Number(it?.totalUtilised ?? 0), 0)
       const pct = budget > 0 ? Math.round((used / budget) * 100) : 0
-      return `${pct}%`
+      
+      // Set color based on usage rate
+      let color = '#52c41a' // Green - less than 80%
+      if (pct >= 100) {
+        color = '#ff4d4f' // Red - greater than or equal to 100%
+      } else if (pct > 80) {
+        color = '#fa8c16' // Yellow - greater than 80% but less than 100%
+      }
+      
+      return h('span', { style: { color, fontWeight: 'bold' } }, `${pct}%`)
     }
   }
 ]
@@ -938,7 +1160,7 @@ const subElementColumns = [
     customRender: ({ text }) => `$${Number(text ?? 0).toLocaleString()}`
   },
   {
-    title: 'Balance',
+    title: 'Money Left',
     dataIndex: 'balance',
     key: 'balance',
     align: 'right',
@@ -952,14 +1174,50 @@ const subElementColumns = [
       const budget = Number(record?.subElementBudget ?? 0)
       const used = Number(record?.totalUtilised ?? 0)
       const pct = budget > 0 ? Math.round((used / budget) * 100) : 0
-      return `${pct}%`
+      
+      // Set color based on usage rate
+      let color = '#52c41a' // Green - less than 80%
+      if (pct >= 100) {
+        color = '#ff4d4f' // Red - greater than or equal to 100%
+      } else if (pct > 80) {
+        color = '#fa8c16' // Yellow - greater than 80% but less than 100%
+      }
+      
+      return h('span', { style: { color, fontWeight: 'bold' } }, `${pct}%`)
     }
   },
   {
     title: 'Status',
     dataIndex: 'warningLevel',
     key: 'warningLevel',
-    customRender: ({ text }) => ({ normal: 'Normal', warning: 'Warning', critical: 'Critical' }[text] || 'Normal')
+    customRender: ({ text, record }) => {
+      const budget = Number(record?.subElementBudget ?? 0)
+      const used = Number(record?.totalUtilised ?? 0)
+      const percentage = budget > 0 ? Math.round((used / budget) * 100) : 0
+      
+      let status = 'Normal'
+      let icon = '✅'
+      let color = '#52c41a'
+      
+      if (percentage > 100) {
+        status = 'Over budget'
+        icon = '🚨'
+        color = '#ff4d4f'
+      } else if (percentage === 100) {
+        status = 'Fully used'
+        icon = '🔴'
+        color = '#ff4d4f'
+      } else if (percentage > 80) {
+        status = 'Warning'
+        icon = '⚠️'
+        color = '#fa8c16'
+      }
+      
+      return h('div', { style: { display: 'flex', alignItems: 'center', gap: '4px' } }, [
+        h('span', { style: { fontSize: '16px' } }, icon),
+        h('span', { style: { color, fontWeight: 'bold' } }, status)
+      ])
+    }
   },
   { title: 'Comments', dataIndex: 'comments', key: 'comments' },
   {
@@ -974,6 +1232,77 @@ const subElementColumns = [
       const maxMonthName = maxMonth >= 0 ? getMonthName(maxMonth) : '-'
       return `Total: $${total.toLocaleString()} | Average: $${avg} | Highest: $${max}(${maxMonthName})`
     }
+  },
+  {
+    title: 'Actions',
+    key: 'actions',
+    width: 200,
+    customRender: ({ record }) => {
+      return h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap' } }, [
+        h('div', { style: { display: 'flex', alignItems: 'center', gap: '4px' } }, [
+          h(Button, {
+            type: 'default',
+            size: 'small',
+            onClick: () => showRefundModal(record),
+            style: {
+              fontWeight: 'bold',
+              minWidth: '80px'
+            }
+          }, () => 'Refund'),
+          h(
+            resolveComponent('a-tooltip'),
+            { title: 'Click to process a refund for this item. You can return money to the budget and add refund reason.' },
+            {
+              default: () => h('span', {
+                style: {
+                  color: '#999',
+                  cursor: 'help',
+                  fontSize: '12px',
+                  border: '1px solid #999',
+                  borderRadius: '50%',
+                  width: '16px',
+                  height: '16px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }
+              }, '?')
+            }
+          )
+        ]),
+        h('div', { style: { display: 'flex', alignItems: 'center', gap: '4px' } }, [
+          h(Button, {
+            type: 'default',         
+            size: 'small',
+            onClick: () => router.push('/app/upload'),
+            style: {
+              fontWeight: 'bold',
+              minWidth: '100px'
+            }
+          }, () => 'Upload receipt'),
+          h(
+            resolveComponent('a-tooltip'),
+            { title: 'Click to upload receipts or documents related to this budget item.' },
+            {
+              default: () => h('span', {
+                style: {
+                  color: '#999',
+                  cursor: 'help',
+                  fontSize: '12px',
+                  border: '1px solid #999',
+                  borderRadius: '50%',
+                  width: '16px',
+                  height: '16px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }
+              }, '?')
+            }
+          )
+        ])
+      ])
+    }
   }
 ]
 </script>
@@ -982,5 +1311,24 @@ const subElementColumns = [
 .budget-page {
   max-width: 1200px;
   margin: 0 auto;
+}
+
+/* Warning row background colors */
+:deep(.warning-row-warning) {
+  background-color: #fff7e6 !important;
+  border-left: 4px solid #fa8c16 !important;
+}
+
+:deep(.warning-row-critical) {
+  background-color: #fff2f0 !important;
+  border-left: 4px solid #ff4d4f !important;
+}
+
+:deep(.warning-row-warning:hover) {
+  background-color: #fff1d6 !important;
+}
+
+:deep(.warning-row-critical:hover) {
+  background-color: #ffe7e6 !important;
 }
 </style>
