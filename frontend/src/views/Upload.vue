@@ -51,13 +51,36 @@
         rows="4"
       />
     </a-modal>
+
+    <!-- 文件查看弹窗 -->
+    <a-modal
+      v-model:open="isViewModalOpen"
+      :title="currentViewFile?.name || 'View File'"
+      width="80%"
+      :footer="null"
+    >
+      <div v-if="currentViewFile" style="text-align: center;">
+        <!-- 图片预览 -->
+        <img 
+          v-if="isImageFile(currentViewFile.name)" 
+          :src="currentViewFile.fileUrl" 
+          style="max-width: 100%; max-height: 500px; border-radius: 8px;"
+          alt="Preview"
+        />
+        <!-- 其他文件类型 -->
+        <div v-else style="padding: 40px;">
+          <div style="font-size: 48px; color: #1890ff; margin-bottom: 16px;">📄</div>
+          <h3>{{ currentViewFile.name }}</h3>
+          <p style="color: #666; margin: 16px 0;">This file type cannot be previewed in the browser.</p>
+        </div>
+      </div>
+    </a-modal>
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { ref } from 'vue'
 import { QuestionCircleOutlined } from '@ant-design/icons-vue'
-
 
 const files = ref([
   { id: 1, name: 'Examination Report.pdf', category: 'Worker Upload', uploadedBy: 'C1', time: '2025-09-21', comment: '' },
@@ -75,24 +98,29 @@ const columns = [
 ]
 
 // 上传文件
-const handleBeforeUpload = (file: File) => {
+const handleBeforeUpload = (file) => {
+  // 创建文件URL用于预览
+  const fileUrl = URL.createObjectURL(file)
+  
   files.value.push({
     id: Date.now(),
     name: file.name,
     category: 'Worker Upload',
     uploadedBy: 'You',
     time: new Date().toLocaleDateString(),
-    comment: ''
+    comment: '',
+    file: file,
+    fileUrl: fileUrl
   })
   return false // 阻止默认上传，改为本地存储
 }
 
 // 评论弹窗逻辑
 const isCommentModalOpen = ref(false)
-const currentFile = ref<any>(null)
+const currentFile = ref(null)
 const currentComment = ref('')
 
-const openCommentModal = (record: any) => {
+const openCommentModal = (record) => {
   currentFile.value = record
   currentComment.value = record.comment || ''
   isCommentModalOpen.value = true
@@ -109,9 +137,21 @@ const cancelComment = () => {
   isCommentModalOpen.value = false
 }
 
+// 文件查看弹窗逻辑
+const isViewModalOpen = ref(false)
+const currentViewFile = ref(null)
+
 // 查看文件
-const viewFile = (record: any) => {
-  console.log('View:', record.name)
+const viewFile = (record) => {
+  currentViewFile.value = record
+  isViewModalOpen.value = true
+}
+
+// 判断是否为图片文件
+const isImageFile = (filename) => {
+  const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg']
+  const extension = filename.toLowerCase().substring(filename.lastIndexOf('.'))
+  return imageExtensions.includes(extension)
 }
 </script>
 
