@@ -73,8 +73,11 @@
                   >
                     Reject
                   </a-button>
-                  <span v-if="record.status !== 'Completed' && record.status !== 'Worker Completed'" style="color: #999; font-size: 12px; margin-left: 8px;">
-                    {{ record.status === 'In Progress' ? 'Wait for worker to finish' : 'Click to approve or reject completion' }}
+                  <span v-if="record.status === 'In Progress'" style="color: #999; font-size: 12px; margin-left: 8px;">
+                    Wait for worker to finish
+                  </span>
+                  <span v-if="record.status === 'Pending'" style="color: #999; font-size: 12px; margin-left: 8px;">
+                    Task not started yet
                   </span>
                   <span v-if="record.status === 'Completed'" style="color: #52c41a; font-weight: bold;">✓ Completed</span>
                   <span v-else-if="record.status === 'Rejected'" style="color: #ff4d4f; font-weight: bold;">✗ Rejected</span>
@@ -98,6 +101,50 @@
                   <span v-if="record.status === 'Worker Completed'" style="color: #faad14; font-weight: bold;">⏳ Pending Review</span>
                   <span v-else-if="record.status === 'Completed'" style="color: #52c41a; font-weight: bold;">✓ Completed</span>
                 </div>
+              </div>
+            </template>
+          </template>
+        </a-table>
+      </a-card>
+
+      <!-- My Requests Section (Only for POA) -->
+      <a-card v-if="isPOA" style="margin-top: 24px;">
+        <template #title>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span>My Requests</span>
+            <a-tooltip title="View the status of your submitted requests and manager responses. You can see if your requests were approved, rejected, or are still pending.">
+              <span style="color: #999; cursor: help; font-size: 12px; border: 1px solid #999; border-radius: 50%; width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center;">?</span>
+            </a-tooltip>
+          </div>
+        </template>
+        
+        <a-table
+          :columns="myRequestsColumns"
+          :data-source="myRequests"
+          :pagination="false"
+          size="small"
+        >
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'status'">
+              <a-tag :color="getRequestStatusColor(record.status)">
+                {{ record.status }}
+              </a-tag>
+            </template>
+            <template v-if="column.key === 'managerResponse'">
+              <div v-if="record.status === 'Approved'" style="color: #52c41a; font-weight: bold;">
+                ✓ Approved
+                <div v-if="record.approvalReason" style="font-size: 12px; color: #666; margin-top: 4px;">
+                  {{ record.approvalReason }}
+                </div>
+              </div>
+              <div v-else-if="record.status === 'Rejected'" style="color: #ff4d4f; font-weight: bold;">
+                ✗ Rejected
+                <div v-if="record.rejectionReason" style="font-size: 12px; color: #666; margin-top: 4px;">
+                  {{ record.rejectionReason }}
+                </div>
+              </div>
+              <div v-else style="color: #999;">
+                Waiting for manager response
               </div>
             </template>
           </template>
@@ -158,6 +205,63 @@
                   Complete
                 </a-button>
                 <a-button size="small" danger @click="deleteTask(record)">
+                  Delete
+                </a-button>
+              </a-space>
+            </template>
+          </template>
+        </a-table>
+      </a-card>
+
+      <!-- Recurring Tasks Section -->
+      <a-card style="margin-bottom: 24px;">
+        <template #title>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span>Recurring Tasks</span>
+              <a-tooltip title="Manage recurring task templates. Create templates for tasks that repeat daily, weekly, or monthly. The system will automatically generate tasks based on these templates.">
+                <span style="color: #999; cursor: help; font-size: 12px; border: 1px solid #999; border-radius: 50%; width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center;">?</span>
+              </a-tooltip>
+            </div>
+            <a-tooltip title="Create a new recurring task template. Set the frequency (daily, weekly, monthly) and the system will automatically generate tasks.">
+              <a-button type="primary" @click="showCreateRecurringTaskModal">
+                <PlusOutlined />
+                Create Recurring Task
+              </a-button>
+            </a-tooltip>
+          </div>
+        </template>
+        
+        <a-table
+          :columns="recurringTaskColumns"
+          :data-source="recurringTasks"
+          :pagination="false"
+          size="small"
+        >
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'frequency'">
+              <a-tag :color="getFrequencyColor(record.frequency)">
+                {{ getFrequencyText(record.frequency) }}
+              </a-tag>
+            </template>
+            <template v-if="column.key === 'status'">
+              <a-tag :color="record.isActive ? 'green' : 'red'">
+                {{ record.isActive ? 'Active' : 'Inactive' }}
+              </a-tag>
+            </template>
+            <template v-if="column.key === 'actions'">
+              <a-space>
+                <a-button size="small" @click="editRecurringTask(record)">
+                  Edit
+                </a-button>
+                <a-button 
+                  size="small" 
+                  :type="record.isActive ? 'default' : 'primary'"
+                  @click="toggleRecurringTask(record)"
+                >
+                  {{ record.isActive ? 'Deactivate' : 'Activate' }}
+                </a-button>
+                <a-button size="small" danger @click="deleteRecurringTask(record)">
                   Delete
                 </a-button>
               </a-space>
@@ -236,6 +340,157 @@
         </a-table>
       </a-card>
 
+      <!-- Create Recurring Task Modal -->
+      <a-modal
+        v-model:open="createRecurringTaskModalVisible"
+        title="Create Recurring Task Template"
+        width="700px"
+        @ok="confirmCreateRecurringTask"
+        @cancel="createRecurringTaskModalVisible = false"
+      >
+        <a-form :model="createRecurringTaskForm" layout="vertical">
+          <a-form-item label="Task Title" required>
+            <a-input v-model:value="createRecurringTaskForm.title" placeholder="Enter task title" />
+          </a-form-item>
+          <a-form-item label="Description">
+            <a-textarea v-model:value="createRecurringTaskForm.description" placeholder="Enter task description" :rows="3" />
+          </a-form-item>
+          <a-form-item label="Assign To" required>
+            <a-select v-model:value="createRecurringTaskForm.assignedTo" placeholder="Select worker" style="width: 100%;">
+              <a-select-option v-for="worker in availableWorkers" :key="worker.id" :value="worker.id">
+                {{ worker.name }} ({{ worker.workerId }})
+              </a-select-option>
+            </a-select>
+          </a-form-item>
+          <a-form-item label="Recurrence Frequency" required>
+            <a-select v-model:value="createRecurringTaskForm.frequency" placeholder="Select frequency" style="width: 100%;" @change="onFrequencyChange">
+              <a-select-option value="daily">Daily</a-select-option>
+              <a-select-option value="weekly">Weekly</a-select-option>
+              <a-select-option value="monthly">Monthly</a-select-option>
+            </a-select>
+          </a-form-item>
+          
+          <!-- Daily options -->
+          <div v-if="createRecurringTaskForm.frequency === 'daily'">
+            <a-form-item label="Time of Day" required>
+              <a-time-picker v-model:value="createRecurringTaskForm.timeOfDay" format="HH:mm" style="width: 100%;" placeholder="Select time" />
+            </a-form-item>
+          </div>
+          
+          <!-- Weekly options -->
+          <div v-if="createRecurringTaskForm.frequency === 'weekly'">
+            <a-form-item label="Day of Week" required>
+              <a-select v-model:value="createRecurringTaskForm.dayOfWeek" placeholder="Select day" style="width: 100%;">
+                <a-select-option value="monday">Monday</a-select-option>
+                <a-select-option value="tuesday">Tuesday</a-select-option>
+                <a-select-option value="wednesday">Wednesday</a-select-option>
+                <a-select-option value="thursday">Thursday</a-select-option>
+                <a-select-option value="friday">Friday</a-select-option>
+                <a-select-option value="saturday">Saturday</a-select-option>
+                <a-select-option value="sunday">Sunday</a-select-option>
+              </a-select>
+            </a-form-item>
+            <a-form-item label="Time of Day" required>
+              <a-time-picker v-model:value="createRecurringTaskForm.timeOfDay" format="HH:mm" style="width: 100%;" placeholder="Select time" />
+            </a-form-item>
+          </div>
+          
+          <!-- Monthly options -->
+          <div v-if="createRecurringTaskForm.frequency === 'monthly'">
+            <a-form-item label="Day of Month" required>
+              <a-input-number v-model:value="createRecurringTaskForm.dayOfMonth" :min="1" :max="31" style="width: 100%;" placeholder="Enter day (1-31)" />
+            </a-form-item>
+            <a-form-item label="Time of Day" required>
+              <a-time-picker v-model:value="createRecurringTaskForm.timeOfDay" format="HH:mm" style="width: 100%;" placeholder="Select time" />
+            </a-form-item>
+          </div>
+          
+          <a-form-item label="Start Date" required>
+            <a-date-picker v-model:value="createRecurringTaskForm.startDate" style="width: 100%;" placeholder="Select start date" />
+          </a-form-item>
+          <a-form-item label="End Date (Optional)">
+            <a-date-picker v-model:value="createRecurringTaskForm.endDate" style="width: 100%;" placeholder="Select end date (leave empty for no end)" />
+          </a-form-item>
+        </a-form>
+      </a-modal>
+
+      <!-- Edit Recurring Task Modal -->
+      <a-modal
+        v-model:open="editRecurringTaskModalVisible"
+        title="Edit Recurring Task Template"
+        width="700px"
+        @ok="confirmEditRecurringTask"
+        @cancel="editRecurringTaskModalVisible = false"
+      >
+        <a-form :model="editRecurringTaskForm" layout="vertical">
+          <a-form-item label="Task Title" required>
+            <a-input v-model:value="editRecurringTaskForm.title" placeholder="Enter task title" />
+          </a-form-item>
+          <a-form-item label="Description">
+            <a-textarea v-model:value="editRecurringTaskForm.description" placeholder="Enter task description" :rows="3" />
+          </a-form-item>
+          <a-form-item label="Assign To" required>
+            <a-select v-model:value="editRecurringTaskForm.assignedTo" placeholder="Select worker" style="width: 100%;">
+              <a-select-option v-for="worker in availableWorkers" :key="worker.id" :value="worker.id">
+                {{ worker.name }} ({{ worker.workerId }})
+              </a-select-option>
+            </a-select>
+          </a-form-item>
+          <a-form-item label="Recurrence Frequency" required>
+            <a-select v-model:value="editRecurringTaskForm.frequency" placeholder="Select frequency" style="width: 100%;" @change="onEditFrequencyChange">
+              <a-select-option value="daily">Daily</a-select-option>
+              <a-select-option value="weekly">Weekly</a-select-option>
+              <a-select-option value="monthly">Monthly</a-select-option>
+            </a-select>
+          </a-form-item>
+          
+          <!-- Daily options -->
+          <div v-if="editRecurringTaskForm.frequency === 'daily'">
+            <a-form-item label="Time of Day" required>
+              <a-time-picker v-model:value="editRecurringTaskForm.timeOfDay" format="HH:mm" style="width: 100%;" placeholder="Select time" />
+            </a-form-item>
+          </div>
+          
+          <!-- Weekly options -->
+          <div v-if="editRecurringTaskForm.frequency === 'weekly'">
+            <a-form-item label="Day of Week" required>
+              <a-select v-model:value="editRecurringTaskForm.dayOfWeek" placeholder="Select day" style="width: 100%;">
+                <a-select-option value="monday">Monday</a-select-option>
+                <a-select-option value="tuesday">Tuesday</a-select-option>
+                <a-select-option value="wednesday">Wednesday</a-select-option>
+                <a-select-option value="thursday">Thursday</a-select-option>
+                <a-select-option value="friday">Friday</a-select-option>
+                <a-select-option value="saturday">Saturday</a-select-option>
+                <a-select-option value="sunday">Sunday</a-select-option>
+              </a-select>
+            </a-form-item>
+            <a-form-item label="Time of Day" required>
+              <a-time-picker v-model:value="editRecurringTaskForm.timeOfDay" format="HH:mm" style="width: 100%;" placeholder="Select time" />
+            </a-form-item>
+          </div>
+          
+          <!-- Monthly options -->
+          <div v-if="editRecurringTaskForm.frequency === 'monthly'">
+            <a-form-item label="Day of Month" required>
+              <a-input-number v-model:value="editRecurringTaskForm.dayOfMonth" :min="1" :max="31" style="width: 100%;" placeholder="Enter day (1-31)" />
+            </a-form-item>
+            <a-form-item label="Time of Day" required>
+              <a-time-picker v-model:value="editRecurringTaskForm.timeOfDay" format="HH:mm" style="width: 100%;" placeholder="Select time" />
+            </a-form-item>
+          </div>
+          
+          <a-form-item label="Start Date" required>
+            <a-date-picker v-model:value="editRecurringTaskForm.startDate" style="width: 100%;" placeholder="Select start date" />
+          </a-form-item>
+          <a-form-item label="End Date (Optional)">
+            <a-date-picker v-model:value="editRecurringTaskForm.endDate" style="width: 100%;" placeholder="Select end date (leave empty for no end)" />
+          </a-form-item>
+          <a-form-item label="Status">
+            <a-switch v-model:checked="editRecurringTaskForm.isActive" checked-children="Active" un-checked-children="Inactive" />
+          </a-form-item>
+        </a-form>
+      </a-modal>
+
       <!-- Create Task Modal -->
       <a-modal
         v-model:open="createTaskModalVisible"
@@ -261,7 +516,7 @@
           <a-form-item label="Priority" required>
             <a-select v-model:value="createTaskForm.priority" placeholder="Select priority" style="width: 100%;">
               <a-select-option value="normal">
-                <a-tag color="green">Normal (Daily Task)</a-tag>
+                <a-tag color="green">Normal</a-tag>
               </a-select-option>
               <a-select-option value="urgent">
                 <a-tag color="orange">Urgent</a-tag>
@@ -302,7 +557,7 @@
           <a-form-item label="Priority" required>
             <a-select v-model:value="editTaskForm.priority" placeholder="Select priority" style="width: 100%;">
               <a-select-option value="normal">
-                <a-tag color="green">Normal (Daily Task)</a-tag>
+                <a-tag color="green">Normal</a-tag>
               </a-select-option>
               <a-select-option value="urgent">
                 <a-tag color="orange">Urgent</a-tag>
@@ -380,43 +635,45 @@
         </div>
       </a-modal>
 
-      <!-- POA Request Task Modal -->
-      <a-modal
-        v-model:open="requestTaskModalVisible"
-        title="Request Task Adjustment"
-        width="600px"
-        @ok="confirmRequestTask"
-        @cancel="requestTaskModalVisible = false"
-      >
-        <a-form :model="requestTaskForm" layout="vertical">
-          <a-form-item label="Request Type" required>
-            <a-select v-model:value="requestTaskForm.requestType" placeholder="Select request type" style="width: 100%;">
-              <a-select-option value="new">Add New Task</a-select-option>
-              <a-select-option value="modify">Edit Task</a-select-option>
-              <a-select-option value="remove">Remove Task</a-select-option>
-              <a-select-option value="reschedule">Reschedule Task</a-select-option>
-            </a-select>
-          </a-form-item>
-          <a-form-item label="Task Title" required>
-            <a-input v-model:value="requestTaskForm.title" placeholder="Enter task title" />
-          </a-form-item>
-          <a-form-item label="Description">
-            <a-textarea v-model:value="requestTaskForm.description" placeholder="Enter task description or modification details" :rows="3" />
-          </a-form-item>
-          <a-form-item label="Priority">
-            <a-select v-model:value="requestTaskForm.priority" placeholder="Select priority" style="width: 100%;">
-              <a-select-option value="normal">Normal</a-select-option>
-              <a-select-option value="urgent">Urgent</a-select-option>
-              <a-select-option value="very-urgent">Very Urgent</a-select-option>
-            </a-select>
-          </a-form-item>
-          <a-form-item label="Reason for Request" required>
-            <a-textarea v-model:value="requestTaskForm.reason" placeholder="Explain why this task adjustment is needed" :rows="2" />
-          </a-form-item>
-        </a-form>
-      </a-modal>
     </div>
     <!-- End Manager View -->
+
+    <!-- POA Request Task Modal (Outside Manager View) -->
+    <a-modal
+      v-if="isPOA"
+      v-model:open="requestTaskModalVisible"
+      title="Request Task Adjustment"
+      width="600px"
+      @ok="confirmRequestTask"
+      @cancel="requestTaskModalVisible = false"
+    >
+      <a-form :model="requestTaskForm" layout="vertical">
+        <a-form-item label="Request Type" required>
+          <a-select v-model:value="requestTaskForm.requestType" placeholder="Select request type" style="width: 100%;">
+            <a-select-option value="new">Add New Task</a-select-option>
+            <a-select-option value="modify">Edit Task</a-select-option>
+            <a-select-option value="remove">Remove Task</a-select-option>
+            <a-select-option value="reschedule">Reschedule Task</a-select-option>
+          </a-select>
+        </a-form-item>
+        <a-form-item label="Task Title" required>
+          <a-input v-model:value="requestTaskForm.title" placeholder="Enter task title" />
+        </a-form-item>
+        <a-form-item label="Description">
+          <a-textarea v-model:value="requestTaskForm.description" placeholder="Enter task description or modification details" :rows="3" />
+        </a-form-item>
+        <a-form-item label="Priority">
+          <a-select v-model:value="requestTaskForm.priority" placeholder="Select priority" style="width: 100%;">
+            <a-select-option value="normal">Normal</a-select-option>
+            <a-select-option value="urgent">Urgent</a-select-option>
+            <a-select-option value="very-urgent">Very Urgent</a-select-option>
+          </a-select>
+        </a-form-item>
+        <a-form-item label="Reason for Request" required>
+          <a-textarea v-model:value="requestTaskForm.reason" placeholder="Explain why this task adjustment is needed" :rows="2" />
+        </a-form-item>
+      </a-form>
+    </a-modal>
 
     <!-- POA Task Confirmation Modal（仅 POA 渲染） -->
     <a-modal
@@ -469,6 +726,8 @@ const confirmModalTitle = ref('')
 const confirmModalMessage = ref('')
 const confirmReason = ref('')
 const pendingTaskAction = ref(null)
+const createRecurringTaskModalVisible = ref(false)
+const editRecurringTaskModalVisible = ref(false)
 
 // Request confirmation modal
 const requestConfirmModalVisible = ref(false)
@@ -507,6 +766,32 @@ const requestTaskForm = ref({
   description: '',
   priority: '',
   reason: ''
+})
+
+const createRecurringTaskForm = ref({
+  title: '',
+  description: '',
+  assignedTo: '',
+  frequency: '',
+  timeOfDay: null,
+  dayOfWeek: '',
+  dayOfMonth: null,
+  startDate: null,
+  endDate: null
+})
+
+const editRecurringTaskForm = ref({
+  id: null,
+  title: '',
+  description: '',
+  assignedTo: '',
+  frequency: '',
+  timeOfDay: null,
+  dayOfWeek: '',
+  dayOfMonth: null,
+  startDate: null,
+  endDate: null,
+  isActive: true
 })
 
 // Mock data
@@ -592,6 +877,81 @@ const changeRequests = ref([
   }
 ])
 
+// POA's own requests (for viewing status and manager responses)
+const myRequests = ref([
+  {
+    id: 1,
+    taskTitle: 'Morning Medication',
+    requestType: 'Time Change',
+    reason: 'Patient prefers medication at 9 AM instead of 8 AM',
+    status: 'Pending',
+    submittedDate: '2025-01-20',
+    approvalReason: null,
+    rejectionReason: null
+  },
+  {
+    id: 2,
+    taskTitle: 'Physical Therapy',
+    requestType: 'Add New Task',
+    reason: 'Patient needs additional physical therapy sessions',
+    status: 'Approved',
+    submittedDate: '2025-01-18',
+    approvalReason: 'Approved. Will add 2 additional sessions per week.',
+    rejectionReason: null
+  },
+  {
+    id: 3,
+    taskTitle: 'Evening Care',
+    requestType: 'Remove Task',
+    reason: 'Patient no longer needs evening care assistance',
+    status: 'Rejected',
+    submittedDate: '2025-01-15',
+    approvalReason: null,
+    rejectionReason: 'Cannot remove evening care as patient still requires assistance with bedtime routine.'
+  }
+])
+
+const recurringTasks = ref([
+  {
+    id: 1,
+    title: 'Morning Medication',
+    description: 'Administer morning medication to patient',
+    assignedTo: 'A',
+    frequency: 'daily',
+    timeOfDay: '08:00',
+    startDate: '2025-01-01',
+    endDate: null,
+    isActive: true,
+    createdAt: '2025-01-01'
+  },
+  {
+    id: 2,
+    title: 'Physical Therapy',
+    description: 'Assist with physical therapy exercises',
+    assignedTo: 'B',
+    frequency: 'weekly',
+    dayOfWeek: 'monday',
+    timeOfDay: '14:00',
+    startDate: '2025-01-01',
+    endDate: null,
+    isActive: true,
+    createdAt: '2025-01-01'
+  },
+  {
+    id: 3,
+    title: 'Monthly Health Check',
+    description: 'Conduct monthly health assessment',
+    assignedTo: 'A',
+    frequency: 'monthly',
+    dayOfMonth: 15,
+    timeOfDay: '10:00',
+    startDate: '2025-01-01',
+    endDate: null,
+    isActive: true,
+    createdAt: '2025-01-01'
+  }
+])
+
 // Table columns
 const taskColumns = [
   { title: 'Title', dataIndex: 'title', key: 'title' },
@@ -627,12 +987,39 @@ const requestColumns = [
   { title: 'Actions', key: 'actions', width: 120 }
 ]
 
+const myRequestsColumns = [
+  { title: 'Task', dataIndex: 'taskTitle', key: 'taskTitle' },
+  { title: 'Request Type', dataIndex: 'requestType', key: 'requestType' },
+  { title: 'Reason', dataIndex: 'reason', key: 'reason' },
+  { title: 'Submitted Date', dataIndex: 'submittedDate', key: 'submittedDate' },
+  { title: 'Status', dataIndex: 'status', key: 'status' },
+  { title: 'Manager Response', key: 'managerResponse', width: 200 }
+]
+
 const taskDetailColumns = [
   { title: 'Task Title', dataIndex: 'title', key: 'title' },
   { title: 'Description', dataIndex: 'description', key: 'description' },
   { title: 'Priority', dataIndex: 'priority', key: 'priority' },
   { title: 'Due Date', dataIndex: 'dueDate', key: 'dueDate' },
   { title: 'Status', dataIndex: 'status', key: 'status' }
+]
+
+const recurringTaskColumns = [
+  { title: 'Title', dataIndex: 'title', key: 'title' },
+  { title: 'Assigned To', dataIndex: 'assignedTo', key: 'assignedTo' },
+  { title: 'Frequency', dataIndex: 'frequency', key: 'frequency' },
+  { title: 'Schedule', key: 'schedule', customRender: ({ record }) => {
+    if (record.frequency === 'daily') {
+      return `Daily at ${record.timeOfDay}`
+    } else if (record.frequency === 'weekly') {
+      return `${record.dayOfWeek} at ${record.timeOfDay}`
+    } else if (record.frequency === 'monthly') {
+      return `Day ${record.dayOfMonth} at ${record.timeOfDay}`
+    }
+    return '-'
+  }},
+  { title: 'Status', dataIndex: 'status', key: 'status' },
+  { title: 'Actions', key: 'actions', width: 200 }
 ]
 
 // Methods
@@ -647,6 +1034,9 @@ const updateTasksForDate = (date) => {
   const dateStr = date.format('YYYY-MM-DD')
   // In real app, this would fetch from API
   console.log('Loading tasks for date:', dateStr)
+  
+  // Generate tasks from recurring templates for the selected date
+  generateTasksFromTemplates(date)
 }
 
 const showCreateTaskModal = () => {
@@ -798,9 +1188,11 @@ const confirmRequestTask = async () => {
     message.loading('Submitting request...', 0)
     await new Promise(resolve => setTimeout(resolve, 1000))
     
+    const requestId = Date.now()
+    
     // Add to change requests for manager to review
     const newRequest = {
-      id: Date.now(),
+      id: requestId,
       requester: 'POA',
       taskTitle: requestTaskForm.value.title,
       requestType: requestTaskForm.value.requestType,
@@ -808,7 +1200,21 @@ const confirmRequestTask = async () => {
       status: 'Pending'
     }
     
+    // Add to POA's own requests for tracking
+    const myNewRequest = {
+      id: requestId,
+      taskTitle: requestTaskForm.value.title,
+      requestType: requestTaskForm.value.requestType,
+      reason: requestTaskForm.value.reason,
+      status: 'Pending',
+      submittedDate: dayjs().format('YYYY-MM-DD'),
+      approvalReason: null,
+      rejectionReason: null
+    }
+    
     changeRequests.value.unshift(newRequest)
+    myRequests.value.unshift(myNewRequest)
+    
     message.destroy()
     message.success('Task request submitted successfully!')
     requestTaskModalVisible.value = false
@@ -915,6 +1321,22 @@ const handleRequestConfirmation = async () => {
       }
     }
     
+    // Also update POA's request status
+    const myRequestIndex = myRequests.value.findIndex(r => r.id === request.id)
+    if (myRequestIndex !== -1) {
+      if (action === 'approve') {
+        myRequests.value[myRequestIndex].status = 'Approved'
+        if (requestConfirmReason.value) {
+          myRequests.value[myRequestIndex].approvalReason = requestConfirmReason.value
+        }
+      } else if (action === 'reject') {
+        myRequests.value[myRequestIndex].status = 'Rejected'
+        if (requestConfirmReason.value) {
+          myRequests.value[myRequestIndex].rejectionReason = requestConfirmReason.value
+        }
+      }
+    }
+    
     message.destroy()
     message.success(`Request ${action === 'approve' ? 'approved' : 'rejected'} successfully!`)
     requestConfirmModalVisible.value = false
@@ -945,6 +1367,220 @@ const workerCompleteTask = async (task) => {
   }
 }
 
+// Recurring task methods
+const showCreateRecurringTaskModal = () => {
+  createRecurringTaskForm.value = {
+    title: '',
+    description: '',
+    assignedTo: '',
+    frequency: '',
+    timeOfDay: null,
+    dayOfWeek: '',
+    dayOfMonth: null,
+    startDate: dayjs(),
+    endDate: null
+  }
+  createRecurringTaskModalVisible.value = true
+}
+
+const onFrequencyChange = () => {
+  // Reset frequency-specific fields when frequency changes
+  createRecurringTaskForm.value.dayOfWeek = ''
+  createRecurringTaskForm.value.dayOfMonth = null
+  createRecurringTaskForm.value.timeOfDay = null
+}
+
+const onEditFrequencyChange = () => {
+  // Reset frequency-specific fields when frequency changes in edit modal
+  editRecurringTaskForm.value.dayOfWeek = ''
+  editRecurringTaskForm.value.dayOfMonth = null
+  editRecurringTaskForm.value.timeOfDay = null
+}
+
+const confirmCreateRecurringTask = async () => {
+  if (!createRecurringTaskForm.value.title || !createRecurringTaskForm.value.assignedTo || 
+      !createRecurringTaskForm.value.frequency || !createRecurringTaskForm.value.startDate) {
+    message.error('Please fill in all required fields')
+    return
+  }
+  
+  try {
+    message.loading('Creating recurring task template...', 0)
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    
+    const newRecurringTask = {
+      id: Date.now(),
+      title: createRecurringTaskForm.value.title,
+      description: createRecurringTaskForm.value.description,
+      assignedTo: createRecurringTaskForm.value.assignedTo,
+      frequency: createRecurringTaskForm.value.frequency,
+      timeOfDay: createRecurringTaskForm.value.timeOfDay?.format('HH:mm'),
+      dayOfWeek: createRecurringTaskForm.value.dayOfWeek,
+      dayOfMonth: createRecurringTaskForm.value.dayOfMonth,
+      startDate: createRecurringTaskForm.value.startDate.format('YYYY-MM-DD'),
+      endDate: createRecurringTaskForm.value.endDate?.format('YYYY-MM-DD'),
+      isActive: true,
+      createdAt: dayjs().format('YYYY-MM-DD')
+    }
+    
+    recurringTasks.value.push(newRecurringTask)
+    
+    // Generate tasks for the current date if applicable
+    generateTasksFromTemplates(selectedDate.value)
+    
+    message.destroy()
+    message.success('Recurring task template created successfully!')
+    createRecurringTaskModalVisible.value = false
+  } catch (error) {
+    message.destroy()
+    message.error('Failed to create recurring task template')
+  }
+}
+
+const editRecurringTask = (task) => {
+  editRecurringTaskForm.value = {
+    id: task.id,
+    title: task.title,
+    description: task.description,
+    assignedTo: task.assignedTo,
+    frequency: task.frequency,
+    timeOfDay: task.timeOfDay ? dayjs(task.timeOfDay, 'HH:mm') : null,
+    dayOfWeek: task.dayOfWeek,
+    dayOfMonth: task.dayOfMonth,
+    startDate: dayjs(task.startDate),
+    endDate: task.endDate ? dayjs(task.endDate) : null,
+    isActive: task.isActive
+  }
+  editRecurringTaskModalVisible.value = true
+}
+
+const confirmEditRecurringTask = async () => {
+  if (!editRecurringTaskForm.value.title || !editRecurringTaskForm.value.assignedTo || 
+      !editRecurringTaskForm.value.frequency || !editRecurringTaskForm.value.startDate) {
+    message.error('Please fill in all required fields')
+    return
+  }
+  
+  try {
+    message.loading('Updating recurring task template...', 0)
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    
+    const taskIndex = recurringTasks.value.findIndex(t => t.id === editRecurringTaskForm.value.id)
+    if (taskIndex !== -1) {
+      recurringTasks.value[taskIndex] = {
+        ...recurringTasks.value[taskIndex],
+        title: editRecurringTaskForm.value.title,
+        description: editRecurringTaskForm.value.description,
+        assignedTo: editRecurringTaskForm.value.assignedTo,
+        frequency: editRecurringTaskForm.value.frequency,
+        timeOfDay: editRecurringTaskForm.value.timeOfDay?.format('HH:mm'),
+        dayOfWeek: editRecurringTaskForm.value.dayOfWeek,
+        dayOfMonth: editRecurringTaskForm.value.dayOfMonth,
+        startDate: editRecurringTaskForm.value.startDate.format('YYYY-MM-DD'),
+        endDate: editRecurringTaskForm.value.endDate?.format('YYYY-MM-DD'),
+        isActive: editRecurringTaskForm.value.isActive
+      }
+    }
+    
+    message.destroy()
+    message.success('Recurring task template updated successfully!')
+    editRecurringTaskModalVisible.value = false
+  } catch (error) {
+    message.destroy()
+    message.error('Failed to update recurring task template')
+  }
+}
+
+const toggleRecurringTask = async (task) => {
+  try {
+    message.loading(`${task.isActive ? 'Deactivating' : 'Activating'} recurring task...`, 0)
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    
+    const taskIndex = recurringTasks.value.findIndex(t => t.id === task.id)
+    if (taskIndex !== -1) {
+      recurringTasks.value[taskIndex].isActive = !recurringTasks.value[taskIndex].isActive
+    }
+    
+    message.destroy()
+    message.success(`Recurring task ${task.isActive ? 'deactivated' : 'activated'} successfully!`)
+  } catch (error) {
+    message.destroy()
+    message.error('Failed to update recurring task status')
+  }
+}
+
+const deleteRecurringTask = async (task) => {
+  try {
+    message.loading('Deleting recurring task template...', 0)
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    
+    const taskIndex = recurringTasks.value.findIndex(t => t.id === task.id)
+    if (taskIndex !== -1) {
+      recurringTasks.value.splice(taskIndex, 1)
+    }
+    
+    message.destroy()
+    message.success('Recurring task template deleted successfully!')
+  } catch (error) {
+    message.destroy()
+    message.error('Failed to delete recurring task template')
+  }
+}
+
+// Generate tasks from recurring templates for a specific date
+const generateTasksFromTemplates = (date) => {
+  const dateStr = date.format('YYYY-MM-DD')
+  const dayOfWeek = date.format('dddd').toLowerCase()
+  const dayOfMonth = date.date()
+  
+  recurringTasks.value.forEach(template => {
+    if (!template.isActive) return
+    
+    const startDate = dayjs(template.startDate)
+    const endDate = template.endDate ? dayjs(template.endDate) : null
+    
+    // Check if date is within range
+    if (date.isBefore(startDate)) return
+    if (endDate && date.isAfter(endDate)) return
+    
+    let shouldGenerate = false
+    
+    // Check if task should be generated for this date
+    if (template.frequency === 'daily') {
+      shouldGenerate = true
+    } else if (template.frequency === 'weekly' && template.dayOfWeek === dayOfWeek) {
+      shouldGenerate = true
+    } else if (template.frequency === 'monthly' && template.dayOfMonth === dayOfMonth) {
+      shouldGenerate = true
+    }
+    
+    if (shouldGenerate) {
+      // Check if task already exists for this date
+      const existingTask = todayTasks.value.find(task => 
+        task.title === template.title && 
+        task.assignedTo === template.assignedTo &&
+        task.dueDate === dateStr
+      )
+      
+      if (!existingTask) {
+        const newTask = {
+          id: Date.now() + Math.random(),
+          title: template.title,
+          description: template.description,
+          assignedTo: template.assignedTo,
+          priority: 'normal', // Default priority for recurring tasks
+          dueDate: dateStr,
+          status: 'Pending',
+          isRecurring: true,
+          recurringTemplateId: template.id
+        }
+        
+        todayTasks.value.push(newTask)
+      }
+    }
+  })
+}
+
 
 // Helper functions
 const getPriorityColor = (priority) => {
@@ -958,7 +1594,7 @@ const getPriorityColor = (priority) => {
 
 const getPriorityText = (priority) => {
   switch (priority) {
-    case 'normal': return 'Normal (Daily Task)'
+    case 'normal': return 'Normal'
     case 'urgent': return 'Urgent'
     case 'very-urgent': return 'Very Urgent'
     default: return priority
@@ -985,6 +1621,24 @@ const getRequestStatusColor = (status) => {
     case 'Approved': return 'green'
     case 'Rejected': return 'red'
     default: return 'default'
+  }
+}
+
+const getFrequencyColor = (frequency) => {
+  switch (frequency) {
+    case 'daily': return 'blue'
+    case 'weekly': return 'green'
+    case 'monthly': return 'orange'
+    default: return 'default'
+  }
+}
+
+const getFrequencyText = (frequency) => {
+  switch (frequency) {
+    case 'daily': return 'Daily'
+    case 'weekly': return 'Weekly'
+    case 'monthly': return 'Monthly'
+    default: return frequency
   }
 }
 
