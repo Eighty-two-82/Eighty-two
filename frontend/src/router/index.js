@@ -13,7 +13,7 @@ function isAuthed() {
 // Mock function to get user information
 async function getMe() {
   // You can modify the role here to test different flows
-  return { role: 'manager' } // Change to 'manager' or 'worker' to test invite code flow (poa = Power of Attorney)
+  return { role: 'poa' } // Change to 'manager' or 'worker' to test invite code flow (poa = Power of Attorney)
 }
 
 // Mock function to get invite status

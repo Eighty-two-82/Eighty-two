@@ -7,8 +7,8 @@
           <template #title>
             <div style="display: flex; align-items: center; gap: 8px;">
               <UserOutlined />
-              <span>Patient Information</span>
-              <a-tooltip title="Manage patient basic information and special requirements" placement="top">
+              <span>Client Information</span>
+              <a-tooltip title="Manage client basic information and special requirements" placement="top">
                 <QuestionCircleOutlined style="color: #999; cursor: help;" />
               </a-tooltip>
             </div>
@@ -22,17 +22,17 @@
             @finish="onPatientFormFinish"
           >
             <a-form-item
-              label="Patient Name"
+              label="Client Name"
               name="name"
-              :rules="[{ required: true, message: 'Please input patient name!' }]"
+              :rules="[{ required: true, message: 'Please input client name!' }]"
             >
-              <a-input v-model:value="patientForm.name" placeholder="Enter patient name" />
+              <a-input v-model:value="patientForm.name" placeholder="Enter client name" />
             </a-form-item>
 
             <a-form-item
               label="Age"
               name="age"
-              :rules="[{ required: true, message: 'Please input patient age!' }]"
+              :rules="[{ required: true, message: 'Please input client age!' }]"
             >
               <a-input-number 
                 v-model:value="patientForm.age" 
@@ -276,7 +276,7 @@ const loadNotificationSettings = () => {
 // Handle patient form submission
 const onPatientFormFinish = async () => {
   if (!canEditPatient.value) {
-    message.warning('You do not have permission to edit patient information')
+    message.warning('You do not have permission to edit client information')
     return
   }
   
@@ -284,9 +284,9 @@ const onPatientFormFinish = async () => {
   try {
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000))
-    message.success('Patient information updated successfully')
+    message.success('Client information updated successfully')
   } catch (e) {
-    message.error('Failed to update patient information')
+    message.error('Failed to update client information')
   } finally {
     patientLoading.value = false
   }
