@@ -11,7 +11,7 @@ export async function login(credentials) {
         data: {
             token: "mock-jwt-token-12345",
             user: {
-                role: "manager", // Change this to test different roles (poa = Power of Attorney): 'poa' (Power of Attorney), 'manager', 'worker'
+                role: "poa", // Change this to test different roles (poa = Power of Attorney): 'poa' (Power of Attorney), 'manager', 'worker'
                 email: credentials.email,
                 name: "Test User"
             },
@@ -28,7 +28,7 @@ export async function getMe() {
     await new Promise(resolve => setTimeout(resolve, 500));
     return {
         data: {
-            role: "manager", // Change this to test different roles (poa = Power of Attorney)
+            role: "poa", // Change this to test different roles (poa = Power of Attorney)
             email: "test@example.com",
             name: "Test User"
         }
