@@ -98,14 +98,26 @@
   
       <!-- right content -->
       <a-layout>
-        <!-- Header with help button -->
+        <!-- Header with help button and notifications -->
         <a-layout-header style="background: #fff; padding: 0 24px; display: flex; justify-content: flex-end; align-items: center; border-bottom: 1px solid #f0f0f0;">
-          <a-tooltip title="Click to get help information">
-            <a-button type="text" @click="showHelpModal" style="color: #1890ff;">
-              <template #icon><QuestionCircleOutlined /></template>
-              Help
-            </a-button>
-          </a-tooltip>
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <!-- Notification Bell -->
+            <a-badge :count="unreadNotificationsCount" :offset="[10, 0]">
+              <a-tooltip title="View notifications and alerts">
+                <a-button type="text" @click="showNotificationModal" style="color: #1890ff; position: relative;">
+                  <template #icon><BellOutlined /></template>
+                </a-button>
+              </a-tooltip>
+            </a-badge>
+            
+            <!-- Help Button -->
+            <a-tooltip title="Click to get help information">
+              <a-button type="text" @click="showHelpModal" style="color: #1890ff;">
+                <template #icon><QuestionCircleOutlined /></template>
+                Help
+              </a-button>
+            </a-tooltip>
+          </div>
         </a-layout-header>
         
         <a-layout-content style="margin: 16px">
@@ -161,15 +173,76 @@
         </a-button>
       </div>
     </a-modal>
+
+    <!-- Notification Modal -->
+    <a-modal
+      v-model:open="notificationModalVisible"
+      title="Notifications & Alerts"
+      width="600px"
+      :footer="null"
+    >
+      <div style="max-height: 500px; overflow-y: auto;">
+        <div v-if="notifications.length === 0" style="text-align: center; padding: 40px; color: #999;">
+          <BellOutlined style="font-size: 48px; margin-bottom: 16px; color: #d9d9d9;" />
+          <p>No notifications</p>
+        </div>
+        
+        <div v-else>
+          <div v-for="notification in notifications" :key="notification.id" 
+               style="margin-bottom: 16px; padding: 12px; border-radius: 6px; border-left: 4px solid;"
+               :style="{ 
+                 backgroundColor: getNotificationBgColor(notification.type),
+                 borderLeftColor: getNotificationColor(notification.type)
+               }">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+              <div style="flex: 1;">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                  <span :style="{ color: getNotificationColor(notification.type) }">
+                    {{ getNotificationIcon(notification.type) }}
+                  </span>
+                  <span style="font-weight: 600; font-size: 14px;">
+                    {{ notification.title }}
+                  </span>
+                  <a-tag :color="getNotificationTagColor(notification.type)" size="small">
+                    {{ notification.type.toUpperCase() }}
+                  </a-tag>
+                </div>
+                <p style="margin: 0; color: #666; font-size: 13px; line-height: 1.4;">
+                  {{ notification.message }}
+                </p>
+                <div style="margin-top: 8px; font-size: 12px; color: #999;">
+                  {{ formatNotificationTime(notification.timestamp) }}
+                </div>
+              </div>
+              <a-button 
+                v-if="!notification.read" 
+                type="text" 
+                size="small" 
+                @click="markAsRead(notification.id)"
+                style="color: #1890ff;"
+              >
+                Mark as read
+              </a-button>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div v-if="notifications.length > 0" style="margin-top: 16px; text-align: center; border-top: 1px solid #f0f0f0; padding-top: 16px;">
+        <a-button type="primary" @click="markAllAsRead" :disabled="unreadNotificationsCount === 0">
+          Mark All as Read
+        </a-button>
+      </div>
+    </a-modal>
   </template>
   
   <script setup>
-  import { ref, onMounted, watchEffect } from 'vue'
+  import { ref, onMounted, watchEffect, computed } from 'vue'
   import { useRouter, useRoute } from 'vue-router'
   import {
     HomeOutlined, CheckSquareOutlined, BarChartOutlined,
     SettingOutlined, MessageOutlined, AppstoreOutlined, UserOutlined,
-    QuestionCircleOutlined
+    QuestionCircleOutlined, BellOutlined
   } from '@ant-design/icons-vue'
   import { getMe } from '@/services/userService'
   
@@ -178,6 +251,7 @@
   const userName = ref('Test User')
   const helpModalVisible = ref(false)
   const firstVisitModalVisible = ref(false)
+  const notificationModalVisible = ref(false)
   
   onMounted(async () => {
     try {
@@ -302,6 +376,235 @@
   const onMenuClick = ({ key }) => {
     const path = keyToPath[key]
     if (path) router.push(path)
+  }
+
+  // Role-based notification data
+  const allNotifications = {
+    manager: [
+      {
+        id: 1,
+        type: 'warning',
+        title: 'Budget Alert',
+        message: 'Hygiene Products category has exceeded 80% of budget. Current usage: 93%',
+        timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
+        read: false
+      },
+      {
+        id: 2,
+        type: 'error',
+        title: 'Task Overdue',
+        message: 'Morning Medication task assigned to Worker A is overdue by 2 hours',
+        timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000),
+        read: false
+      },
+      {
+        id: 3,
+        type: 'info',
+        title: 'New Request',
+        message: 'POA has submitted a new task request: "Add Physical Therapy Session"',
+        timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000),
+        read: true
+      },
+      {
+        id: 4,
+        type: 'success',
+        title: 'Task Completed',
+        message: 'Evening Care task has been completed by Worker C and approved by POA',
+        timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000),
+        read: true
+      },
+      {
+        id: 5,
+        type: 'warning',
+        title: 'System Maintenance',
+        message: 'Scheduled system maintenance will occur tonight from 2:00 AM to 4:00 AM',
+        timestamp: new Date(Date.now() - 8 * 60 * 60 * 1000),
+        read: false
+      },
+      {
+        id: 6,
+        type: 'error',
+        title: 'Critical Alert',
+        message: 'Toothpaste sub-element budget has been exceeded by $100',
+        timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000),
+        read: false
+      }
+    ],
+    poa: [
+      {
+        id: 1,
+        type: 'info',
+        title: 'Request Status Update',
+        message: 'Your request for "Add Physical Therapy Session" has been approved by Manager',
+        timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000),
+        read: false
+      },
+      {
+        id: 2,
+        type: 'warning',
+        title: 'Task Review Required',
+        message: 'Worker A has completed "Morning Medication" task. Please review and approve.',
+        timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
+        read: false
+      },
+      {
+        id: 3,
+        type: 'success',
+        title: 'Task Approved',
+        message: 'Your approval for "Evening Care" task has been recorded',
+        timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000),
+        read: true
+      },
+      {
+        id: 4,
+        type: 'info',
+        title: 'Budget Overview',
+        message: 'Monthly budget report is available. Current usage: 67% of total budget',
+        timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000),
+        read: true
+      },
+      {
+        id: 5,
+        type: 'warning',
+        title: 'System Maintenance',
+        message: 'Scheduled system maintenance will occur tonight from 2:00 AM to 4:00 AM',
+        timestamp: new Date(Date.now() - 8 * 60 * 60 * 1000),
+        read: false
+      }
+    ],
+    worker: [
+      {
+        id: 1,
+        type: 'info',
+        title: 'New Task Assigned',
+        message: 'You have been assigned a new task: "Physical Therapy Session" due today at 2:00 PM',
+        timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000),
+        read: false
+      },
+      {
+        id: 2,
+        type: 'warning',
+        title: 'Task Reminder',
+        message: 'Your "Morning Medication" task is due in 30 minutes',
+        timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
+        read: false
+      },
+      {
+        id: 3,
+        type: 'success',
+        title: 'Task Approved',
+        message: 'Your completion of "Evening Care" task has been approved by POA',
+        timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000),
+        read: true
+      },
+      {
+        id: 4,
+        type: 'error',
+        title: 'Task Rejected',
+        message: 'Your completion of "Morning Medication" was rejected. Please redo the task.',
+        timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000),
+        read: false
+      },
+      {
+        id: 5,
+        type: 'warning',
+        title: 'System Maintenance',
+        message: 'Scheduled system maintenance will occur tonight from 2:00 AM to 4:00 AM',
+        timestamp: new Date(Date.now() - 8 * 60 * 60 * 1000),
+        read: false
+      }
+    ]
+  }
+
+  // Get notifications based on user role
+  const notifications = computed(() => {
+    return allNotifications[userRole.value] || []
+  })
+
+  // Computed property for unread notifications count
+  const unreadNotificationsCount = computed(() => {
+    return notifications.value.filter(n => !n.read).length
+  })
+
+  // Notification functions
+  const showNotificationModal = () => {
+    notificationModalVisible.value = true
+  }
+
+  const markAsRead = (notificationId) => {
+    const roleNotifications = allNotifications[userRole.value]
+    if (roleNotifications) {
+      const notification = roleNotifications.find(n => n.id === notificationId)
+      if (notification) {
+        notification.read = true
+      }
+    }
+  }
+
+  const markAllAsRead = () => {
+    const roleNotifications = allNotifications[userRole.value]
+    if (roleNotifications) {
+      roleNotifications.forEach(notification => {
+        notification.read = true
+      })
+    }
+  }
+
+  const getNotificationColor = (type) => {
+    switch (type) {
+      case 'error': return '#ff4d4f'
+      case 'warning': return '#fa8c16'
+      case 'info': return '#1890ff'
+      case 'success': return '#52c41a'
+      default: return '#666'
+    }
+  }
+
+  const getNotificationBgColor = (type) => {
+    switch (type) {
+      case 'error': return '#fff2f0'
+      case 'warning': return '#fff7e6'
+      case 'info': return '#e6f7ff'
+      case 'success': return '#f6ffed'
+      default: return '#fafafa'
+    }
+  }
+
+  const getNotificationTagColor = (type) => {
+    switch (type) {
+      case 'error': return 'red'
+      case 'warning': return 'orange'
+      case 'info': return 'blue'
+      case 'success': return 'green'
+      default: return 'default'
+    }
+  }
+
+  const getNotificationIcon = (type) => {
+    switch (type) {
+      case 'error': return '🚨'
+      case 'warning': return '⚠️'
+      case 'info': return 'ℹ️'
+      case 'success': return '✅'
+      default: return '📢'
+    }
+  }
+
+  const formatNotificationTime = (timestamp) => {
+    const now = new Date()
+    const diff = now - timestamp
+    const hours = Math.floor(diff / (1000 * 60 * 60))
+    const minutes = Math.floor(diff / (1000 * 60))
+    
+    if (hours > 24) {
+      return `${Math.floor(hours / 24)} days ago`
+    } else if (hours > 0) {
+      return `${hours} hours ago`
+    } else if (minutes > 0) {
+      return `${minutes} minutes ago`
+    } else {
+      return 'Just now'
+    }
   }
   </script>
   

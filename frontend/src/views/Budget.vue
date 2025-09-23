@@ -417,6 +417,67 @@
       </a-form>
     </a-modal>
 
+    <!-- Monthly Input Modal -->
+    <a-modal
+      v-model:open="monthlyInputModalVisible"
+      title="Input Monthly Data"
+      @ok="handleMonthlyInput"
+      @cancel="cancelMonthlyInput"
+      width="800px"
+    >
+      <div v-if="currentSubElement" style="line-height: 1.6;">
+        <a-alert
+          :message="`Input Monthly Spending for: ${currentSubElement.name}`"
+          :description="`Budget: $${currentSubElement.subElementBudget.toLocaleString()} | Current Total Used: $${currentSubElement.totalUtilised.toLocaleString()}`"
+          type="info"
+          show-icon
+          style="margin-bottom: 20px;"
+        />
+        
+        <a-form :model="monthlyInputForm" layout="vertical">
+          <a-form-item label="Monthly Spending Data (Jan - Dec)">
+            <a-row :gutter="8">
+              <a-col v-for="(amount, index) in monthlyInputForm.monthlyData" :key="index" :span="4">
+                <a-form-item :label="getMonthName(index)" style="margin-bottom: 8px;">
+                  <a-input-number
+                    v-model:value="monthlyInputForm.monthlyData[index]"
+                    :min="0"
+                    :step="10"
+                    style="width: 100%"
+                    :formatter="(value) => `$${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')"
+                    :parser="(value) => value.replace(/\$\s?|(,*)/g, '')"
+                    placeholder="0"
+                  />
+                </a-form-item>
+              </a-col>
+            </a-row>
+          </a-form-item>
+        </a-form>
+        
+        <div style="margin-top: 16px; padding: 12px; background: #f6f8fa; border-radius: 4px;">
+          <h4 style="margin: 0 0 8px 0; color: #1890ff;">Calculation Preview:</h4>
+          <div style="font-size: 14px;">
+            <div><strong>Current Total Used:</strong> ${{ currentSubElement.totalUtilised.toLocaleString() }}</div>
+            <div><strong>New Total Used:</strong> ${{ monthlyInputForm.monthlyData.reduce((sum, amount) => sum + (amount || 0), 0).toLocaleString() }}</div>
+            <div><strong>Budget:</strong> ${{ currentSubElement.subElementBudget.toLocaleString() }}</div>
+            <div><strong>New Balance:</strong> 
+              <span :style="{ color: (currentSubElement.subElementBudget - monthlyInputForm.monthlyData.reduce((sum, amount) => sum + (amount || 0), 0)) < 0 ? 'red' : 'green' }">
+                ${{ (currentSubElement.subElementBudget - monthlyInputForm.monthlyData.reduce((sum, amount) => sum + (amount || 0), 0)).toLocaleString() }}
+              </span>
+            </div>
+            <div><strong>New Usage Rate:</strong> 
+              <span :style="{ 
+                color: Math.round((monthlyInputForm.monthlyData.reduce((sum, amount) => sum + (amount || 0), 0) / currentSubElement.subElementBudget) * 100) > 80 ? 
+                  (Math.round((monthlyInputForm.monthlyData.reduce((sum, amount) => sum + (amount || 0), 0) / currentSubElement.subElementBudget) * 100) >= 100 ? 'red' : 'orange') : 'green' 
+              }">
+                {{ Math.round((monthlyInputForm.monthlyData.reduce((sum, amount) => sum + (amount || 0), 0) / currentSubElement.subElementBudget) * 100) }}%
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </a-modal>
+
     <!-- Refund Modal -->
     <a-modal
       v-model:open="refundModalVisible"
@@ -503,6 +564,8 @@ const addCategoryModalVisible = ref(false)
 const addSubElementModalVisible = ref(false)
 const refundModalVisible = ref(false)
 const currentRefundItem = ref(null)
+const monthlyInputModalVisible = ref(false)
+const currentSubElement = ref(null)
 
 // Budget adjustment form
 const budgetAdjustForm = ref({
@@ -539,6 +602,11 @@ const refundForm = ref({
   amount: null,
   reason: '',
   comment: ''
+})
+
+// Monthly input form
+const monthlyInputForm = ref({
+  monthlyData: new Array(12).fill(0)
 })
 
 onMounted(async () => {
@@ -1005,6 +1073,68 @@ const cancelRefund = () => {
   currentRefundItem.value = null
 }
 
+// Show monthly input modal
+const showMonthlyInputModal = (subElement) => {
+  currentSubElement.value = subElement
+  monthlyInputModalVisible.value = true
+  // Initialize form with current monthly data
+  monthlyInputForm.value.monthlyData = [...(subElement.monthlyUsage || new Array(12).fill(0))]
+}
+
+// Cancel monthly input
+const cancelMonthlyInput = () => {
+  monthlyInputModalVisible.value = false
+  currentSubElement.value = null
+}
+
+// Handle monthly input
+const handleMonthlyInput = () => {
+  if (!currentSubElement.value) return
+  
+  // Update the sub-element's monthly usage data
+  currentSubElement.value.monthlyUsage = [...monthlyInputForm.value.monthlyData]
+  
+  // Calculate total utilised amount
+  const totalUsed = monthlyInputForm.value.monthlyData.reduce((sum, amount) => sum + (amount || 0), 0)
+  currentSubElement.value.totalUtilised = totalUsed
+  
+  // Calculate balance
+  currentSubElement.value.balance = currentSubElement.value.subElementBudget - totalUsed
+  
+  // Update warning level
+  const percentage = (totalUsed / currentSubElement.value.subElementBudget) * 100
+  if (percentage >= 100) {
+    currentSubElement.value.warningLevel = 'critical'
+  } else if (percentage >= 80) {
+    currentSubElement.value.warningLevel = 'warning'
+  } else {
+    currentSubElement.value.warningLevel = 'normal'
+  }
+  
+  // Update comments
+  if (percentage >= 100) {
+    currentSubElement.value.comments = 'Budget exhausted'
+  } else if (percentage >= 80) {
+    currentSubElement.value.comments = 'High usage - approaching budget limit'
+  } else if (totalUsed > currentSubElement.value.subElementBudget) {
+    currentSubElement.value.comments = 'Critical overspending - budget exceeded'
+  } else {
+    currentSubElement.value.comments = 'Normal usage'
+  }
+  
+  console.log('Monthly data updated for:', currentSubElement.value.name, {
+    monthlyData: monthlyInputForm.value.monthlyData,
+    totalUsed,
+    balance: currentSubElement.value.balance,
+    percentage: Math.round(percentage)
+  })
+  
+  monthlyInputModalVisible.value = false
+  currentSubElement.value = null
+  
+  message.success('Monthly data updated successfully!')
+}
+
 // Handle refund
 const handleRefund = () => {
   if (!refundForm.value.amount || refundForm.value.amount <= 0) {
@@ -1238,7 +1368,43 @@ const subElementColumns = [
     key: 'actions',
     width: 200,
     customRender: ({ record }) => {
+      // Only show actions for manager role
+      if (userRole.value !== 'manager') {
+        return h('span', { style: { color: '#999', fontStyle: 'italic' } }, 'View only')
+      }
+      
       return h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap' } }, [
+        h('div', { style: { display: 'flex', alignItems: 'center', gap: '4px' } }, [
+          h(Button, {
+            type: 'primary',
+            size: 'small',
+            onClick: () => showMonthlyInputModal(record),
+            style: {
+              fontWeight: 'bold',
+              minWidth: '120px'
+            }
+          }, () => 'Input Monthly Data'),
+          h(
+            resolveComponent('a-tooltip'),
+            { title: 'Click to input monthly spending data for this sub-element. This will automatically calculate total used amount.' },
+            {
+              default: () => h('span', {
+                style: {
+                  color: '#999',
+                  cursor: 'help',
+                  fontSize: '12px',
+                  border: '1px solid #999',
+                  borderRadius: '50%',
+                  width: '16px',
+                  height: '16px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }
+              }, '?')
+            }
+          )
+        ]),
         h('div', { style: { display: 'flex', alignItems: 'center', gap: '4px' } }, [
           h(Button, {
             type: 'default',
