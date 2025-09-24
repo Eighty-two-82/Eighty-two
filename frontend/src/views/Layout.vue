@@ -93,13 +93,33 @@
               <QuestionCircleOutlined style="margin-left: 8px; color: #999; cursor: help;" />
             </a-tooltip>
           </a-menu-item>
+          
+          <!-- Logout -->
+          <a-menu-item key="logout" style="color: #ff4d4f; font-size: 14px;">
+            <template #icon><LogoutOutlined /></template>
+            <span>Logout</span>
+            <a-tooltip title="Logout from the system" placement="right">
+              <QuestionCircleOutlined style="margin-left: 8px; color: #999; cursor: help;" />
+            </a-tooltip>
+          </a-menu-item>
         </a-menu>
       </a-layout-sider>
   
       <!-- right content -->
       <a-layout>
-        <!-- Header with help button and notifications -->
-        <a-layout-header style="background: #fff; padding: 0 24px; display: flex; justify-content: flex-end; align-items: center; border-bottom: 1px solid #f0f0f0;">
+        <!-- Header with help button, notifications and logout -->
+        <a-layout-header style="background: #fff; padding: 0 24px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f0f0f0;">
+          <!-- Left side - User info -->
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="font-size: 16px; font-weight: 600; color: #1890ff;">
+              Welcome, {{ userName }}
+            </div>
+            <a-tag :color="getRoleColor()" style="margin: 0;">
+              {{ getRoleDisplayName() }}
+            </a-tag>
+          </div>
+          
+          <!-- Right side - Actions -->
           <div style="display: flex; align-items: center; gap: 16px;">
             <!-- Notification Bell -->
             <a-badge :count="unreadNotificationsCount" :offset="[10, 0]">
@@ -115,6 +135,14 @@
               <a-button type="text" @click="showHelpModal" style="color: #1890ff;">
                 <template #icon><QuestionCircleOutlined /></template>
                 Help
+              </a-button>
+            </a-tooltip>
+            
+            <!-- Logout Button -->
+            <a-tooltip title="Logout from the system">
+              <a-button type="text" @click="handleLogout" style="color: #ff4d4f;">
+                <template #icon><LogoutOutlined /></template>
+                Logout
               </a-button>
             </a-tooltip>
           </div>
@@ -146,6 +174,7 @@
           <li v-if="userRole === 'manager' || userRole === 'poa'"><strong>Communication:</strong> {{ getCommunicationTooltip() }}</li>
           <li v-if="userRole === 'poa'"><strong>Carer Team:</strong> View and manage care team information, invite organizations to join</li>
           <li><strong>Setting:</strong> {{ getSettingTooltip() }}</li>
+          <li><strong>Logout:</strong> Logout from the system and return to login page</li>
         </ul>
         <p style="margin-top: 16px; color: #666;">
           <strong>Tip:</strong> Hover over the question mark icon on menu items to view detailed descriptions.
@@ -242,9 +271,9 @@
   import {
     HomeOutlined, CheckSquareOutlined, BarChartOutlined,
     SettingOutlined, MessageOutlined, AppstoreOutlined, UserOutlined,
-    QuestionCircleOutlined, BellOutlined
+    QuestionCircleOutlined, BellOutlined, LogoutOutlined
   } from '@ant-design/icons-vue'
-  import { getMe } from '@/services/userService'
+  import { getMe, logout } from '@/services/userService'
   
   const selectedKeys = ref(['home'])
   const userRole = ref('worker')
@@ -289,6 +318,12 @@
     helpModalVisible.value = true
   }
   
+  // Handle logout
+  const handleLogout = () => {
+    console.log('Logout button clicked');
+    logout()
+  }
+  
   // Get role display name
   const getRoleDisplayName = () => {
     switch (userRole.value) {
@@ -300,6 +335,20 @@
         return 'Worker'
       default:
         return userRole.value
+    }
+  }
+  
+  // Get role color for tag
+  const getRoleColor = () => {
+    switch (userRole.value) {
+      case 'poa':
+        return 'purple'
+      case 'manager':
+        return 'blue'
+      case 'worker':
+        return 'green'
+      default:
+        return 'default'
     }
   }
   
@@ -362,6 +411,7 @@
     budget: '/app/budget',
     upload: '/app/upload',
     setting: '/app/setting',
+    logout: '/app/logout',
     'worker-management': '/app/worker-management',
     communication: '/app/communication',
   }

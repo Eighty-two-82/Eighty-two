@@ -36,17 +36,6 @@
           </a-tooltip>
         </div>
         
-        <div style="display: flex; align-items: center; gap: 4px;">
-          <a-button type="default" @click="showTransferModal">
-            <template #icon>
-              <SwapOutlined />
-            </template>
-            Transfer Worker
-          </a-button>
-          <a-tooltip title="Transfer a worker to another company or organization. This will move the worker's information and records to the target company." placement="top">
-            <span style="color: #999; cursor: help; font-size: 12px; width: 16px; height: 16px; border-radius: 50%; border: 1px solid #999; display: inline-flex; align-items: center; justify-content: center; line-height: 1;">?</span>
-          </a-tooltip>
-        </div>
       </div>
 
       <!-- Invite Token Display -->
@@ -153,6 +142,9 @@
               <a-space>
                 <a-button size="small" @click="editWorker(record)">
                   Edit
+                </a-button>
+                <a-button size="small" danger @click="showRemoveConfirmation(record)">
+                  Remove
                 </a-button>
               </a-space>
             </template>
@@ -382,55 +374,6 @@
       </a-form>
     </a-modal>
 
-    <!-- Transfer Worker Modal -->
-    <a-modal
-      v-model:open="transferModalVisible"
-      title="Transfer Worker to Another Company"
-      @ok="confirmTransferWorker"
-      @cancel="transferModalVisible = false"
-    >
-      <a-form :model="transferForm" layout="vertical">
-        <a-form-item label="Select Worker">
-          <a-select
-            v-model:value="transferForm.workerId"
-            placeholder="Choose a worker to transfer"
-            show-search
-            :filter-option="filterOption"
-          >
-            <a-select-option
-              v-for="worker in workers"
-              :key="worker.id"
-              :value="worker.id"
-            >
-              {{ worker.name }} (ID: {{ worker.workerId }})
-            </a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="Target Patient/Team" required>
-          <a-select
-            v-model:value="transferForm.targetPatient"
-            placeholder="Select target patient or team"
-            style="width: 100%;"
-            show-search
-            :filter-option="filterOption"
-          >
-            <a-select-option value="patient1">Patient A - A (Room 101)</a-select-option>
-            <a-select-option value="patient2">Patient B - B (Room 102)</a-select-option>
-            <a-select-option value="patient3">Patient C - C (Room 103)</a-select-option>
-            <a-select-option value="patient4">Patient D - D (Room 104)</a-select-option>
-            <a-select-option value="team1">General Care Team (Return to headquarters for reassignment)</a-select-option>
-            <a-select-option value="team2">Other Organization</a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="Transfer Reason">
-          <a-textarea
-            v-model:value="transferForm.reason"
-            placeholder="Explain the reason for transfer"
-            :rows="3"
-          />
-        </a-form-item>
-      </a-form>
-    </a-modal>
 
     <!-- Worker Detail Modal -->
     <a-modal
@@ -534,16 +477,12 @@
             <a-button @click="uploadPhotoFromDetail">
               Upload Photo
             </a-button>
-            <a-button @click="transferWorkerFromDetail">
-              Transfer Worker
-            </a-button>
             <a-button danger @click="removeWorkerFromTeam">
               Remove from Team
             </a-button>
           </div>
           <div style="margin-top: 12px; padding: 12px; background: #f6ffed; border-radius: 6px; font-size: 12px; color: #666;">
-            <div><strong>Edit Status:</strong> Change worker status (Active/On leave/Resigned) - keeps historical data</div>
-            <div><strong>Transfer Worker:</strong> Move worker to serve a different patient or return to headquarters for reassignment</div>
+            <div><strong>Edit Status:</strong> Change worker status (Active/On leave) - keeps historical data</div>
             <div><strong>Remove from Team:</strong> Remove worker from current patient team but keep in organization</div>
           </div>
         </div>
@@ -589,12 +528,6 @@
             <a-select-option value="On leave">
               <a-tag color="orange">On leave</a-tag>
             </a-select-option>
-            <a-select-option value="Transferred out">
-              <a-tag color="blue">Transferred out</a-tag>
-            </a-select-option>
-            <a-select-option value="Resigned">
-              <a-tag color="red">Resigned</a-tag>
-            </a-select-option>
           </a-select>
         </a-form-item>
 
@@ -606,24 +539,56 @@
           />
         </a-form-item>
 
-        <a-alert
-          v-if="editStatusForm.newStatus === 'Resigned'"
-          message="Important Notice"
-          description="Setting status to 'Resigned' will mark the worker as no longer employed by the organization. Historical data will be preserved but the worker will be removed from active assignments."
-          type="warning"
-          show-icon
-          style="margin-bottom: 16px;"
-        />
+      </a-form>
+    </a-modal>
+
+    <!-- Remove Worker Confirmation Modal -->
+    <a-modal
+      v-model:open="removeConfirmationModalVisible"
+      title="Remove Worker"
+      width="500px"
+      @ok="confirmRemoveWorker"
+      @cancel="removeConfirmationModalVisible = false"
+    >
+      <div style="text-align: center; padding: 20px;">
+        <div style="margin-bottom: 20px;">
+          <a-typography-title :level="4" style="color: #ff4d4f;">
+            Confirm Worker Removal
+          </a-typography-title>
+        </div>
+        
+        <div v-if="workerToRemove" style="background: #fff2f0; border: 1px solid #ffccc7; border-radius: 6px; padding: 16px; margin-bottom: 20px;">
+          <div style="font-weight: bold; margin-bottom: 8px;">Worker Information:</div>
+          <div><strong>Name:</strong> {{ workerToRemove.name }}</div>
+          <div><strong>ID:</strong> {{ workerToRemove.workerId }}</div>
+          <div><strong>Position:</strong> {{ workerToRemove.position }}</div>
+          <div><strong>Status:</strong> {{ workerToRemove.status }}</div>
+        </div>
         
         <a-alert
-          v-if="editStatusForm.newStatus === 'Transferred out'"
-          message="Transfer Notice"
-          description="Setting status to 'Transferred out' indicates the worker has been moved to another organization or department. Historical data will be preserved."
-          type="info"
+          message="Warning: This action cannot be undone"
+          description="Removing this worker will permanently delete their record from the system. All associated data, schedules, and assignments will be lost."
+          type="error"
           show-icon
-          style="margin-bottom: 16px;"
+          style="margin-bottom: 20px;"
         />
-      </a-form>
+        
+        <div style="text-align: left; background: #fff7e6; border: 1px solid #ffd591; border-radius: 6px; padding: 12px; margin-bottom: 20px;">
+          <div style="font-weight: bold; margin-bottom: 8px;">What will be removed:</div>
+          <div style="font-size: 12px; line-height: 1.5;">
+            • Worker profile and personal information<br/>
+            • All assigned tasks and schedules<br/>
+            • Historical work records<br/>
+            • Access permissions and credentials
+          </div>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+          <a-checkbox v-model:checked="removeConfirmationChecked">
+            I understand this action is permanent and cannot be undone
+          </a-checkbox>
+        </div>
+      </div>
     </a-modal>
 
     <!-- Remove Worker from Team Modal -->
@@ -697,13 +662,13 @@ import {
   QuestionCircleOutlined, 
   UserAddOutlined, 
   UploadOutlined, 
-  SwapOutlined,
   InboxOutlined,
   UserOutlined,
   TeamOutlined,
   CalendarOutlined
 } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
+import { addRemovedWorker } from '@/services/userService'
 
 // Reactive data
 const loading = ref(false)
@@ -711,7 +676,6 @@ const generatingToken = ref(false)
 const generatedToken = ref(null)
 const tokenModalVisible = ref(false)
 const uploadModalVisible = ref(false)
-const transferModalVisible = ref(false)
 const dailyManagementModalVisible = ref(false)
 const fileList = ref([])
 const selectedWorker = ref(null)
@@ -722,6 +686,9 @@ const workerDetailModalVisible = ref(false)
 const selectedWorkerDetail = ref(null)
 const editStatusModalVisible = ref(false)
 const removeFromTeamModalVisible = ref(false)
+const removeConfirmationModalVisible = ref(false)
+const workerToRemove = ref(null)
+const removeConfirmationChecked = ref(false)
 
 // Forms
 const tokenForm = ref({
@@ -730,11 +697,6 @@ const tokenForm = ref({
   notes: ''
 })
 
-const transferForm = ref({
-  workerId: null,
-  targetPatient: '',
-  reason: ''
-})
 
 const editStatusForm = ref({
   newStatus: '',
@@ -1028,60 +990,11 @@ const confirmUploadPhotos = async () => {
   }
 }
 
-const showTransferModal = () => {
-  transferModalVisible.value = true
-}
-
-const confirmTransferWorker = async () => {
-  if (!transferForm.value.workerId || !transferForm.value.targetPatient) {
-    message.warning('Please fill in all required fields')
-    return
-  }
-  
-  try {
-    const worker = workers.value.find(w => w.id === transferForm.value.workerId)
-    if (worker) {
-      // Simulate transfer process
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      // Remove worker from current daily schedule
-      const today = selectedDate.value.format('YYYY-MM-DD')
-      if (dailySchedules.value[today]) {
-        dailySchedules.value[today] = dailySchedules.value[today].filter(id => id !== worker.id)
-      }
-      
-      // Remove from dailyWorkers
-      const dailyWorkerIndex = dailyWorkers.value.findIndex(w => w.id === worker.id)
-      if (dailyWorkerIndex !== -1) {
-        dailyWorkers.value.splice(dailyWorkerIndex, 1)
-      }
-      
-      const targetName = transferForm.value.targetPatient === 'team1' 
-        ? 'General Care Team (headquarters for reassignment)'
-        : transferForm.value.targetPatient === 'team2'
-        ? 'Other Organization'
-        : transferForm.value.targetPatient
-      message.success(`Worker ${worker.name} has been transferred to ${targetName}`)
-      transferModalVisible.value = false
-      
-      // Reset form
-      transferForm.value = {
-        workerId: null,
-        targetPatient: '',
-        reason: ''
-      }
-    }
-  } catch (error) {
-    message.error('Failed to transfer worker')
-  }
-}
 
 const getStatusColor = (status) => {
   switch (status) {
     case 'Active': return 'green'
     case 'On leave': return 'orange'
-    case 'Transferred out': return 'blue'
-    case 'Resigned': return 'red'
     case 'Inactive': return 'red'
     default: return 'default'
   }
@@ -1094,6 +1007,48 @@ const editWorker = (worker) => {
     reason: ''
   }
   editStatusModalVisible.value = true
+}
+
+const showRemoveConfirmation = (worker) => {
+  workerToRemove.value = worker
+  removeConfirmationChecked.value = false
+  removeConfirmationModalVisible.value = true
+}
+
+const confirmRemoveWorker = () => {
+  if (!removeConfirmationChecked.value) {
+    message.error('Please confirm that you understand this action is permanent')
+    return
+  }
+  
+  if (!workerToRemove.value) {
+    message.error('No worker selected for removal')
+    return
+  }
+  
+  try {
+    // Add worker to removed workers list (prevents future login)
+    addRemovedWorker({
+      email: workerToRemove.value.email,
+      name: workerToRemove.value.name,
+      workerId: workerToRemove.value.workerId
+    })
+    
+    // Remove worker from the list
+    const index = workers.value.findIndex(w => w.id === workerToRemove.value.id)
+    if (index > -1) {
+      workers.value.splice(index, 1)
+      message.success(`Worker ${workerToRemove.value.name} has been removed successfully and can no longer access the system`)
+    }
+    
+    // Close modal and reset
+    removeConfirmationModalVisible.value = false
+    workerToRemove.value = null
+    removeConfirmationChecked.value = false
+    
+  } catch (error) {
+    message.error('Failed to remove worker')
+  }
 }
 
 
@@ -1128,15 +1083,6 @@ const uploadPhotoFromDetail = () => {
   message.info(`Ready to upload photo for ${selectedWorkerDetail.value.name}`)
 }
 
-const transferWorkerFromDetail = () => {
-  workerDetailModalVisible.value = false
-  transferForm.value = {
-    workerId: selectedWorkerDetail.value.id,
-    targetPatient: '',
-    reason: ''
-  }
-  transferModalVisible.value = true
-}
 
 const removeWorkerFromTeam = () => {
   removeFromTeamForm.value = {
