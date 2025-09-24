@@ -13,7 +13,7 @@ function isAuthed() {
 // Mock function to get user information
 async function getMe() {
   // You can modify the role here to test different flows
-  return { role: 'worker' } // Change to 'manager' or 'worker' to test invite code flow (poa = Power of Attorney)
+  return { role: 'poa' } // Change to 'manager' or 'worker' to test invite code flow (poa = Power of Attorney)
 }
 
 // Mock function to get invite status
@@ -47,6 +47,7 @@ const routes = [
       { path: 'budget', component: () => import('../views/Budget.vue') },
       { path: 'upload', component: () => import('../views/Upload.vue') },
       { path: 'setting', component: () => import('../views/Setting.vue') },
+      { path: 'logout', component: () => import('../views/Logout.vue') },
       { path: 'worker-management', component: () => import('../views/WorkerManagement.vue') },
       { path: 'communication', component: () => import('../views/Communication.vue') }
     ]

@@ -1,17 +1,32 @@
 // src/services/userService.js
 import api from "./api";  // This api.js is the previously created axios configuration
 
+// List of removed workers (in real app, this would be stored in backend)
+const removedWorkers = [
+    // This list will be populated when workers are removed
+    // Format: { email: 'worker@example.com', name: 'Worker Name', removedAt: '2024-01-15' }
+];
+
 // Login - Mock implementation for testing without backend
 export async function login(credentials) {
     // Simulate API delay
     await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Check if the user is in the removed workers list
+    const isRemovedWorker = removedWorkers.some(worker => 
+        worker.email === credentials.email || worker.name === credentials.email
+    );
+    
+    if (isRemovedWorker) {
+        throw new Error("Access denied: This account has been removed from the system.");
+    }
     
     // Mock successful login response
     return {
         data: {
             token: "mock-jwt-token-12345",
             user: {
-                role: "worker", // Change this to test different roles (poa = Power of Attorney): 'poa' (Power of Attorney), 'manager', 'worker'
+                role: "poa", // Change this to test different roles (poa = Power of Attorney): 'poa' (Power of Attorney), 'manager', 'worker'
                 email: credentials.email,
                 name: "Test User"
             },
@@ -28,7 +43,7 @@ export async function getMe() {
     await new Promise(resolve => setTimeout(resolve, 500));
     return {
         data: {
-            role: "worker", // Change this to test different roles (poa = Power of Attorney)
+            role: "poa", // Change this to test different roles (poa = Power of Attorney)
             email: "test@example.com",
             name: "Test User"
         }
@@ -74,5 +89,52 @@ export async function submitInviteCode(inviteCode) {
         }
     } else {
         throw new Error("Please enter an invite code");
+    }
+}
+
+// Add removed worker to the list (called when a worker is removed)
+export function addRemovedWorker(workerInfo) {
+    const removedWorker = {
+        email: workerInfo.email,
+        name: workerInfo.name,
+        workerId: workerInfo.workerId,
+        removedAt: new Date().toISOString()
+    };
+    
+    removedWorkers.push(removedWorker);
+    
+    // In a real app, this would be sent to the backend
+    console.log('Worker removed from system:', removedWorker);
+}
+
+// Get list of removed workers (for debugging/admin purposes)
+export function getRemovedWorkers() {
+    return [...removedWorkers];
+}
+
+// Logout function - clears user session and redirects to login
+export function logout() {
+    try {
+        console.log('Logging out user...');
+        
+        // Clear all session data
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('user');
+        sessionStorage.removeItem('inviteSubmitted');
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        
+        console.log('User session cleared successfully');
+        
+        // In a real app, you might also call a logout API endpoint
+        // await api.post('/auth/logout');
+        
+        // Redirect to login page
+        window.location.href = '/login';
+        
+    } catch (error) {
+        console.error('Error during logout:', error);
+        // Still redirect to login page even if there's an error
+        window.location.href = '/login';
     }
 }

@@ -246,7 +246,6 @@ const workers = ref([
     position: 'Care Assistant',
     status: 'Active',
     joinDate: '2023-01-15',
-    phone: '+1-555-0101',
     email: 'a@careapp.com',
     role: 'Worker'
   },
@@ -258,7 +257,6 @@ const workers = ref([
     position: 'Senior Care Assistant',
     status: 'Active',
     joinDate: '2022-11-20',
-    phone: '+1-555-0102',
     email: 'b@careapp.com',
     role: 'Worker'
   },
@@ -270,7 +268,6 @@ const workers = ref([
     position: 'Care Assistant',
     status: 'On Leave',
     joinDate: '2023-03-10',
-    phone: '+1-555-0103',
     email: 'c@careapp.com',
     role: 'Worker'
   },
@@ -282,7 +279,6 @@ const workers = ref([
     position: 'Care Coordinator',
     status: 'Active',
     joinDate: '2022-08-05',
-    phone: '+1-555-0104',
     email: 'd@careapp.com',
     role: 'Worker'
   },
@@ -294,7 +290,6 @@ const workers = ref([
     position: 'Care Assistant',
     status: 'Active',
     joinDate: '2023-02-14',
-    phone: '+1-555-0105',
     email: 'e@careapp.com',
     role: 'Worker'
   },
@@ -306,7 +301,6 @@ const workers = ref([
     position: 'Senior Care Assistant',
     status: 'Active',
     joinDate: '2022-09-30',
-    phone: '+1-555-0106',
     email: 'f@careapp.com',
     role: 'Worker'
   },
@@ -318,7 +312,6 @@ const workers = ref([
     position: 'Care Assistant',
     status: 'Active',
     joinDate: '2023-04-22',
-    phone: '+1-555-0107',
     email: 'g@careapp.com',
     role: 'Worker'
   },
@@ -330,7 +323,6 @@ const workers = ref([
     position: 'Care Coordinator',
     status: 'Active',
     joinDate: '2022-12-08',
-    phone: '+1-555-0108',
     email: 'h@careapp.com',
     role: 'Worker'
   }
@@ -395,12 +387,6 @@ const carerColumns = [
     dataIndex: 'joinDate',
     key: 'joinDate',
     width: 120
-  },
-  {
-    title: 'Phone',
-    dataIndex: 'phone',
-    key: 'phone',
-    width: 130
   },
   {
     title: 'Email',
@@ -533,7 +519,6 @@ onMounted(() => {
       position: 'Care Manager',
       status: 'Active',
       joinDate: '2022-01-01',
-      phone: '+1-555-0001',
       email: 'manager@careapp.com',
       role: 'Manager'
     },
@@ -545,7 +530,6 @@ onMounted(() => {
       position: 'Power of Attorney',
       status: 'Active',
       joinDate: '2022-01-01',
-      phone: '+1-555-0002',
       email: 'family@careapp.com',
       role: 'POA'
     }
