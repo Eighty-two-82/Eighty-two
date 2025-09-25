@@ -927,40 +927,23 @@ const generateInviteToken = () => {
 const confirmGenerateToken = async () => {
   generatingToken.value = true
   try {
-    // 调用真实的后端API
-    const response = await fetch('/api/invite/generate', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Organization-Id': 'org123', // 从当前登录状态获取
-        'X-Manager-Id': 'manager123'   // 从当前登录状态获取
-      },
-      body: JSON.stringify({
-        createdBy: 'manager123',        // 当前管理员ID
-        createdByType: 'MANAGER',       // 创建者类型
-        targetType: 'WORKER',           // 目标类型（员工）
-        patientId: null,                // 员工邀请码不需要患者ID
-        organizationId: 'org123'        // 当前组织ID
-      })
-    })
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 1000))
     
-    const result = await response.json()
-    if (result.code === '200') {
-      generatedToken.value = result.data
-      message.success('Invite token generated successfully!')
-      tokenModalVisible.value = false
-      
-      // Reset form
-      tokenForm.value = {
-        type: 'Worker',
-        expirationDays: 7,
-        notes: ''
-      }
-    } else {
-      message.error('Failed to generate invite token: ' + result.message)
+    // Generate a mock token
+    const token = `INV-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substr(2, 8).toUpperCase()}`
+    generatedToken.value = token
+    
+    message.success('Invite token generated successfully!')
+    tokenModalVisible.value = false
+    
+    // Reset form
+    tokenForm.value = {
+      type: 'Worker',
+      expirationDays: 7,
+      notes: ''
     }
   } catch (error) {
-    console.error('Error generating invite token:', error)
     message.error('Failed to generate invite token')
   } finally {
     generatingToken.value = false
