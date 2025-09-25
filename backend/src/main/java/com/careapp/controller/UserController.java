@@ -61,7 +61,7 @@ public class UserController {
         if (success) {
             return Result.success("Worker bound to patient successfully!");
         } else {
-            return Result.<User>error("400", "Failed to bind worker to patient!");
+            return Result.<String>error("400", "Failed to bind worker to patient!");
         }
     }
 
@@ -72,7 +72,7 @@ public class UserController {
         if (patientId != null) {
             return Result.success(patientId, "Worker patient retrieved successfully!");
         } else {
-            return Result.<User>error("404", "Worker not bound to any patient!");
+            return Result.<String>error("404", "Worker not bound to any patient!");
         }
     }
 
@@ -87,7 +87,7 @@ public class UserController {
         if (ok) {
             return Result.success(true, "Password updated successfully!");
         }
-        return Result.<User>error("400", "Invalid credentials or parameters");
+        return Result.<Boolean>error("400", "Invalid credentials or parameters");
     }
 
     // Forgot password: generate token
@@ -98,7 +98,7 @@ public class UserController {
         if (token != null) {
             return Result.success(token, "Reset token generated!");
         }
-        return Result.<User>error("404", "User not found");
+        return Result.<String>error("404", "User not found");
     }
 
     // Reset password by token
@@ -110,8 +110,65 @@ public class UserController {
         if (ok) {
             return Result.success(true, "Password reset successfully!");
         }
-        return Result.<User>error("400", "Invalid or expired token");
+        return Result.<Boolean>error("400", "Invalid or expired token");
     }
 
+    // Get invite status - Mock implementation for frontend testing
+    @GetMapping("/invite-status")
+    public Result<Map<String, Object>> getInviteStatus() {
+        // For now, return mock data
+        // TODO: Implement proper invite status logic
+        Map<String, Object> inviteStatus = Map.of(
+            "valid", false,
+            "reason", "missing"
+        );
+        return Result.success(inviteStatus, "Invite status retrieved!");
+    }
+
+    // Submit invite code - Mock implementation for frontend testing
+    @PostMapping("/submit-invite-code")
+    public Result<Map<String, Object>> submitInviteCode(@RequestBody Map<String, String> body) {
+        String inviteCode = body.get("inviteCode");
+        
+        // Mock invite code validation
+        if (inviteCode != null && !inviteCode.trim().isEmpty()) {
+            // Define valid invite codes for testing
+            String[] validCodes = {"123", "abc", "test", "valid", "code"};
+            boolean isValid = false;
+            for (String validCode : validCodes) {
+                if (validCode.equalsIgnoreCase(inviteCode.trim())) {
+                    isValid = true;
+                    break;
+                }
+            }
+            
+            if (isValid) {
+                Map<String, Object> result = Map.of(
+                    "success", true,
+                    "message", "Invite code accepted"
+                );
+                return Result.success(result, "Invite code validated successfully!");
+            } else {
+                return Result.error("400", "Invalid invite code. Please check and try again.");
+            }
+        } else {
+            return Result.error("400", "Please enter an invite code");
+        }
+    }
+
+    // Get current user information (for frontend)
+    @GetMapping("/me")
+    public Result<Map<String, Object>> getMe(@RequestParam(required = false) String token) {
+        // For now, return mock data based on frontend expectations
+        // In a real implementation, this would validate the token and return actual user data
+        // TODO: Implement proper token validation and user lookup
+        
+        Map<String, Object> userInfo = Map.of(
+            "role", "manager", // Change this to test different roles
+            "email", "test@example.com",
+            "name", "Test User"
+        );
+        return Result.success(userInfo, "User information retrieved successfully!");
+    }
 
 }

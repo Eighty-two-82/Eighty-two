@@ -1,0 +1,366 @@
+package com.careapp.controller;
+
+import com.careapp.domain.Task;
+import com.careapp.dto.CreateTaskRequest;
+import com.careapp.service.TaskService;
+import com.careapp.utils.Result;
+import org.springframework.web.bind.annotation.*;
+
+import javax.annotation.Resource;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+@RestController
+@RequestMapping("/api/tasks")
+public class TaskController {
+    
+    @Resource
+    private TaskService taskService;
+    
+    // Create a new task
+    @PostMapping
+    public Result<Task> createTask(@RequestBody Task task) {
+        try {
+            Task createdTask = taskService.createTask(task);
+            return Result.success(createdTask, "Task created successfully!");
+        } catch (Exception e) {
+            return Result.error("500", "Failed to create task: " + e.getMessage());
+        }
+    }
+    
+    // Create a new task for the default patient (simplified for Manager)
+    @PostMapping("/create-for-patient")
+    public Result<Task> createTaskForPatient(@RequestBody CreateTaskRequest request) {
+        try {
+            // 创建Task对象，自动设置默认值
+            Task task = new Task();
+            task.setTitle(request.getTitle());
+            task.setDescription(request.getDescription());
+            task.setAssignedTo(request.getAssignedTo());
+            task.setPriority(request.getPriority());
+            task.setDueDate(request.getDueDate());
+            
+            // 自动设置默认值
+            task.setPatientId("default-patient-001");  // 默认Patient ID
+            task.setCreatedBy("manager-001");          // 默认Manager ID
+            task.setOrganizationId("org-001");         // 默认Organization ID
+            task.setStatus("In Progress");             // 默认状态
+            
+            // Set assignedToId - support from request or map from assignedTo name
+            if (request.getAssignedToId() != null && !request.getAssignedToId().isEmpty()) {
+                task.setAssignedToId(request.getAssignedToId());
+                System.out.println("DEBUG: Set assignedToId from request: " + request.getAssignedToId());
+            } else {
+                // Map from assignedTo name to worker ID
+                String workerId = mapWorkerNameToId(request.getAssignedTo());
+                task.setAssignedToId(workerId);
+                System.out.println("DEBUG: Mapped " + request.getAssignedTo() + " to workerId: " + workerId);
+            }
+            System.out.println("DEBUG: Final assignedToId: " + task.getAssignedToId());
+            
+            Task createdTask = taskService.createTask(task);
+            return Result.success(createdTask, "Task created successfully for patient!");
+        } catch (Exception e) {
+            return Result.error("500", "Failed to create task: " + e.getMessage());
+        }
+    }
+    
+    // Get all tasks
+    @GetMapping
+    public Result<List<Task>> getAllTasks() {
+        try {
+            List<Task> tasks = taskService.getAllTasks();
+            return Result.success(tasks, "Tasks retrieved successfully!");
+        } catch (Exception e) {
+            return Result.error("500", "Failed to retrieve tasks: " + e.getMessage());
+        }
+    }
+    
+    // Get task by ID
+    @GetMapping("/{id}")
+    public Result<Task> getTaskById(@PathVariable String id) {
+        try {
+            Optional<Task> task = taskService.getTaskById(id);
+            if (task.isPresent()) {
+                return Result.success(task.get(), "Task retrieved successfully!");
+            } else {
+                return Result.error("404", "Task not found!");
+            }
+        } catch (Exception e) {
+            return Result.error("500", "Failed to retrieve task: " + e.getMessage());
+        }
+    }
+    
+    // Update task
+    @PutMapping("/{id}")
+    public Result<Task> updateTask(@PathVariable String id, @RequestBody Task task) {
+        try {
+            Optional<Task> existingTask = taskService.getTaskById(id);
+            if (existingTask.isPresent()) {
+                task.setId(id);
+                Task updatedTask = taskService.updateTask(task);
+                return Result.success(updatedTask, "Task updated successfully!");
+            } else {
+                return Result.error("404", "Task not found!");
+            }
+        } catch (Exception e) {
+            return Result.error("500", "Failed to update task: " + e.getMessage());
+        }
+    }
+    
+    // Delete task
+    @DeleteMapping("/{id}")
+    public Result<Boolean> deleteTask(@PathVariable String id) {
+        try {
+            boolean deleted = taskService.deleteTask(id);
+            if (deleted) {
+                return Result.success(true, "Task deleted successfully!");
+            } else {
+                return Result.error("404", "Task not found!");
+            }
+        } catch (Exception e) {
+            return Result.error("500", "Failed to delete task: " + e.getMessage());
+        }
+    }
+    
+    // Get tasks by assigned worker
+    @GetMapping("/worker/{workerId}")
+    public Result<List<Task>> getTasksByWorker(@PathVariable String workerId) {
+        try {
+            List<Task> tasks = taskService.getTasksByAssignedWorker(workerId);
+            return Result.success(tasks, "Worker tasks retrieved successfully!");
+        } catch (Exception e) {
+            return Result.error("500", "Failed to retrieve worker tasks: " + e.getMessage());
+        }
+    }
+    
+    // Get tasks by assigned worker name
+    @GetMapping("/worker-name/{workerName}")
+    public Result<List<Task>> getTasksByWorkerName(@PathVariable String workerName) {
+        try {
+            List<Task> tasks = taskService.getTasksByAssignedWorkerName(workerName);
+            return Result.success(tasks, "Worker tasks retrieved successfully!");
+        } catch (Exception e) {
+            return Result.error("500", "Failed to retrieve worker tasks: " + e.getMessage());
+        }
+    }
+    
+    // Get tasks by status
+    @GetMapping("/status/{status}")
+    public Result<List<Task>> getTasksByStatus(@PathVariable String status) {
+        try {
+            List<Task> tasks = taskService.getTasksByStatus(status);
+            return Result.success(tasks, "Tasks retrieved successfully!");
+        } catch (Exception e) {
+            return Result.error("500", "Failed to retrieve tasks: " + e.getMessage());
+        }
+    }
+    
+    // Get tasks by due date
+    @GetMapping("/due-date/{dueDate}")
+    public Result<List<Task>> getTasksByDueDate(@PathVariable String dueDate) {
+        try {
+            LocalDate date = LocalDate.parse(dueDate, DateTimeFormatter.ISO_LOCAL_DATE);
+            List<Task> tasks = taskService.getTasksByDueDate(date);
+            return Result.success(tasks, "Tasks retrieved successfully!");
+        } catch (Exception e) {
+            return Result.error("500", "Failed to retrieve tasks: " + e.getMessage());
+        }
+    }
+    
+    
+    // Get tasks by priority
+    @GetMapping("/priority/{priority}")
+    public Result<List<Task>> getTasksByPriority(@PathVariable String priority) {
+        try {
+            List<Task> tasks = taskService.getTasksByPriority(priority);
+            return Result.success(tasks, "Tasks retrieved successfully!");
+        } catch (Exception e) {
+            return Result.error("500", "Failed to retrieve tasks: " + e.getMessage());
+        }
+    }
+    
+    // Get today's tasks
+    @GetMapping("/today")
+    public Result<List<Task>> getTodayTasks() {
+        try {
+            List<Task> tasks = taskService.getTodayTasks();
+            return Result.success(tasks, "Today's tasks retrieved successfully!");
+        } catch (Exception e) {
+            return Result.error("500", "Failed to retrieve today's tasks: " + e.getMessage());
+        }
+    }
+    
+    // Get today's tasks for a specific worker
+    @GetMapping("/today/worker/{workerId}")
+    public Result<List<Task>> getTodayTasksForWorker(@PathVariable String workerId) {
+        try {
+            List<Task> tasks = taskService.getTodayTasksForWorker(workerId);
+            return Result.success(tasks, "Today's tasks for worker retrieved successfully!");
+        } catch (Exception e) {
+            return Result.error("500", "Failed to retrieve today's tasks: " + e.getMessage());
+        }
+    }
+    
+    // Get pending approval tasks
+    @GetMapping("/pending-approval")
+    public Result<List<Task>> getPendingApprovalTasks() {
+        try {
+            List<Task> tasks = taskService.getPendingApprovalTasks();
+            return Result.success(tasks, "Pending approval tasks retrieved successfully!");
+        } catch (Exception e) {
+            return Result.error("500", "Failed to retrieve pending approval tasks: " + e.getMessage());
+        }
+    }
+    
+    // Get completed tasks
+    @GetMapping("/completed")
+    public Result<List<Task>> getCompletedTasks() {
+        try {
+            List<Task> tasks = taskService.getCompletedTasks();
+            return Result.success(tasks, "Completed tasks retrieved successfully!");
+        } catch (Exception e) {
+            return Result.error("500", "Failed to retrieve completed tasks: " + e.getMessage());
+        }
+    }
+    
+    // Get in-progress tasks
+    @GetMapping("/in-progress")
+    public Result<List<Task>> getInProgressTasks() {
+        try {
+            List<Task> tasks = taskService.getInProgressTasks();
+            return Result.success(tasks, "In-progress tasks retrieved successfully!");
+        } catch (Exception e) {
+            return Result.error("500", "Failed to retrieve in-progress tasks: " + e.getMessage());
+        }
+    }
+    
+    // Get rejected tasks
+    @GetMapping("/rejected")
+    public Result<List<Task>> getRejectedTasks() {
+        try {
+            List<Task> tasks = taskService.getRejectedTasks();
+            return Result.success(tasks, "Rejected tasks retrieved successfully!");
+        } catch (Exception e) {
+            return Result.error("500", "Failed to retrieve rejected tasks: " + e.getMessage());
+        }
+    }
+    
+    // Worker marks task as completed
+    @PostMapping("/{id}/worker-complete")
+    public Result<Task> workerCompleteTask(@PathVariable String id) {
+        try {
+            Task task = taskService.workerCompleteTask(id);
+            if (task != null) {
+                return Result.success(task, "Task marked as completed by worker!");
+            } else {
+                return Result.error("404", "Task not found!");
+            }
+        } catch (Exception e) {
+            return Result.error("500", "Failed to complete task: " + e.getMessage());
+        }
+    }
+    
+    // POA/FM/Manager approves task completion
+    @PostMapping("/{id}/approve")
+    public Result<Task> approveTaskCompletion(@PathVariable String id, @RequestBody Map<String, String> body) {
+        try {
+            String approvalReason = body.get("approvalReason");
+            Task task = taskService.approveTaskCompletion(id, approvalReason);
+            if (task != null) {
+                return Result.success(task, "Task completion approved!");
+            } else {
+                return Result.error("404", "Task not found!");
+            }
+        } catch (Exception e) {
+            return Result.error("500", "Failed to approve task: " + e.getMessage());
+        }
+    }
+    
+    // POA/FM/Manager rejects task completion
+    @PostMapping("/{id}/reject")
+    public Result<Task> rejectTaskCompletion(@PathVariable String id, @RequestBody Map<String, String> body) {
+        try {
+            String rejectionReason = body.get("rejectionReason");
+            Task task = taskService.rejectTaskCompletion(id, rejectionReason);
+            if (task != null) {
+                return Result.success(task, "Task completion rejected!");
+            } else {
+                return Result.error("404", "Task not found!");
+            }
+        } catch (Exception e) {
+            return Result.error("500", "Failed to reject task: " + e.getMessage());
+        }
+    }
+    
+    // Update task status
+    @PutMapping("/{id}/status")
+    public Result<Task> updateTaskStatus(@PathVariable String id, @RequestBody Map<String, String> body) {
+        try {
+            String status = body.get("status");
+            Task task = taskService.updateTaskStatus(id, status);
+            if (task != null) {
+                return Result.success(task, "Task status updated successfully!");
+            } else {
+                return Result.error("404", "Task not found!");
+            }
+        } catch (Exception e) {
+            return Result.error("500", "Failed to update task status: " + e.getMessage());
+        }
+    }
+    
+    // Get task statistics
+    @GetMapping("/stats")
+    public Result<Map<String, Object>> getTaskStats() {
+        try {
+            Map<String, Object> stats = Map.of(
+                "total", taskService.getAllTasks().size(),
+                "completed", taskService.getTaskCountByStatus("Completed"),
+                "inProgress", taskService.getTaskCountByStatus("In Progress"),
+                "workerCompleted", taskService.getTaskCountByStatus("Worker Completed"),
+                "rejected", taskService.getTaskCountByStatus("Rejected"),
+                "today", taskService.getTaskCountByDueDate(LocalDate.now())
+            );
+            return Result.success(stats, "Task statistics retrieved successfully!");
+        } catch (Exception e) {
+            return Result.error("500", "Failed to retrieve task statistics: " + e.getMessage());
+        }
+    }
+    
+    // Get task statistics for a specific worker
+    @GetMapping("/stats/worker/{workerId}")
+    public Result<Map<String, Object>> getTaskStatsForWorker(@PathVariable String workerId) {
+        try {
+            Map<String, Object> stats = Map.of(
+                "total", taskService.getTaskCountByAssignedWorker(workerId),
+                "completed", taskService.getTaskCountByAssignedWorkerAndStatus(workerId, "Completed"),
+                "inProgress", taskService.getTaskCountByAssignedWorkerAndStatus(workerId, "In Progress"),
+                "workerCompleted", taskService.getTaskCountByAssignedWorkerAndStatus(workerId, "Worker Completed"),
+                "rejected", taskService.getTaskCountByAssignedWorkerAndStatus(workerId, "Rejected")
+            );
+            return Result.success(stats, "Worker task statistics retrieved successfully!");
+        } catch (Exception e) {
+            return Result.error("500", "Failed to retrieve worker task statistics: " + e.getMessage());
+        }
+    }
+    
+    // 辅助方法：将员工名字映射到员工ID
+    private String mapWorkerNameToId(String workerName) {
+        if (workerName == null) return "W000";
+        
+        switch (workerName) {
+            case "A": return "W001";
+            case "B": return "W002";
+            case "C": return "W003";
+            case "D": return "W004";
+            case "E": return "W005";
+            case "F": return "W006";
+            case "G": return "W007";
+            case "H": return "W008";
+            default: return "W000"; // Unknown worker
+        }
+    }
+}

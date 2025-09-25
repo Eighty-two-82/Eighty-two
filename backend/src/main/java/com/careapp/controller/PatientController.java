@@ -7,79 +7,150 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/patients")
 public class PatientController {
-
+    
     @Resource
     private PatientService patientService;
-
-    // Create patient
+    
+    // Create a new patient
     @PostMapping
     public Result<Patient> createPatient(@RequestBody Patient patient) {
-        Patient createdPatient = patientService.createPatient(patient);
-        if (createdPatient != null) {
-            return Result.<Patient>success(createdPatient, "Patient created successfully!");
-        } else {
-            return Result.<Patient>error("400", "Failed to create patient!");
+        try {
+            Patient createdPatient = patientService.createPatient(patient);
+            return Result.success(createdPatient, "Patient created successfully!");
+        } catch (Exception e) {
+            return Result.error("500", "Failed to create patient: " + e.getMessage());
         }
     }
-
+    
+    // Get all patients
+    @GetMapping
+    public Result<List<Patient>> getAllPatients() {
+        try {
+            List<Patient> patients = patientService.getAllPatients();
+            return Result.success(patients, "Patients retrieved successfully!");
+        } catch (Exception e) {
+            return Result.error("500", "Failed to retrieve patients: " + e.getMessage());
+        }
+    }
+    
     // Get patient by ID
-    @GetMapping("/{patientId}")
-    public Result<Patient> getPatientById(@PathVariable String patientId) {
-        Patient patient = patientService.getPatientById(patientId);
-        if (patient != null) {
-            return Result.<Patient>success(patient, "Patient retrieved successfully!");
-        } else {
-            return Result.<Patient>error("404", "Patient not found!");
+    @GetMapping("/{id}")
+    public Result<Patient> getPatientById(@PathVariable String id) {
+        try {
+            Optional<Patient> patient = patientService.getPatientById(id);
+            if (patient.isPresent()) {
+                return Result.success(patient.get(), "Patient retrieved successfully!");
+            } else {
+                return Result.error("404", "Patient not found!");
+            }
+        } catch (Exception e) {
+            return Result.error("500", "Failed to retrieve patient: " + e.getMessage());
         }
     }
-
-    // Get patients by family member
+    
+    // Update patient
+    @PutMapping("/{id}")
+    public Result<Patient> updatePatient(@PathVariable String id, @RequestBody Patient patient) {
+        try {
+            Optional<Patient> existingPatient = patientService.getPatientById(id);
+            if (existingPatient.isPresent()) {
+                patient.setId(id);
+                Patient updatedPatient = patientService.updatePatient(patient);
+                return Result.success(updatedPatient, "Patient updated successfully!");
+            } else {
+                return Result.error("404", "Patient not found!");
+            }
+        } catch (Exception e) {
+            return Result.error("500", "Failed to update patient: " + e.getMessage());
+        }
+    }
+    
+    // Delete patient
+    @DeleteMapping("/{id}")
+    public Result<Boolean> deletePatient(@PathVariable String id) {
+        try {
+            boolean deleted = patientService.deletePatient(id);
+            if (deleted) {
+                return Result.success(true, "Patient deleted successfully!");
+            } else {
+                return Result.error("404", "Patient not found!");
+            }
+        } catch (Exception e) {
+            return Result.error("500", "Failed to delete patient: " + e.getMessage());
+        }
+    }
+    
+    // Get patients by family member ID
     @GetMapping("/family-member/{familyMemberId}")
     public Result<List<Patient>> getPatientsByFamilyMember(@PathVariable String familyMemberId) {
-        List<Patient> patients = patientService.getPatientsByFamilyMember(familyMemberId);
-        return Result.<List<Patient>>success(patients, "Patients retrieved successfully!");
+        try {
+            List<Patient> patients = patientService.getPatientsByFamilyMember(familyMemberId);
+            return Result.success(patients, "Patients retrieved successfully!");
+        } catch (Exception e) {
+            return Result.error("500", "Failed to retrieve patients: " + e.getMessage());
+        }
     }
-
-    // Get patients by POA
+    
+    // Get patients by POA ID
     @GetMapping("/poa/{poaId}")
     public Result<List<Patient>> getPatientsByPOA(@PathVariable String poaId) {
-        List<Patient> patients = patientService.getPatientsByPOA(poaId);
-        return Result.<List<Patient>>success(patients, "Patients retrieved successfully!");
-    }
-
-    // Get authorized patients for user
-    @GetMapping("/authorized/{userId}")
-    public Result<List<Patient>> getAuthorizedPatients(@PathVariable String userId, @RequestParam String userType) {
-        List<Patient> patients = patientService.getAuthorizedPatients(userId, userType);
-        return Result.<List<Patient>>success(patients, "Authorized patients retrieved successfully!");
-    }
-
-    // Update patient
-    @PutMapping("/{patientId}")
-    public Result<Patient> updatePatient(@PathVariable String patientId, @RequestBody Patient patient) {
-        patient.setId(patientId);
-        Patient updatedPatient = patientService.updatePatient(patient);
-        if (updatedPatient != null) {
-            return Result.<Patient>success(updatedPatient, "Patient updated successfully!");
-        } else {
-            return Result.<Patient>error("400", "Failed to update patient!");
+        try {
+            List<Patient> patients = patientService.getPatientsByPOA(poaId);
+            return Result.success(patients, "Patients retrieved successfully!");
+        } catch (Exception e) {
+            return Result.error("500", "Failed to retrieve patients: " + e.getMessage());
         }
     }
-
-    // Delete patient
-    @DeleteMapping("/{patientId}")
-    public Result<String> deletePatient(@PathVariable String patientId) {
-        boolean success = patientService.deletePatient(patientId);
-        if (success) {
-            return Result.<String>success("Patient deleted!", "Patient deleted successfully!");
-        } else {
-            return Result.<String>error("400", "Failed to delete patient!");
+    
+    // Get patients by medical record number
+    @GetMapping("/medical-record/{medicalRecordNumber}")
+    public Result<Patient> getPatientByMedicalRecordNumber(@PathVariable String medicalRecordNumber) {
+        try {
+            Optional<Patient> patient = patientService.getPatientByMedicalRecordNumber(medicalRecordNumber);
+            if (patient.isPresent()) {
+                return Result.success(patient.get(), "Patient retrieved successfully!");
+            } else {
+                return Result.error("404", "Patient not found!");
+            }
+        } catch (Exception e) {
+            return Result.error("500", "Failed to retrieve patient: " + e.getMessage());
         }
     }
-
-
+    
+    // Assign patient to family member
+    @PostMapping("/{id}/assign-family-member")
+    public Result<Patient> assignFamilyMember(@PathVariable String id, @RequestBody java.util.Map<String, String> body) {
+        try {
+            String familyMemberId = body.get("familyMemberId");
+            Patient patient = patientService.assignFamilyMember(id, familyMemberId);
+            if (patient != null) {
+                return Result.success(patient, "Family member assigned successfully!");
+            } else {
+                return Result.error("404", "Patient not found!");
+            }
+        } catch (Exception e) {
+            return Result.error("500", "Failed to assign family member: " + e.getMessage());
+        }
+    }
+    
+    // Assign patient to POA
+    @PostMapping("/{id}/assign-poa")
+    public Result<Patient> assignPOA(@PathVariable String id, @RequestBody java.util.Map<String, String> body) {
+        try {
+            String poaId = body.get("poaId");
+            Patient patient = patientService.assignPOA(id, poaId);
+            if (patient != null) {
+                return Result.success(patient, "POA assigned successfully!");
+            } else {
+                return Result.error("404", "Patient not found!");
+            }
+        } catch (Exception e) {
+            return Result.error("500", "Failed to assign POA: " + e.getMessage());
+        }
+    }
 }
