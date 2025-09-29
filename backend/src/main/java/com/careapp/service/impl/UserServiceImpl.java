@@ -6,11 +6,9 @@ import com.careapp.service.UserService;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-
 import javax.annotation.Resource;
 import java.security.SecureRandom;
 import java.util.Base64;
-import java.util.Objects;
 
 @Service
 public class UserServiceImpl implements UserService {
@@ -22,7 +20,7 @@ public class UserServiceImpl implements UserService {
     public User loginService(String uname, String password) {
         User user = userRepository.findByUnameAndPassword(uname, password);
         if (user != null) {
-            user.setPassword(null); // avoid returning sensitive information
+                user.setPassword(null); // do not return password
         }
         return user;
     }
@@ -31,27 +29,31 @@ public class UserServiceImpl implements UserService {
     public User loginByEmailService(String email, String password) {
         User user = userRepository.findByEmailAndPassword(email, password);
         if (user != null) {
-            user.setPassword(null); // avoid returning sensitive information
+            user.setPassword(null); // do not return password
         }
         return user;
     }
 
     @Override
-    public User registerService(User user) {
-        // check if email is already in use
-        if (userRepository.findByEmail(user.getEmail()) != null) {
-            return null; // email already in use
+    public User registerService(User newUser) {
+        // check if email already exists
+        User existingUser = userRepository.findByEmail(newUser.getEmail());
+        if (existingUser != null) {
+            return null; // email already exists
         }
         
-        // set uname to email (backward compatibility)
-        user.setUname(user.getEmail());
+        // set default status
+        newUser.setStatus("active");
+        newUser.setPasswordResetToken(null);
+        newUser.setPasswordResetExpires(null);
         
-        User newUser = userRepository.save(user);
-        if (newUser != null) {
-            newUser.setPassword(null);
+        User savedUser = userRepository.save(newUser);
+        if (savedUser != null) {
+            savedUser.setPassword(null); // do not return password
         }
-        return newUser;
+        return savedUser;
     }
+
     @Override
     public String getWorkerStatus(String userId) {
         User user = userRepository.findById(userId).orElse(null);
@@ -60,6 +62,7 @@ public class UserServiceImpl implements UserService {
         }
         return user.getStatus();
     }
+
     @Override
     public boolean bindWorkerToPatient(String workerId, String patientId) {
         User worker = userRepository.findById(workerId).orElse(null);
@@ -76,7 +79,6 @@ public class UserServiceImpl implements UserService {
         if (worker == null) return null;
         return worker.getPatientId();
     }
-
 
     @Override
     public boolean changePassword(String identifier, String oldPassword, String newPassword) {
@@ -140,8 +142,4 @@ public class UserServiceImpl implements UserService {
         new SecureRandom().nextBytes(bytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
-
-
-
-
 }
