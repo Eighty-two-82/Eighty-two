@@ -1,8 +1,11 @@
 package com.careapp.controller;
 
 import com.careapp.domain.Task;
+import com.careapp.domain.RecurringTask;
 import com.careapp.dto.CreateTaskRequest;
+import com.careapp.dto.CreateRecurringTaskRequest;
 import com.careapp.service.TaskService;
+import com.careapp.service.RecurringTaskService;
 import com.careapp.utils.Result;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,6 +23,9 @@ public class TaskController {
     @Resource
     private TaskService taskService;
     
+    @Resource
+    private RecurringTaskService recurringTaskService;
+    
     // Create a new task
     @PostMapping
     public Result<Task> createTask(@RequestBody Task task) {
@@ -33,9 +39,13 @@ public class TaskController {
     
     // Create a new task for the default patient (simplified for Manager)
     @PostMapping("/create-for-patient")
-    public Result<Task> createTaskForPatient(@RequestBody CreateTaskRequest request) {
+    public Result<Task> createTaskForPatient(
+            @RequestBody CreateTaskRequest request,
+            @RequestHeader(value = "X-User-Id", required = false) String userId,
+            @RequestHeader(value = "X-Organization-Id", required = false) String organizationId,
+            @RequestHeader(value = "X-Patient-Id", required = false) String patientId) {
         try {
-            // 创建Task对象，自动设置默认值
+            // Create Task object with automatic default values
             Task task = new Task();
             task.setTitle(request.getTitle());
             task.setDescription(request.getDescription());
@@ -43,23 +53,23 @@ public class TaskController {
             task.setPriority(request.getPriority());
             task.setDueDate(request.getDueDate());
             
-            // 自动设置默认值
-            task.setPatientId("default-patient-001");  // 默认Patient ID
-            task.setCreatedBy("manager-001");          // 默认Manager ID
-            task.setOrganizationId("org-001");         // 默认Organization ID
-            task.setStatus("In Progress");             // 默认状态
+            // Get user information from request headers, use defaults if not provided (backward compatibility)
+            task.setPatientId(patientId != null ? patientId : "default-patient-001");
+            task.setCreatedBy(userId != null ? userId : "manager-001");
+            task.setOrganizationId(organizationId != null ? organizationId : "org-001");
+            task.setStatus("In Progress");             // Default status
             
-            // Set assignedToId - support from request or map from assignedTo name
+            // Set assignedToId - support from request or map from assignedTo name, or leave unassigned
             if (request.getAssignedToId() != null && !request.getAssignedToId().isEmpty()) {
                 task.setAssignedToId(request.getAssignedToId());
-                System.out.println("DEBUG: Set assignedToId from request: " + request.getAssignedToId());
-            } else {
+            } else if (request.getAssignedTo() != null && !request.getAssignedTo().isEmpty()) {
                 // Map from assignedTo name to worker ID
                 String workerId = mapWorkerNameToId(request.getAssignedTo());
                 task.setAssignedToId(workerId);
-                System.out.println("DEBUG: Mapped " + request.getAssignedTo() + " to workerId: " + workerId);
+            } else {
+                // Task is unassigned - no worker assigned
+                task.setAssignedToId(null);
             }
-            System.out.println("DEBUG: Final assignedToId: " + task.getAssignedToId());
             
             Task createdTask = taskService.createTask(task);
             return Result.success(createdTask, "Task created successfully for patient!");
@@ -76,6 +86,103 @@ public class TaskController {
             return Result.success(tasks, "Tasks retrieved successfully!");
         } catch (Exception e) {
             return Result.error("500", "Failed to retrieve tasks: " + e.getMessage());
+        }
+    }
+    
+    // ==================== Recurring Task Endpoints ====================
+    
+    // Create recurring task template
+    @PostMapping("/recurring")
+    public Result<RecurringTask> createRecurringTask(
+            @RequestBody CreateRecurringTaskRequest request,
+            @RequestHeader(value = "X-User-Id", required = false) String userId,
+            @RequestHeader(value = "X-Organization-Id", required = false) String organizationId,
+            @RequestHeader(value = "X-Patient-Id", required = false) String patientId) {
+        try {
+            // Set user information from headers if provided
+            if (userId != null) {
+                request.setCreatedBy(userId);
+            }
+            if (organizationId != null) {
+                request.setOrganizationId(organizationId);
+            }
+            if (patientId != null) {
+                request.setPatientId(patientId);
+            }
+            
+            RecurringTask createdTask = recurringTaskService.createRecurringTask(request);
+            return Result.success(createdTask, "Recurring task template created successfully!");
+        } catch (Exception e) {
+            return Result.error("500", "Failed to create recurring task template: " + e.getMessage());
+        }
+    }
+    
+    // Get all recurring task templates
+    @GetMapping("/recurring")
+    public Result<List<RecurringTask>> getAllRecurringTasks() {
+        try {
+            List<RecurringTask> tasks = recurringTaskService.getAllRecurringTasks();
+            return Result.success(tasks, "Recurring task templates retrieved successfully!");
+        } catch (Exception e) {
+            return Result.error("500", "Failed to retrieve recurring task templates: " + e.getMessage());
+        }
+    }
+    
+    // Update recurring task template
+    @PutMapping("/recurring/{id}")
+    public Result<RecurringTask> updateRecurringTask(@PathVariable String id, @RequestBody CreateRecurringTaskRequest request) {
+        try {
+            RecurringTask updatedTask = recurringTaskService.updateRecurringTask(id, request);
+            if (updatedTask != null) {
+                return Result.success(updatedTask, "Recurring task template updated successfully!");
+            } else {
+                return Result.error("404", "Recurring task template not found!");
+            }
+        } catch (Exception e) {
+            return Result.error("500", "Failed to update recurring task template: " + e.getMessage());
+        }
+    }
+    
+    // Delete recurring task template
+    @DeleteMapping("/recurring/{id}")
+    public Result<String> deleteRecurringTask(@PathVariable String id) {
+        try {
+            boolean deleted = recurringTaskService.deleteRecurringTask(id);
+            if (deleted) {
+                return Result.success("Recurring task template deleted successfully!");
+            } else {
+                return Result.error("404", "Recurring task template not found!");
+            }
+        } catch (Exception e) {
+            return Result.error("500", "Failed to delete recurring task template: " + e.getMessage());
+        }
+    }
+    
+    // Toggle recurring task template status
+    @PostMapping("/recurring/{id}/toggle")
+    public Result<RecurringTask> toggleRecurringTaskStatus(@PathVariable String id) {
+        try {
+            RecurringTask updatedTask = recurringTaskService.toggleRecurringTaskStatus(id);
+            if (updatedTask != null) {
+                String status = updatedTask.getIsActive() ? "activated" : "deactivated";
+                return Result.success(updatedTask, "Recurring task template " + status + " successfully!");
+            } else {
+                return Result.error("404", "Recurring task template not found!");
+            }
+        } catch (Exception e) {
+            return Result.error("500", "Failed to toggle recurring task template status: " + e.getMessage());
+        }
+    }
+    
+    // Generate tasks from templates
+    @PostMapping("/recurring/generate")
+    public Result<List<Task>> generateTasksFromTemplates(@RequestParam String date) {
+        try {
+            LocalDate targetDate = LocalDate.parse(date, DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+            List<Task> generatedTasks = recurringTaskService.generateTasksFromTemplates(targetDate);
+            return Result.success(generatedTasks, "Tasks generated from recurring templates successfully!");
+        } catch (Exception e) {
+            return Result.error("500", "Failed to generate tasks from recurring templates: " + e.getMessage());
         }
     }
     
@@ -347,7 +454,7 @@ public class TaskController {
         }
     }
     
-    // 辅助方法：将员工名字映射到员工ID
+    // Helper method: Map worker name to worker ID
     private String mapWorkerNameToId(String workerName) {
         if (workerName == null) return "W000";
         
