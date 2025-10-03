@@ -58,6 +58,12 @@ public class Task {
     @Field("organization_id")
     private String organizationId; // Associated organization
     
+    @Field("is_recurring")
+    private Boolean isRecurring; // Whether this task was generated from a recurring template
+    
+    @Field("recurring_template_id")
+    private String recurringTemplateId; // ID of the recurring task template that generated this task
+    
     // Constructors
     public Task() {
         this.createdAt = LocalDateTime.now();
@@ -202,6 +208,22 @@ public class Task {
     
     public void setOrganizationId(String organizationId) {
         this.organizationId = organizationId;
+    }
+    
+    public Boolean getIsRecurring() {
+        return isRecurring;
+    }
+    
+    public void setIsRecurring(Boolean isRecurring) {
+        this.isRecurring = isRecurring;
+    }
+    
+    public String getRecurringTemplateId() {
+        return recurringTemplateId;
+    }
+    
+    public void setRecurringTemplateId(String recurringTemplateId) {
+        this.recurringTemplateId = recurringTemplateId;
     }
     
     // Helper methods
