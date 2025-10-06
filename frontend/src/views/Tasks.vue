@@ -180,6 +180,10 @@
                   size="small" 
         >
           <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'assignedTo'">
+              <span v-if="record.assignedTo">{{ record.assignedTo }}</span>
+              <a-tag v-else color="orange">Unassigned</a-tag>
+            </template>
             <template v-if="column.key === 'priority'">
               <a-tag :color="getPriorityColor(record.priority)">
                 {{ getPriorityText(record.priority) }}
@@ -239,6 +243,10 @@
           size="small"
         >
           <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'assignedTo'">
+              <span v-if="record.assignedTo">{{ record.assignedTo }}</span>
+              <a-tag v-else color="orange">Unassigned</a-tag>
+            </template>
             <template v-if="column.key === 'frequency'">
               <a-tag :color="getFrequencyColor(record.frequency)">
                 {{ getFrequencyText(record.frequency, record.frequencyNumber) }}
@@ -270,37 +278,6 @@
         </a-table>
       </a-card>
 
-      <!-- Work Assignment Section -->
-      <a-card style="margin-bottom: 24px;">
-        <template #title>
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <span>Work Assignment</span>
-            <a-tooltip title="View work assignments for all workers. Shows how many tasks each worker has been assigned and their current status. Click 'View' to see detailed task information.">
-              <span style="color: #999; cursor: help; font-size: 12px; border: 1px solid #999; border-radius: 50%; width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center;">?</span>
-            </a-tooltip>
-          </div>
-        </template>
-        
-        <a-table
-          :columns="assignmentColumns"
-          :data-source="workAssignments"
-          :pagination="false"
-          size="small"
-        >
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'status'">
-              <a-tag :color="getStatusColor(record.status)">
-                {{ record.status }}
-              </a-tag>
-            </template>
-            <template v-if="column.key === 'actions'">
-              <a-button size="small" @click="viewAssignment(record)">
-                View
-              </a-button>
-            </template>
-          </template>
-        </a-table>
-      </a-card>
 
       <!-- Request Change Section -->
       <a-card>
@@ -360,8 +337,8 @@
           <a-form-item label="Description">
             <a-textarea v-model:value="createRecurringTaskForm.description" placeholder="Enter task description" :rows="3" />
           </a-form-item>
-          <a-form-item label="Assign To" required>
-            <a-select v-model:value="createRecurringTaskForm.assignedTo" placeholder="Select worker" style="width: 100%;">
+          <a-form-item label="Assign To">
+            <a-select v-model:value="createRecurringTaskForm.assignedTo" placeholder="Select worker (optional)" style="width: 100%;" allowClear>
               <a-select-option v-for="worker in availableWorkers" :key="worker.id" :value="worker.id">
                 {{ worker.name }} ({{ worker.workerId }})
               </a-select-option>
@@ -380,9 +357,10 @@
               </a-col>
               <a-col :span="16">
                 <a-select v-model:value="createRecurringTaskForm.frequency" placeholder="Select frequency" style="width: 100%;" @change="onFrequencyChange">
-                  <a-select-option value="daily">Day(s)</a-select-option>
-                  <a-select-option value="weekly">Week(s)</a-select-option>
-                  <a-select-option value="monthly">Month(s)</a-select-option>
+                  <a-select-option value="daily">Daily</a-select-option>
+                  <a-select-option value="weekly">Weekly</a-select-option>
+                  <a-select-option value="monthly">Monthly</a-select-option>
+                  <a-select-option value="yearly">Yearly</a-select-option>
                 </a-select>
               </a-col>
             </a-row>
@@ -423,6 +401,32 @@
             </a-form-item>
           </div>
           
+          <!-- Yearly options -->
+          <div v-if="createRecurringTaskForm.frequency === 'yearly'">
+            <a-form-item label="Month" required>
+              <a-select v-model:value="createRecurringTaskForm.month" placeholder="Select month" style="width: 100%;">
+                <a-select-option value="january">January</a-select-option>
+                <a-select-option value="february">February</a-select-option>
+                <a-select-option value="march">March</a-select-option>
+                <a-select-option value="april">April</a-select-option>
+                <a-select-option value="may">May</a-select-option>
+                <a-select-option value="june">June</a-select-option>
+                <a-select-option value="july">July</a-select-option>
+                <a-select-option value="august">August</a-select-option>
+                <a-select-option value="september">September</a-select-option>
+                <a-select-option value="october">October</a-select-option>
+                <a-select-option value="november">November</a-select-option>
+                <a-select-option value="december">December</a-select-option>
+              </a-select>
+            </a-form-item>
+            <a-form-item label="Day of Month" required>
+              <a-input-number v-model:value="createRecurringTaskForm.dayOfMonth" :min="1" :max="31" style="width: 100%;" placeholder="Enter day (1-31)" />
+            </a-form-item>
+            <a-form-item label="Time of Day" required>
+              <a-time-picker v-model:value="createRecurringTaskForm.timeOfDay" format="HH:mm" style="width: 100%;" placeholder="Select time" />
+            </a-form-item>
+          </div>
+          
           <a-form-item label="Start Date" required>
             <a-date-picker v-model:value="createRecurringTaskForm.startDate" style="width: 100%;" placeholder="Select start date" />
           </a-form-item>
@@ -447,8 +451,8 @@
           <a-form-item label="Description">
             <a-textarea v-model:value="editRecurringTaskForm.description" placeholder="Enter task description" :rows="3" />
           </a-form-item>
-          <a-form-item label="Assign To" required>
-            <a-select v-model:value="editRecurringTaskForm.assignedTo" placeholder="Select worker" style="width: 100%;">
+          <a-form-item label="Assign To">
+            <a-select v-model:value="editRecurringTaskForm.assignedTo" placeholder="Select worker (optional)" style="width: 100%;" allowClear>
               <a-select-option v-for="worker in availableWorkers" :key="worker.id" :value="worker.id">
                 {{ worker.name }} ({{ worker.workerId }})
               </a-select-option>
@@ -467,9 +471,10 @@
               </a-col>
               <a-col :span="16">
                 <a-select v-model:value="editRecurringTaskForm.frequency" placeholder="Select frequency" style="width: 100%;" @change="onEditFrequencyChange">
-                  <a-select-option value="daily">Day(s)</a-select-option>
-                  <a-select-option value="weekly">Week(s)</a-select-option>
-                  <a-select-option value="monthly">Month(s)</a-select-option>
+                  <a-select-option value="daily">Daily</a-select-option>
+                  <a-select-option value="weekly">Weekly</a-select-option>
+                  <a-select-option value="monthly">Monthly</a-select-option>
+                  <a-select-option value="yearly">Yearly</a-select-option>
                 </a-select>
               </a-col>
             </a-row>
@@ -510,6 +515,32 @@
             </a-form-item>
           </div>
           
+          <!-- Yearly options -->
+          <div v-if="editRecurringTaskForm.frequency === 'yearly'">
+            <a-form-item label="Month" required>
+              <a-select v-model:value="editRecurringTaskForm.month" placeholder="Select month" style="width: 100%;">
+                <a-select-option value="january">January</a-select-option>
+                <a-select-option value="february">February</a-select-option>
+                <a-select-option value="march">March</a-select-option>
+                <a-select-option value="april">April</a-select-option>
+                <a-select-option value="may">May</a-select-option>
+                <a-select-option value="june">June</a-select-option>
+                <a-select-option value="july">July</a-select-option>
+                <a-select-option value="august">August</a-select-option>
+                <a-select-option value="september">September</a-select-option>
+                <a-select-option value="october">October</a-select-option>
+                <a-select-option value="november">November</a-select-option>
+                <a-select-option value="december">December</a-select-option>
+              </a-select>
+            </a-form-item>
+            <a-form-item label="Day of Month" required>
+              <a-input-number v-model:value="editRecurringTaskForm.dayOfMonth" :min="1" :max="31" style="width: 100%;" placeholder="Enter day (1-31)" />
+            </a-form-item>
+            <a-form-item label="Time of Day" required>
+              <a-time-picker v-model:value="editRecurringTaskForm.timeOfDay" format="HH:mm" style="width: 100%;" placeholder="Select time" />
+            </a-form-item>
+          </div>
+          
           <a-form-item label="Start Date" required>
             <a-date-picker v-model:value="editRecurringTaskForm.startDate" style="width: 100%;" placeholder="Select start date" />
           </a-form-item>
@@ -537,8 +568,8 @@
           <a-form-item label="Description">
             <a-textarea v-model:value="createTaskForm.description" placeholder="Enter task description" :rows="3" />
           </a-form-item>
-          <a-form-item label="Assign To" required>
-            <a-select v-model:value="createTaskForm.assignedTo" placeholder="Select worker" style="width: 100%;">
+          <a-form-item label="Assign To">
+            <a-select v-model:value="createTaskForm.assignedTo" placeholder="Select worker (optional)" style="width: 100%;" allowClear>
               <a-select-option v-for="worker in availableWorkers" :key="worker.id" :value="worker.id">
                 {{ worker.name }} ({{ worker.workerId }})
               </a-select-option>
@@ -578,8 +609,8 @@
           <a-form-item label="Description">
             <a-textarea v-model:value="editTaskForm.description" placeholder="Enter task description" :rows="3" />
           </a-form-item>
-          <a-form-item label="Assign To" required>
-            <a-select v-model:value="editTaskForm.assignedTo" placeholder="Select worker" style="width: 100%;">
+          <a-form-item label="Assign To">
+            <a-select v-model:value="editTaskForm.assignedTo" placeholder="Select worker (optional)" style="width: 100%;" allowClear>
               <a-select-option v-for="worker in availableWorkers" :key="worker.id" :value="worker.id">
                 {{ worker.name }} ({{ worker.workerId }})
               </a-select-option>
@@ -612,59 +643,6 @@
         </a-form>
       </a-modal>
 
-      <!-- View Assignment Modal -->
-      <a-modal
-        v-model:open="viewAssignmentModalVisible"
-        title="Work Assignment Details"
-        width="700px"
-        :footer="null"
-      >
-        <div v-if="selectedAssignment">
-          <a-descriptions :column="1" bordered>
-            <a-descriptions-item label="Worker">
-              {{ selectedAssignment.worker }}
-            </a-descriptions-item>
-            <a-descriptions-item label="Total Tasks Assigned">
-              {{ selectedAssignment.tasks }}
-            </a-descriptions-item>
-            <a-descriptions-item label="Status">
-              <a-tag :color="getStatusColor(selectedAssignment.status)">
-                {{ selectedAssignment.status }}
-              </a-tag>
-            </a-descriptions-item>
-          </a-descriptions>
-          
-          <div style="margin-top: 20px;">
-            <h4>Assigned Tasks:</h4>
-            <a-table
-              :columns="taskDetailColumns"
-              :data-source="getWorkerTasks(selectedAssignment.worker)"
-              :pagination="false"
-              size="small"
-              bordered
-            >
-              <template #bodyCell="{ column, record }">
-                <template v-if="column.key === 'priority'">
-                  <a-tag :color="getPriorityColor(record.priority)">
-                    {{ getPriorityText(record.priority) }}
-                  </a-tag>
-                </template>
-                <template v-if="column.key === 'status'">
-                  <a-tag :color="getStatusColor(record.status)">
-                    {{ record.status }}
-                  </a-tag>
-                </template>
-              </template>
-            </a-table>
-            </div>
-
-          <div style="margin-top: 16px; text-align: right;">
-            <a-button @click="viewAssignmentModalVisible = false">
-              Close
-            </a-button>
-          </div>
-        </div>
-      </a-modal>
 
     </div>
     <!-- End Manager View -->
@@ -717,9 +695,10 @@
               </a-col>
               <a-col :span="16">
                 <a-select v-model:value="requestTaskForm.frequency" placeholder="Select frequency" style="width: 100%;">
-                  <a-select-option value="daily">Day(s)</a-select-option>
-                  <a-select-option value="weekly">Week(s)</a-select-option>
-                  <a-select-option value="monthly">Month(s)</a-select-option>
+                  <a-select-option value="daily">Daily</a-select-option>
+                  <a-select-option value="weekly">Weekly</a-select-option>
+                  <a-select-option value="monthly">Monthly</a-select-option>
+                  <a-select-option value="yearly">Yearly</a-select-option>
                 </a-select>
               </a-col>
             </a-row>
@@ -752,6 +731,32 @@
           
           <!-- Monthly options -->
           <div v-if="requestTaskForm.frequency === 'monthly'">
+            <a-form-item label="Day of Month" required>
+              <a-input-number v-model:value="requestTaskForm.dayOfMonth" :min="1" :max="31" style="width: 100%;" placeholder="Enter day (1-31)" />
+            </a-form-item>
+            <a-form-item label="Time of Day" required>
+              <a-time-picker v-model:value="requestTaskForm.timeOfDay" format="HH:mm" style="width: 100%;" placeholder="Select time" />
+            </a-form-item>
+          </div>
+          
+          <!-- Yearly options -->
+          <div v-if="requestTaskForm.frequency === 'yearly'">
+            <a-form-item label="Month" required>
+              <a-select v-model:value="requestTaskForm.month" placeholder="Select month" style="width: 100%;">
+                <a-select-option value="january">January</a-select-option>
+                <a-select-option value="february">February</a-select-option>
+                <a-select-option value="march">March</a-select-option>
+                <a-select-option value="april">April</a-select-option>
+                <a-select-option value="may">May</a-select-option>
+                <a-select-option value="june">June</a-select-option>
+                <a-select-option value="july">July</a-select-option>
+                <a-select-option value="august">August</a-select-option>
+                <a-select-option value="september">September</a-select-option>
+                <a-select-option value="october">October</a-select-option>
+                <a-select-option value="november">November</a-select-option>
+                <a-select-option value="december">December</a-select-option>
+              </a-select>
+            </a-form-item>
             <a-form-item label="Day of Month" required>
               <a-input-number v-model:value="requestTaskForm.dayOfMonth" :min="1" :max="31" style="width: 100%;" placeholder="Enter day (1-31)" />
             </a-form-item>
@@ -890,8 +895,6 @@ import { getMe } from '../services/userService'
 const selectedDate = ref(null)
 const createTaskModalVisible = ref(false)
 const editTaskModalVisible = ref(false)
-const viewAssignmentModalVisible = ref(false)
-const selectedAssignment = ref(null)
 const currentUser = ref(null)
 const requestTaskModalVisible = ref(false)
 const taskConfirmModalVisible = ref(false)
@@ -949,6 +952,7 @@ const requestTaskForm = ref({
   timeOfDay: null,
   dayOfWeek: '',
   dayOfMonth: null,
+  month: '',
   startDate: null,
   endDate: null
 })
@@ -962,6 +966,7 @@ const createRecurringTaskForm = ref({
   timeOfDay: null,
   dayOfWeek: '',
   dayOfMonth: null,
+  month: '',
   startDate: null,
   endDate: null
 })
@@ -976,6 +981,7 @@ const editRecurringTaskForm = ref({
   timeOfDay: null,
   dayOfWeek: '',
   dayOfMonth: null,
+  month: '',
   startDate: null,
   endDate: null,
   isActive: true
@@ -1032,26 +1038,6 @@ const todayTasks = ref([
   }
 ])
 
-const workAssignments = ref([
-  {
-    id: 1,
-    worker: 'A',
-    tasks: 2,
-    status: 'Assigned'
-  },
-  {
-    id: 2,
-    worker: 'B',
-    tasks: 1,
-    status: 'Assigned'
-  },
-  {
-    id: 3,
-    worker: 'C',
-    tasks: 0,
-    status: 'Available'
-  }
-])
 
 const changeRequests = ref([
   {
@@ -1187,12 +1173,6 @@ const simpleTaskColumns = [
   { title: 'Actions', key: 'actions', width: 120 }
 ]
 
-const assignmentColumns = [
-  { title: 'Worker', dataIndex: 'worker', key: 'worker' },
-  { title: 'Tasks', dataIndex: 'tasks', key: 'tasks' },
-  { title: 'Status', dataIndex: 'status', key: 'status' },
-  { title: 'Actions', key: 'actions', width: 120 }
-]
 
 const requestColumns = [
   { title: 'Requester', dataIndex: 'requester', key: 'requester' },
@@ -1224,25 +1204,21 @@ const myRequestsColumns = [
   { title: 'Manager Response', key: 'managerResponse', width: 200 }
 ]
 
-const taskDetailColumns = [
-  { title: 'Task Title', dataIndex: 'title', key: 'title' },
-  { title: 'Description', dataIndex: 'description', key: 'description' },
-  { title: 'Priority', dataIndex: 'priority', key: 'priority' },
-  { title: 'Due Date', dataIndex: 'dueDate', key: 'dueDate' },
-  { title: 'Status', dataIndex: 'status', key: 'status' }
-]
 
 const recurringTaskColumns = [
   { title: 'Title', dataIndex: 'title', key: 'title' },
   { title: 'Assigned To', dataIndex: 'assignedTo', key: 'assignedTo' },
-  { title: 'Frequency', dataIndex: 'frequency', key: 'frequency' },
+  { title: 'Frequency', key: 'frequency', customRender: ({ record }) => getFrequencyText(record.frequency, record.frequencyNumber) },
   { title: 'Schedule', key: 'schedule', customRender: ({ record }) => {
+    const frequencyText = getFrequencyText(record.frequency, record.frequencyNumber)
     if (record.frequency === 'daily') {
-      return `Daily at ${record.timeOfDay}`
+      return `${frequencyText} at ${record.timeOfDay}`
     } else if (record.frequency === 'weekly') {
-      return `${record.dayOfWeek} at ${record.timeOfDay}`
+      return `${record.dayOfWeek} at ${record.timeOfDay} (${frequencyText})`
     } else if (record.frequency === 'monthly') {
-      return `Day ${record.dayOfMonth} at ${record.timeOfDay}`
+      return `Day ${record.dayOfMonth} at ${record.timeOfDay} (${frequencyText})`
+    } else if (record.frequency === 'yearly') {
+      return `${record.month} ${record.dayOfMonth} at ${record.timeOfDay} (${frequencyText})`
     }
     return '-'
   }},
@@ -1279,7 +1255,7 @@ const showCreateTaskModal = () => {
 }
 
 const confirmCreateTask = async () => {
-  if (!createTaskForm.value.title || !createTaskForm.value.assignedTo || !createTaskForm.value.priority) {
+  if (!createTaskForm.value.title || !createTaskForm.value.priority) {
     message.error('Please fill in all required fields')
     return
   }
@@ -1292,7 +1268,7 @@ const confirmCreateTask = async () => {
       id: Date.now(),
       title: createTaskForm.value.title,
       description: createTaskForm.value.description,
-      assignedTo: createTaskForm.value.assignedTo,
+      assignedTo: createTaskForm.value.assignedTo || null,
       priority: createTaskForm.value.priority,
       dueDate: createTaskForm.value.dueDate.format('YYYY-MM-DD'),
       status: 'Pending'
@@ -1384,14 +1360,6 @@ const deleteTask = async (task) => {
   }
 }
 
-const viewAssignment = (assignment) => {
-  selectedAssignment.value = assignment
-  viewAssignmentModalVisible.value = true
-}
-
-const getWorkerTasks = (workerName) => {
-  return todayTasks.value.filter(task => task.assignedTo === workerName)
-}
 
 const getMyTasks = () => {
   // For POA/Worker, show tasks assigned to them
@@ -1413,6 +1381,7 @@ const showRequestTaskModal = () => {
     timeOfDay: null,
     dayOfWeek: '',
     dayOfMonth: null,
+    month: '',
     startDate: null,
     endDate: null
   }
@@ -1426,6 +1395,7 @@ const onRequestTypeChange = () => {
   requestTaskForm.value.timeOfDay = null
   requestTaskForm.value.dayOfWeek = ''
   requestTaskForm.value.dayOfMonth = null
+  requestTaskForm.value.month = ''
   requestTaskForm.value.startDate = null
   requestTaskForm.value.endDate = null
 }
@@ -1454,6 +1424,7 @@ const confirmRequestTask = async () => {
       requestData.timeOfDay = requestTaskForm.value.timeOfDay?.format('HH:mm')
       requestData.dayOfWeek = requestTaskForm.value.dayOfWeek
       requestData.dayOfMonth = requestTaskForm.value.dayOfMonth
+      requestData.month = requestTaskForm.value.month
       requestData.startDate = requestTaskForm.value.startDate?.format('YYYY-MM-DD')
       requestData.endDate = requestTaskForm.value.endDate?.format('YYYY-MM-DD')
     }
@@ -1598,6 +1569,7 @@ const handleRequestConfirmation = async () => {
             timeOfDay: request.timeOfDay,
             dayOfWeek: request.dayOfWeek,
             dayOfMonth: request.dayOfMonth,
+            month: request.month,
             startDate: request.startDate,
             endDate: request.endDate,
             isActive: true,
@@ -1670,6 +1642,7 @@ const showCreateRecurringTaskModal = () => {
     timeOfDay: null,
     dayOfWeek: '',
     dayOfMonth: null,
+    month: '',
     startDate: dayjs(),
     endDate: null
   }
@@ -1680,6 +1653,7 @@ const onFrequencyChange = () => {
   // Reset frequency-specific fields when frequency changes
   createRecurringTaskForm.value.dayOfWeek = ''
   createRecurringTaskForm.value.dayOfMonth = null
+  createRecurringTaskForm.value.month = ''
   createRecurringTaskForm.value.timeOfDay = null
 }
 
@@ -1687,11 +1661,12 @@ const onEditFrequencyChange = () => {
   // Reset frequency-specific fields when frequency changes in edit modal
   editRecurringTaskForm.value.dayOfWeek = ''
   editRecurringTaskForm.value.dayOfMonth = null
+  editRecurringTaskForm.value.month = ''
   editRecurringTaskForm.value.timeOfDay = null
 }
 
 const confirmCreateRecurringTask = async () => {
-  if (!createRecurringTaskForm.value.title || !createRecurringTaskForm.value.assignedTo || 
+  if (!createRecurringTaskForm.value.title || 
       !createRecurringTaskForm.value.frequency || !createRecurringTaskForm.value.startDate) {
     message.error('Please fill in all required fields')
     return
@@ -1705,12 +1680,13 @@ const confirmCreateRecurringTask = async () => {
       id: Date.now(),
       title: createRecurringTaskForm.value.title,
       description: createRecurringTaskForm.value.description,
-      assignedTo: createRecurringTaskForm.value.assignedTo,
+      assignedTo: createRecurringTaskForm.value.assignedTo || null,
       frequency: createRecurringTaskForm.value.frequency,
       frequencyNumber: createRecurringTaskForm.value.frequencyNumber,
       timeOfDay: createRecurringTaskForm.value.timeOfDay?.format('HH:mm'),
       dayOfWeek: createRecurringTaskForm.value.dayOfWeek,
       dayOfMonth: createRecurringTaskForm.value.dayOfMonth,
+      month: createRecurringTaskForm.value.month,
       startDate: createRecurringTaskForm.value.startDate.format('YYYY-MM-DD'),
       endDate: createRecurringTaskForm.value.endDate?.format('YYYY-MM-DD'),
       isActive: true,
@@ -1742,6 +1718,7 @@ const editRecurringTask = (task) => {
     timeOfDay: task.timeOfDay ? dayjs(task.timeOfDay, 'HH:mm') : null,
     dayOfWeek: task.dayOfWeek,
     dayOfMonth: task.dayOfMonth,
+    month: task.month,
     startDate: dayjs(task.startDate),
     endDate: task.endDate ? dayjs(task.endDate) : null,
     isActive: task.isActive
@@ -1750,7 +1727,7 @@ const editRecurringTask = (task) => {
 }
 
 const confirmEditRecurringTask = async () => {
-  if (!editRecurringTaskForm.value.title || !editRecurringTaskForm.value.assignedTo || 
+  if (!editRecurringTaskForm.value.title || 
       !editRecurringTaskForm.value.frequency || !editRecurringTaskForm.value.startDate) {
     message.error('Please fill in all required fields')
     return
@@ -1772,6 +1749,7 @@ const confirmEditRecurringTask = async () => {
         timeOfDay: editRecurringTaskForm.value.timeOfDay?.format('HH:mm'),
         dayOfWeek: editRecurringTaskForm.value.dayOfWeek,
         dayOfMonth: editRecurringTaskForm.value.dayOfMonth,
+        month: editRecurringTaskForm.value.month,
         startDate: editRecurringTaskForm.value.startDate.format('YYYY-MM-DD'),
         endDate: editRecurringTaskForm.value.endDate?.format('YYYY-MM-DD'),
         isActive: editRecurringTaskForm.value.isActive
@@ -1828,12 +1806,14 @@ const generateTasksFromTemplates = (date) => {
   const dateStr = date.format('YYYY-MM-DD')
   const dayOfWeek = date.format('dddd').toLowerCase()
   const dayOfMonth = date.date()
+  const month = date.format('MMMM').toLowerCase()
   
   recurringTasks.value.forEach(template => {
     if (!template.isActive) return
     
     const startDate = dayjs(template.startDate)
     const endDate = template.endDate ? dayjs(template.endDate) : null
+    const frequencyNumber = template.frequencyNumber || 1
     
     // Check if date is within range
     if (date.isBefore(startDate)) return
@@ -1841,13 +1821,23 @@ const generateTasksFromTemplates = (date) => {
     
     let shouldGenerate = false
     
-    // Check if task should be generated for this date
+    // Check if task should be generated for this date based on frequency and interval
     if (template.frequency === 'daily') {
-      shouldGenerate = true
+      // For daily, check if the number of days since start date is divisible by frequencyNumber
+      const daysSinceStart = date.diff(startDate, 'day')
+      shouldGenerate = daysSinceStart % frequencyNumber === 0
     } else if (template.frequency === 'weekly' && template.dayOfWeek === dayOfWeek) {
-      shouldGenerate = true
+      // For weekly, check if the number of weeks since start date is divisible by frequencyNumber
+      const weeksSinceStart = date.diff(startDate, 'week')
+      shouldGenerate = weeksSinceStart % frequencyNumber === 0
     } else if (template.frequency === 'monthly' && template.dayOfMonth === dayOfMonth) {
-      shouldGenerate = true
+      // For monthly, check if the number of months since start date is divisible by frequencyNumber
+      const monthsSinceStart = date.diff(startDate, 'month')
+      shouldGenerate = monthsSinceStart % frequencyNumber === 0
+    } else if (template.frequency === 'yearly' && template.month === month && template.dayOfMonth === dayOfMonth) {
+      // For yearly, check if the number of years since start date is divisible by frequencyNumber
+      const yearsSinceStart = date.diff(startDate, 'year')
+      shouldGenerate = yearsSinceStart % frequencyNumber === 0
     }
     
     if (shouldGenerate) {
@@ -1863,7 +1853,7 @@ const generateTasksFromTemplates = (date) => {
           id: Date.now() + Math.random(),
           title: template.title,
           description: template.description,
-          assignedTo: template.assignedTo,
+          assignedTo: template.assignedTo || null,
           priority: 'normal', // Default priority for recurring tasks
           dueDate: dateStr,
           status: 'Pending',
@@ -1949,6 +1939,7 @@ const getFrequencyColor = (frequency) => {
     case 'daily': return 'blue'
     case 'weekly': return 'green'
     case 'monthly': return 'orange'
+    case 'yearly': return 'purple'
     default: return 'default'
   }
 }
@@ -1956,9 +1947,14 @@ const getFrequencyColor = (frequency) => {
 const getFrequencyText = (frequency, frequencyNumber = 1) => {
   const number = frequencyNumber || 1
   switch (frequency) {
-    case 'daily': return `${number} Day${number > 1 ? 's' : ''}`
-    case 'weekly': return `${number} Week${number > 1 ? 's' : ''}`
-    case 'monthly': return `${number} Month${number > 1 ? 's' : ''}`
+    case 'daily': 
+      return number === 1 ? 'Daily' : `Every ${number} Days`
+    case 'weekly': 
+      return number === 1 ? 'Weekly' : `Every ${number} Weeks`
+    case 'monthly': 
+      return number === 1 ? 'Monthly' : `Every ${number} Months`
+    case 'yearly': 
+      return number === 1 ? 'Yearly' : `Every ${number} Years`
     default: return frequency
   }
 }

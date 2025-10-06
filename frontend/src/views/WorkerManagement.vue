@@ -325,7 +325,7 @@
 
         <a-form-item label="Shift Information">
           <a-row :gutter="16">
-            <a-col :span="12">
+            <a-col :span="8">
               <a-form-item label="Morning Shift (8:00-16:00)">
                 <a-select
                   v-model:value="scheduleForm.morningShift"
@@ -343,12 +343,30 @@
                 </a-select>
               </a-form-item>
             </a-col>
-            <a-col :span="12">
+            <a-col :span="8">
               <a-form-item label="Evening Shift (16:00-24:00)">
                 <a-select
                   v-model:value="scheduleForm.eveningShift"
                   mode="multiple"
                   placeholder="Select evening shift workers"
+                  style="width: 100%;"
+                >
+                  <a-select-option
+                    v-for="worker in availableWorkers"
+                    :key="worker.id"
+                    :value="worker.id"
+                  >
+                    {{ worker.name }} ({{ worker.workerId }})
+                  </a-select-option>
+                </a-select>
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item label="Night Shift (24:00-8:00)">
+                <a-select
+                  v-model:value="scheduleForm.nightShift"
+                  mode="multiple"
+                  placeholder="Select night shift workers"
                   style="width: 100%;"
                 >
                   <a-select-option
@@ -714,6 +732,7 @@ const scheduleForm = ref({
   selectedWorkers: [],
   morningShift: [],
   eveningShift: [],
+  nightShift: [],
   notes: ''
 })
 
@@ -1217,6 +1236,7 @@ const confirmDailyManagement = async () => {
     selectedWorkers: [],
     morningShift: [],
     eveningShift: [],
+    nightShift: [],
     notes: ''
   }
   photoForm.value = {
@@ -1252,6 +1272,7 @@ const confirmScheduleUpdate = async () => {
       selectedWorkers: [],
       morningShift: [],
       eveningShift: [],
+      nightShift: [],
       notes: ''
     }
   } catch (error) {
