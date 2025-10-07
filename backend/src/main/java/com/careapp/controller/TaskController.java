@@ -470,4 +470,89 @@ public class TaskController {
             default: return "W000"; // Unknown worker
         }
     }
+    
+    // ========== Additional API endpoints for frontend compatibility ==========
+    
+    /**
+     * Get tasks by patient ID
+     * GET /api/tasks/patient/{patientId}
+     */
+    @GetMapping("/patient/{patientId}")
+    public Result<List<Task>> getTasksByPatient(@PathVariable String patientId) {
+        try {
+            List<Task> tasks = taskService.getTasksByPatient(patientId);
+            return Result.success(tasks, "Patient tasks retrieved successfully!");
+        } catch (Exception e) {
+            return Result.error("500", "Failed to retrieve patient tasks: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Assign task to worker
+     * POST /api/tasks/{id}/assign
+     */
+    @PostMapping("/{id}/assign")
+    public Result<Task> assignTask(@PathVariable String id, @RequestBody Map<String, String> body) {
+        try {
+            String workerId = body.get("workerId");
+            if (workerId == null || workerId.isEmpty()) {
+                return Result.error("400", "Worker ID is required!");
+            }
+            
+            Optional<Task> taskOpt = taskService.getTaskById(id);
+            if (taskOpt.isPresent()) {
+                Task task = taskOpt.get();
+                task.setAssignedToId(workerId);
+                task.setStatus("In Progress");
+                
+                Task updatedTask = taskService.updateTask(task);
+                return Result.success(updatedTask, "Task assigned successfully!");
+            } else {
+                return Result.error("404", "Task not found!");
+            }
+        } catch (Exception e) {
+            return Result.error("500", "Failed to assign task: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Complete task
+     * POST /api/tasks/{id}/complete
+     */
+    @PostMapping("/{id}/complete")
+    public Result<Task> completeTask(@PathVariable String id, @RequestBody Map<String, String> body) {
+        try {
+            String completionNotes = body.get("completionNotes");
+            
+            Optional<Task> taskOpt = taskService.getTaskById(id);
+            if (taskOpt.isPresent()) {
+                Task task = taskOpt.get();
+                task.setStatus("Worker Completed");
+                if (completionNotes != null) {
+                    task.setDescription(task.getDescription() + "\n\nCompletion Notes: " + completionNotes);
+                }
+                
+                Task updatedTask = taskService.updateTask(task);
+                return Result.success(updatedTask, "Task completed successfully!");
+            } else {
+                return Result.error("404", "Task not found!");
+            }
+        } catch (Exception e) {
+            return Result.error("500", "Failed to complete task: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Get tasks by patient ID (alternative endpoint)
+     * GET /api/tasks/patient/{patientId}/all
+     */
+    @GetMapping("/patient/{patientId}/all")
+    public Result<List<Task>> getAllTasksByPatient(@PathVariable String patientId) {
+        try {
+            List<Task> tasks = taskService.getTasksByPatient(patientId);
+            return Result.success(tasks, "All patient tasks retrieved successfully!");
+        } catch (Exception e) {
+            return Result.error("500", "Failed to retrieve all patient tasks: " + e.getMessage());
+        }
+    }
 }
