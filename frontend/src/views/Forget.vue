@@ -33,6 +33,7 @@
 <script setup>
 import { reactive, ref } from 'vue';
 import { message } from 'ant-design-vue';
+import { forgotPassword } from '@/services/userService';
 
 const formState = reactive({ email: '' });
 const loading = ref(false);
@@ -40,13 +41,17 @@ const loading = ref(false);
 const onFinish = async (values) => {
   loading.value = true;
   try {
-    // mock api
-    setTimeout(() => {
-      message.success(`Recovery link sent to ${values.email} (mock)`);
-      loading.value = false;
-    }, 1000);
+    console.log('Sending forgot password request for:', values.email);
+    
+    const result = await forgotPassword(values.email);
+    
+    if (result.data) {
+      message.success(`Password reset token has been generated. Please check your email or contact administrator for the reset token.`);
+    }
   } catch (e) {
+    console.error('Forgot password error:', e);
     message.error(e?.message || 'Failed to send recovery link');
+  } finally {
     loading.value = false;
   }
 }

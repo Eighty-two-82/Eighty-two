@@ -232,7 +232,7 @@
                           v-if="scheduleForm.selectedWorkers.includes(worker.id)"
                           size="small" 
                           type="primary"
-                          @click.stop="uploadWorkerPhoto(worker)"
+                          @click.stop="handleUploadWorkerPhoto(worker)"
                         >
                           Upload Photo
                         </a-button>
@@ -687,6 +687,21 @@ import {
 } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
 import { addRemovedWorker } from '@/services/userService'
+import { 
+  getAllWorkers, 
+  createWorker, 
+  updateWorker, 
+  deleteWorker, 
+  activateWorker, 
+  deactivateWorker,
+  getAvailableWorkers,
+  createDailySchedule,
+  getDailySchedule,
+  clearDailySchedule,
+  uploadWorkerPhoto as uploadWorkerPhotoAPI
+} from '@/services/workerService'
+import { getMe } from '@/services/userService'
+import { generateInviteCode } from '@/services/inviteCodeService'
 
 // Reactive data
 const loading = ref(false)
@@ -740,97 +755,10 @@ const photoForm = ref({
   date: null
 })
 
-// Mock worker data
-const workers = ref([
-  {
-    id: 1,
-    workerId: 'W001',
-    name: 'A',
-    photo: null,
-    position: 'Care Assistant',
-    status: 'Active',
-    joinDate: '2023-01-15',
-    phone: '+1-555-0101',
-    email: 'a@careapp.com'
-  },
-  {
-    id: 2,
-    workerId: 'W002',
-    name: 'B',
-    photo: null,
-    position: 'Senior Care Assistant',
-    status: 'Active',
-    joinDate: '2022-11-20',
-    phone: '+1-555-0102',
-    email: 'b@careapp.com'
-  },
-  {
-    id: 3,
-    workerId: 'W003',
-    name: 'C',
-    photo: null,
-    position: 'Care Assistant',
-    status: 'On Leave',
-    joinDate: '2023-03-10',
-    phone: '+1-555-0103',
-    email: 'c@careapp.com'
-  },
-  {
-    id: 4,
-    workerId: 'W004',
-    name: 'D',
-    photo: null,
-    position: 'Care Coordinator',
-    status: 'Active',
-    joinDate: '2022-08-05',
-    phone: '+1-555-0104',
-    email: 'd@careapp.com'
-  },
-  {
-    id: 5,
-    workerId: 'W005',
-    name: 'E',
-    photo: null,
-    position: 'Care Assistant',
-    status: 'Active',
-    joinDate: '2023-02-14',
-    phone: '+1-555-0105',
-    email: 'e@careapp.com'
-  },
-  {
-    id: 6,
-    workerId: 'W006',
-    name: 'F',
-    photo: null,
-    position: 'Senior Care Assistant',
-    status: 'Active',
-    joinDate: '2022-09-30',
-    phone: '+1-555-0106',
-    email: 'f@careapp.com'
-  },
-  {
-    id: 7,
-    workerId: 'W007',
-    name: 'G',
-    photo: null,
-    position: 'Care Assistant',
-    status: 'Active',
-    joinDate: '2023-04-22',
-    phone: '+1-555-0107',
-    email: 'g@careapp.com'
-  },
-  {
-    id: 8,
-    workerId: 'W008',
-    name: 'H',
-    photo: null,
-    position: 'Care Coordinator',
-    status: 'Active',
-    joinDate: '2022-12-08',
-    phone: '+1-555-0108',
-    email: 'h@careapp.com'
-  }
-])
+// Worker data from API
+const workers = ref([])
+const currentUser = ref(null)
+const organizationId = ref(null)
 
 // Daily workers (subset of active workers)
 const dailyWorkers = ref([])
@@ -908,24 +836,37 @@ const generateInviteToken = () => {
 const confirmGenerateToken = async () => {
   generatingToken.value = true
   try {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    if (!currentUser.value) {
+      throw new Error('User not authenticated')
+    }
     
-    // Generate a mock token
-    const token = `INV-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substr(2, 8).toUpperCase()}`
-    generatedToken.value = token
+    // Prepare invite data
+    const inviteData = {
+      createdBy: currentUser.value.id,
+      createdByType: currentUser.value.role === 'manager' ? 'MANAGER' : 'POA',
+      targetType: tokenForm.value.type === 'Worker' ? 'WORKER' : 'MANAGER',
+      patientId: currentUser.value.patientId || 'default-patient',
+      organizationId: organizationId.value || 'default-org'
+    }
     
-    message.success('Invite token generated successfully!')
-    tokenModalVisible.value = false
+    // Generate invite code via API
+    const response = await generateInviteCode(inviteData)
     
-    // Reset form
-    tokenForm.value = {
-      type: 'Worker',
-      expirationDays: 7,
-      notes: ''
+    if (response.data) {
+      generatedToken.value = response.data
+      message.success('Invite token generated successfully!')
+      tokenModalVisible.value = false
+      
+      // Reset form
+      tokenForm.value = {
+        type: 'Worker',
+        expirationDays: 7,
+        notes: ''
+      }
     }
   } catch (error) {
-    message.error('Failed to generate invite token')
+    console.error('Failed to generate invite token:', error)
+    message.error(error.message || 'Failed to generate invite token')
   } finally {
     generatingToken.value = false
   }
@@ -946,7 +887,7 @@ const showDailyManagementModal = () => {
   fileList.value = []
 }
 
-const uploadWorkerPhoto = (worker) => {
+const handleUploadWorkerPhoto = (worker) => {
   selectedWorkerForPhoto.value = worker
   fileList.value = [] // Clear previous files
   message.info(`Ready to upload photo for ${worker.name}`)
@@ -1034,7 +975,7 @@ const showRemoveConfirmation = (worker) => {
   removeConfirmationModalVisible.value = true
 }
 
-const confirmRemoveWorker = () => {
+const confirmRemoveWorker = async () => {
   if (!removeConfirmationChecked.value) {
     message.error('Please confirm that you understand this action is permanent')
     return
@@ -1046,6 +987,11 @@ const confirmRemoveWorker = () => {
   }
   
   try {
+    const workerId = workerToRemove.value.id
+    
+    // Call API to delete worker
+    await deleteWorker(workerId)
+    
     // Add worker to removed workers list (prevents future login)
     addRemovedWorker({
       email: workerToRemove.value.email,
@@ -1053,12 +999,25 @@ const confirmRemoveWorker = () => {
       workerId: workerToRemove.value.workerId
     })
     
-    // Remove worker from the list
-    const index = workers.value.findIndex(w => w.id === workerToRemove.value.id)
+    // Remove worker from local arrays
+    const index = workers.value.findIndex(w => w.id === workerId)
     if (index > -1) {
       workers.value.splice(index, 1)
-      message.success(`Worker ${workerToRemove.value.name} has been removed successfully and can no longer access the system`)
     }
+    
+    // Remove from available workers if present
+    const availableIndex = availableWorkers.value.findIndex(w => w.id === workerId)
+    if (availableIndex > -1) {
+      availableWorkers.value.splice(availableIndex, 1)
+    }
+    
+    // Remove from daily workers if present
+    const dailyIndex = dailyWorkers.value.findIndex(w => w.id === workerId)
+    if (dailyIndex > -1) {
+      dailyWorkers.value.splice(dailyIndex, 1)
+    }
+    
+    message.success(`Worker ${workerToRemove.value.name} has been removed successfully and can no longer access the system`)
     
     // Close modal and reset
     removeConfirmationModalVisible.value = false
@@ -1066,7 +1025,8 @@ const confirmRemoveWorker = () => {
     removeConfirmationChecked.value = false
     
   } catch (error) {
-    message.error('Failed to remove worker')
+    console.error('Failed to remove worker:', error)
+    message.error(error.message || 'Failed to remove worker')
   }
 }
 
@@ -1280,10 +1240,10 @@ const confirmScheduleUpdate = async () => {
   }
 }
 
-const onDateChange = (date) => {
+const onDateChange = async (date) => {
   if (date) {
     const dateStr = date.format('YYYY-MM-DD')
-    updateDailyWorkers(dateStr)
+    await loadDailySchedule(dateStr)
   }
 }
 
@@ -1298,24 +1258,64 @@ const formatDate = (date) => {
   return date.format('YYYY-MM-DD')
 }
 
-onMounted(() => {
-  // Load worker data
+onMounted(async () => {
   loading.value = true
   
-  // Initialize available workers (all active workers)
-  availableWorkers.value = workers.value.filter(worker => worker.status === 'Active')
-  
-  // Set today as default date
-  selectedDate.value = dayjs()
-  const todayStr = selectedDate.value.format('YYYY-MM-DD')
-  
-  // Initialize daily workers for today
-  updateDailyWorkers(todayStr)
-  
-  setTimeout(() => {
+  try {
+    // Get current user info
+    const userInfo = await getMe()
+    currentUser.value = userInfo.data
+    organizationId.value = userInfo.data?.organizationId || 'default-org'
+    
+    // Load workers from API
+    await loadWorkers()
+    
+    // Set today as default date
+    selectedDate.value = dayjs()
+    const todayStr = selectedDate.value.format('YYYY-MM-DD')
+    
+    // Load daily schedule for today
+    await loadDailySchedule(todayStr)
+    
+  } catch (error) {
+    console.error('Failed to load worker management data:', error)
+    message.error('Failed to load worker data')
+  } finally {
     loading.value = false
-  }, 500)
+  }
 })
+
+// Load workers from API
+const loadWorkers = async () => {
+  try {
+    const response = await getAllWorkers()
+    workers.value = response.data || []
+    
+    // Initialize available workers (all active workers)
+    availableWorkers.value = workers.value.filter(worker => worker.status === 'active')
+    
+  } catch (error) {
+    console.error('Failed to load workers:', error)
+    message.error('Failed to load workers')
+  }
+}
+
+// Load daily schedule for a specific date
+const loadDailySchedule = async (dateStr) => {
+  try {
+    if (organizationId.value) {
+      const response = await getDailySchedule(organizationId.value, dateStr)
+      const scheduledWorkers = response.data || []
+      
+      // Update daily workers with scheduled workers
+      dailyWorkers.value = scheduledWorkers
+    }
+  } catch (error) {
+    console.error('Failed to load daily schedule:', error)
+    // If no schedule exists for this date, dailyWorkers will be empty
+    dailyWorkers.value = []
+  }
+}
 </script>
 
 <style scoped>

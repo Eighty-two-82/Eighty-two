@@ -554,6 +554,22 @@ import { Button } from 'ant-design-vue'
 import { useRouter } from 'vue-router'
 import { Modal, message } from 'ant-design-vue'
 import { getMe } from '@/services/userService'
+import { 
+  getBudgetByPatient,
+  createBudget,
+  updateBudget,
+  deleteBudget,
+  getBudgetCategories,
+  createBudgetCategory,
+  updateBudgetCategory,
+  deleteBudgetCategory,
+  getBudgetSubElements,
+  createBudgetSubElement,
+  updateBudgetSubElement,
+  deleteBudgetSubElement,
+  getBudgetCalculations,
+  getBudgetReports
+} from '@/services/budgetService'
 
 const router = useRouter()
 const userRole = ref('worker')
@@ -614,12 +630,56 @@ onMounted(async () => {
     const userInfo = await getMe()
     userRole.value = userInfo?.data?.role || 'worker'
     
+    // Load budget data from API
+    await loadBudgetData()
+    
     // Check if this is the first visit to budget page
     checkFirstVisit()
   } catch (e) {
     console.error('Failed to get user info:', e)
+    // Keep using mock data if API fails
   }
 })
+
+// Load budget data from API
+const loadBudgetData = async () => {
+  try {
+    const userInfo = await getMe()
+    if (!userInfo?.data?.patientId) {
+      console.warn('No patient ID found')
+      return
+    }
+    
+    // Load budget by patient
+    const budgetResponse = await getBudgetByPatient(userInfo.data.patientId)
+    if (budgetResponse?.data) {
+      budgetData.value = budgetResponse.data
+    }
+    
+    // Load budget categories
+    const categoriesResponse = await getBudgetCategories(userInfo.data.patientId)
+    if (categoriesResponse?.data) {
+      budgetData.value.categories = categoriesResponse.data
+    }
+    
+    // Load budget calculations
+    const calculationsResponse = await getBudgetCalculations(userInfo.data.patientId)
+    if (calculationsResponse?.data) {
+      budgetData.value = {
+        ...budgetData.value,
+        ...calculationsResponse.data
+      }
+    }
+    
+  } catch (error) {
+    console.error('Failed to load budget data:', error)
+    // Show empty state if API fails
+    budgetData.value = {
+      totalBudget: 0,
+      categories: []
+    }
+  }
+}
 
 // Check if this is the user's first visit to budget page
 const checkFirstVisit = () => {
@@ -652,179 +712,10 @@ const getMonthName = (index) => {
   return months[index] || 'Unknown'
 }
 
-// Budget management data structure - based on actual family needs
+// Budget data - loaded from API
 const budgetData = ref({
-  totalBudget: 80000, // Total budget
-  categories: [
-    {
-      id: 1,
-      name: 'Hygiene Products',
-      categoryBudget: 12000,
-      subElements: [
-        {
-          id: 1,
-          name: 'Soap',
-          subElementBudget: 3000,
-          monthlyUsage: [200, 250, 220, 280, 300, 320, 350, 300, 250, 200, 180, 150],
-          totalUtilised: 3000,
-          balance: 0,
-          comments: 'Budget exhausted',
-          warningLevel: 'critical'
-        },
-        {
-          id: 2,
-          name: 'Body Wash',
-          subElementBudget: 4000,
-          monthlyUsage: [300, 350, 320, 380, 400, 420, 450, 400, 350, 300, 280, 250],
-          totalUtilised: 4000,
-          balance: 0,
-          comments: 'Budget exhausted',
-          warningLevel: 'critical'
-        },
-        {
-          id: 3,
-          name: 'Towels',
-          subElementBudget: 3000,
-          monthlyUsage: [200, 250, 220, 280, 300, 320, 350, 300, 250, 200, 180, 150],
-          totalUtilised: 2800,
-          balance: 200,
-          comments: 'High usage - approaching budget limit',
-          warningLevel: 'warning'
-        },
-        {
-          id: 4,
-          name: 'Toothpaste',
-          subElementBudget: 2000,
-          monthlyUsage: [150, 180, 160, 200, 220, 240, 260, 220, 180, 150, 130, 110],
-          totalUtilised: 2100,
-          balance: -100,
-          comments: 'Critical overspending - budget exceeded',
-          warningLevel: 'critical'
-        }
-      ]
-    },
-    {
-      id: 2,
-      name: 'Clothing',
-      categoryBudget: 15000,
-      subElements: [
-        {
-          id: 5,
-          name: 'T-shirts',
-          subElementBudget: 5000,
-          monthlyUsage: [300, 400, 350, 500, 600, 700, 800, 600, 400, 300, 200, 150],
-          totalUtilised: 4900,
-          balance: 100,
-          comments: 'Normal usage',
-          warningLevel: 'normal'
-        },
-        {
-          id: 6,
-          name: 'Trousers',
-          subElementBudget: 6000,
-          monthlyUsage: [400, 500, 450, 600, 700, 800, 900, 700, 500, 400, 300, 200],
-          totalUtilised: 6250,
-          balance: -250,
-          comments: 'Slight overspending',
-          warningLevel: 'warning'
-        },
-        {
-          id: 7,
-          name: 'Socks',
-          subElementBudget: 4000,
-          monthlyUsage: [200, 300, 250, 400, 500, 600, 700, 500, 300, 200, 150, 100],
-          totalUtilised: 3850,
-          balance: 150,
-          comments: 'Normal usage',
-          warningLevel: 'normal'
-        }
-      ]
-    },
-    {
-      id: 3,
-      name: 'Health',
-      categoryBudget: 25000,
-      subElements: [
-        {
-          id: 8,
-          name: 'Dental Visits',
-          subElementBudget: 8000,
-          monthlyUsage: [500, 600, 700, 800, 900, 1000, 1100, 1000, 800, 600, 500, 400],
-          totalUtilised: 8900,
-          balance: -900,
-          comments: 'Overspent, additional funds needed',
-          warningLevel: 'critical'
-        },
-        {
-          id: 9,
-          name: 'Sun Glasses',
-          subElementBudget: 10000,
-          monthlyUsage: [600, 700, 800, 900, 1000, 1100, 1200, 1100, 900, 700, 600, 500],
-          totalUtilised: 10000,
-          balance: 0,
-          comments: 'Budget exhausted',
-          warningLevel: 'critical'
-        },
-        {
-          id: 10,
-          name: 'Sun hats',
-          subElementBudget: 7000,
-          monthlyUsage: [400, 500, 600, 700, 800, 900, 1000, 900, 700, 500, 400, 300],
-          totalUtilised: 7300,
-          balance: -300,
-          comments: 'Slight overspending',
-          warningLevel: 'warning'
-        }
-      ]
-    },
-    {
-      id: 4,
-      name: 'Entertainment',
-      categoryBudget: 8000,
-      subElements: [
-        {
-          id: 11,
-          name: 'Mobile Phone',
-          subElementBudget: 3000,
-          monthlyUsage: [200, 250, 300, 350, 400, 450, 500, 450, 300, 250, 200, 150],
-          totalUtilised: 3350,
-          balance: -350,
-          comments: 'Slight overspending',
-          warningLevel: 'warning'
-        },
-        {
-          id: 12,
-          name: 'Subscriptions',
-          subElementBudget: 2000,
-          monthlyUsage: [150, 180, 200, 220, 250, 280, 300, 280, 200, 150, 120, 100],
-          totalUtilised: 2230,
-          balance: -230,
-          comments: 'Slight overspending',
-          warningLevel: 'warning'
-        },
-        {
-          id: 13,
-          name: 'Purchase of DVD/CD or other',
-          subElementBudget: 1500,
-          monthlyUsage: [100, 120, 150, 180, 200, 220, 250, 220, 150, 100, 80, 60],
-          totalUtilised: 1730,
-          balance: -230,
-          comments: 'Overspent',
-          warningLevel: 'critical'
-        },
-        {
-          id: 14,
-          name: 'Games',
-          subElementBudget: 1500,
-          monthlyUsage: [80, 100, 120, 150, 180, 200, 220, 180, 120, 80, 60, 40],
-          totalUtilised: 1530,
-          balance: -30,
-          comments: 'Slight overspending',
-          warningLevel: 'warning'
-        }
-      ]
-    }
-  ]
+  totalBudget: 0,
+  categories: []
 })
 
 // Calculate warning level

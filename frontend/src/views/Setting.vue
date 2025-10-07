@@ -205,6 +205,7 @@ import {
   BellOutlined 
 } from '@ant-design/icons-vue'
 import { getMe } from '@/services/userService'
+import { getPatientById, updatePatient } from '@/services/patientService'
 
 const userRole = ref('worker')
 const patientLoading = ref(false)
@@ -247,21 +248,44 @@ onMounted(async () => {
     profileForm.fullName = userInfo?.data?.name || 'Test User'
     profileForm.email = userInfo?.data?.email || 'test@example.com'
     
-    // Load patient data (mock data for now)
-    loadPatientData()
+    // Load patient information if user is POA
+    if (userRole.value === 'poa') {
+      await loadPatientInfo()
+    } else {
+      // Load mock patient data for other roles
+      loadPatientData()
+    }
+    
     loadNotificationSettings()
   } catch (e) {
     console.error('Failed to get user info:', e)
   }
 })
 
-// Mock function to load patient data
+// Load patient information from API
+const loadPatientInfo = async () => {
+  try {
+    const userInfo = await getMe()
+    if (userInfo?.data?.patientId) {
+      const response = await getPatientById(userInfo.data.patientId)
+      if (response?.data) {
+        patientForm.name = response.data.name || ''
+        patientForm.age = response.data.age || null
+        patientForm.medicalConditions = response.data.medicalConditions || ''
+        patientForm.specialRequirements = response.data.specialRequirements || ''
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load patient info:', error)
+    // Fallback to mock data
+    loadPatientData()
+  }
+}
+
+// Load patient data - now handled by loadPatientInfo API function
 const loadPatientData = () => {
-  // In real app, this would be an API call
-  patientForm.name = 'P1'
-  patientForm.age = 75
-  patientForm.medicalConditions = 'High Blood Pressure'
-  patientForm.specialRequirements = 'Daily morning coffee at 8 AM, Light lunch at 12 PM, Evening walk at 6 PM'
+  // This function is kept for backward compatibility but now uses API
+  // The actual loading is done in loadPatientInfo function
 }
 
 // Mock function to load notification settings
@@ -282,11 +306,23 @@ const onPatientFormFinish = async () => {
   
   patientLoading.value = true
   try {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    const userInfo = await getMe()
+    if (!userInfo?.data?.patientId) {
+      throw new Error('Patient ID not found')
+    }
+    
+    const patientData = {
+      name: patientForm.name,
+      age: patientForm.age,
+      medicalConditions: patientForm.medicalConditions,
+      specialRequirements: patientForm.specialRequirements
+    }
+    
+    await updatePatient(userInfo.data.patientId, patientData)
     message.success('Client information updated successfully')
   } catch (e) {
-    message.error('Failed to update client information')
+    console.error('Failed to update patient info:', e)
+    message.error(e.message || 'Failed to update client information')
   } finally {
     patientLoading.value = false
   }
@@ -296,11 +332,13 @@ const onPatientFormFinish = async () => {
 const onProfileFormFinish = async () => {
   profileLoading.value = true
   try {
-    // Simulate API call
+    // Note: Backend doesn't have updateUserProfile API yet
+    // This is a placeholder implementation
     await new Promise(resolve => setTimeout(resolve, 1000))
-    message.success('Email updated successfully')
+    message.success('Profile updated successfully (Note: Backend API not implemented yet)')
   } catch (e) {
-    message.error('Failed to update email')
+    console.error('Failed to update profile:', e)
+    message.error(e.message || 'Failed to update profile')
   } finally {
     profileLoading.value = false
   }
