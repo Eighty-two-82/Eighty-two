@@ -51,6 +51,7 @@
   import { reactive, ref, onMounted } from 'vue'
   import { message } from 'ant-design-vue'
   import { submitInviteCode, getInviteStatus, getMe } from '@/services/userService'
+  import { useInviteCode } from '@/services/inviteCodeService'
   import { useRoute, useRouter } from 'vue-router'
   
   const route = useRoute()
@@ -85,10 +86,25 @@
   async function onSubmit() {
     try {
       submitting.value = true
-      await submitInviteCode(form.inviteCode.trim())
+      
+      // Get current user info
+      const me = await getMe()
+      const userId = me?.data?.id
+      
+      if (!userId) {
+        throw new Error('User not authenticated')
+      }
+      
+      // Use the invite code via API
+      await useInviteCode(form.inviteCode.trim(), userId)
+      
+      // Also update the session storage for backward compatibility
+      sessionStorage.setItem('inviteSubmitted', 'true')
+      
       message.success('Invite code verified successfully')
       goBack(true)
     } catch (e) {
+      console.error('Invite code submission error:', e)
       message.error(e?.message || 'Invalid invite code, please try again')
     } finally {
       submitting.value = false

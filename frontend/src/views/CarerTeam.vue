@@ -219,6 +219,9 @@ import {
 } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
 import dayjs from 'dayjs'
+import { getMe } from '@/services/userService'
+import { getAllWorkers, getDailySchedule } from '@/services/workerService'
+import { generateInviteCode } from '@/services/inviteCodeService'
 
 // Reactive data
 const loading = ref(false)
@@ -236,97 +239,8 @@ const tokenForm = ref({
   notes: ''
 })
 
-// Mock worker data (same as WorkerManagement)
-const workers = ref([
-  {
-    id: 1,
-    workerId: 'W001',
-    name: 'A',
-    photo: null,
-    position: 'Care Assistant',
-    status: 'Active',
-    joinDate: '2023-01-15',
-    email: 'a@careapp.com',
-    role: 'Worker'
-  },
-  {
-    id: 2,
-    workerId: 'W002',
-    name: 'B',
-    photo: null,
-    position: 'Senior Care Assistant',
-    status: 'Active',
-    joinDate: '2022-11-20',
-    email: 'b@careapp.com',
-    role: 'Worker'
-  },
-  {
-    id: 3,
-    workerId: 'W003',
-    name: 'C',
-    photo: null,
-    position: 'Care Assistant',
-    status: 'On Leave',
-    joinDate: '2023-03-10',
-    email: 'c@careapp.com',
-    role: 'Worker'
-  },
-  {
-    id: 4,
-    workerId: 'W004',
-    name: 'D',
-    photo: null,
-    position: 'Care Coordinator',
-    status: 'Active',
-    joinDate: '2022-08-05',
-    email: 'd@careapp.com',
-    role: 'Worker'
-  },
-  {
-    id: 5,
-    workerId: 'W005',
-    name: 'E',
-    photo: null,
-    position: 'Care Assistant',
-    status: 'Active',
-    joinDate: '2023-02-14',
-    email: 'e@careapp.com',
-    role: 'Worker'
-  },
-  {
-    id: 6,
-    workerId: 'W006',
-    name: 'F',
-    photo: null,
-    position: 'Senior Care Assistant',
-    status: 'Active',
-    joinDate: '2022-09-30',
-    email: 'f@careapp.com',
-    role: 'Worker'
-  },
-  {
-    id: 7,
-    workerId: 'W007',
-    name: 'G',
-    photo: null,
-    position: 'Care Assistant',
-    status: 'Active',
-    joinDate: '2023-04-22',
-    email: 'g@careapp.com',
-    role: 'Worker'
-  },
-  {
-    id: 8,
-    workerId: 'W008',
-    name: 'H',
-    photo: null,
-    position: 'Care Coordinator',
-    status: 'Active',
-    joinDate: '2022-12-08',
-    email: 'h@careapp.com',
-    role: 'Worker'
-  }
-])
+// Workers data - loaded from API
+const workers = ref([])
 
 // Add Manager and POA to the team
 const allCarers = ref([])
@@ -334,15 +248,8 @@ const allCarers = ref([])
 // Daily workers (subset of active workers)
 const dailyWorkers = ref([])
 
-// Daily schedules data (same as WorkerManagement)
-const dailySchedules = ref({
-  // Mock data for different dates
-  '2024-01-15': [1, 2, 4, 5, 6], // John, Sarah, Emily, David, Lisa
-  '2024-01-16': [1, 3, 4, 6, 7], // John, Michael, Emily, Robert, Jennifer
-  '2024-01-17': [2, 4, 5, 7, 8], // Sarah, Emily, David, Jennifer
-  '2024-01-18': [1, 2, 5, 6, 7], // John, Sarah, David, Lisa, Robert
-  '2024-01-19': [3, 4, 6, 7, 8]  // Michael, Emily, Lisa, Robert, Jennifer
-})
+// Daily schedules data - loaded from API
+const dailySchedules = ref({})
 
 // Table columns for all carers
 const carerColumns = [
@@ -452,23 +359,46 @@ const confirmGenerateToken = async () => {
   try {
     message.loading('Generating invite token...', 0)
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500))
+    // Get current user info
+    const userInfo = await getMe()
+    if (!userInfo?.data) {
+      throw new Error('User not authenticated')
+    }
     
-    // Generate a mock token (in real app, this would come from backend)
-    const tokenId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
-    const timestamp = Date.now()
-    generatedToken.value = `CARE_INVITE_${tokenForm.value.tokenType.toUpperCase()}_${tokenId}_${timestamp}`
+    // Prepare invite data
+    const inviteData = {
+      createdBy: userInfo.data.id,
+      createdByType: userInfo.data.role === 'poa' ? 'POA' : 'MANAGER',
+      targetType: tokenForm.value.tokenType === 'manager' ? 'MANAGER' : 'WORKER',
+      patientId: userInfo.data.patientId || 'default-patient',
+      organizationId: userInfo.data.organizationId || 'default-org'
+    }
     
-    message.destroy()
-    message.success('Invite token generated successfully!')
+    // Generate invite code via API
+    const response = await generateInviteCode(inviteData)
     
-    generateTokenModalVisible.value = false
-    tokenDisplayModalVisible.value = true
+    if (response.data) {
+      generatedToken.value = response.data
+      
+      message.destroy()
+      message.success('Invite token generated successfully!')
+      
+      generateTokenModalVisible.value = false
+      tokenDisplayModalVisible.value = true
+      
+      // Reset form
+      tokenForm.value = {
+        organizationName: '',
+        tokenType: 'manager',
+        expirationDays: 7,
+        notes: ''
+      }
+    }
     
   } catch (error) {
     message.destroy()
-    message.error('Failed to generate invite token')
+    console.error('Failed to generate invite token:', error)
+    message.error(error.message || 'Failed to generate invite token')
   }
 }
 
@@ -504,48 +434,93 @@ const downloadToken = () => {
   message.success('Token data downloaded successfully!')
 }
 
-onMounted(() => {
-  // Load carer data
+onMounted(async () => {
   loading.value = true
   
-  // Initialize all carers (workers + manager + POA)
-  allCarers.value = [
-    ...workers.value,
-    {
-      id: 99,
-      workerId: 'M001',
-      name: 'Manager Smith',
-      photo: null,
-      position: 'Care Manager',
-      status: 'Active',
-      joinDate: '2022-01-01',
-      email: 'manager@careapp.com',
-      role: 'Manager'
-    },
-    {
-      id: 100,
-      workerId: 'P001',
-      name: 'Family Member',
-      photo: null,
-      position: 'Power of Attorney',
-      status: 'Active',
-      joinDate: '2022-01-01',
-      email: 'family@careapp.com',
-      role: 'POA'
-    }
-  ]
-  
-  // Set today as default date
-  selectedDate.value = dayjs()
-  const todayStr = selectedDate.value.format('YYYY-MM-DD')
-  
-  // Initialize daily workers for today
-  updateDailyWorkers(todayStr)
-  
-  setTimeout(() => {
+  try {
+    // Get current user info
+    const userInfo = await getMe()
+    const organizationId = userInfo?.data?.organizationId || 'default-org'
+    
+    // Load workers from API
+    await loadWorkers()
+    
+    // Initialize all carers (workers + manager + POA)
+    allCarers.value = [
+      ...workers.value,
+      {
+        id: 99,
+        workerId: 'M001',
+        name: 'Manager Smith',
+        photo: null,
+        position: 'Care Manager',
+        status: 'Active',
+        joinDate: '2022-01-01',
+        email: 'manager@careapp.com',
+        role: 'Manager'
+      },
+      {
+        id: 100,
+        workerId: 'P001',
+        name: 'Family Member',
+        photo: null,
+        position: 'Power of Attorney',
+        status: 'Active',
+        joinDate: '2022-01-01',
+        email: 'family@careapp.com',
+        role: 'POA'
+      }
+    ]
+    
+    // Set today as default date
+    selectedDate.value = dayjs()
+    const todayStr = selectedDate.value.format('YYYY-MM-DD')
+    
+    // Load daily schedule for today
+    await loadDailySchedule(organizationId, todayStr)
+    
+  } catch (error) {
+    console.error('Failed to load carer team data:', error)
+    message.error('Failed to load carer team data')
+    
+    // Fallback to mock data
+    selectedDate.value = dayjs()
+    const todayStr = selectedDate.value.format('YYYY-MM-DD')
+    updateDailyWorkers(todayStr)
+  } finally {
     loading.value = false
-  }, 500)
+  }
 })
+
+// Load workers from API
+const loadWorkers = async () => {
+  try {
+    const response = await getAllWorkers()
+    if (response?.data) {
+      workers.value = response.data
+    }
+  } catch (error) {
+    console.error('Failed to load workers:', error)
+    // Keep using mock data
+  }
+}
+
+// Load daily schedule from API
+const loadDailySchedule = async (organizationId, dateStr) => {
+  try {
+    const response = await getDailySchedule(organizationId, dateStr)
+    if (response?.data) {
+      dailyWorkers.value = response.data
+    } else {
+      // If no schedule exists, show all active workers
+      dailyWorkers.value = workers.value.filter(worker => worker.status === 'Active')
+    }
+  } catch (error) {
+    console.error('Failed to load daily schedule:', error)
+    // Fallback to mock data
+    updateDailyWorkers(dateStr)
+  }
+}
 </script>
 
 <style scoped>

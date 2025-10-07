@@ -138,6 +138,13 @@ import {
   EditOutlined 
 } from '@ant-design/icons-vue'
 import { getMe } from '@/services/userService'
+import { 
+  getAllMessages, 
+  sendMessage as sendMessageAPI, 
+  replyToMessage, 
+  markMessageAsRead, 
+  deleteMessage 
+} from '@/services/communicationService'
 
 const userRole = ref('worker')
 const isComposeModalOpen = ref(false)
@@ -145,33 +152,8 @@ const isViewModalOpen = ref(false)
 const isReplyModalOpen = ref(false)
 const currentMessage = ref(null)
 
-// 消息列表
-const messages = ref([
-  {
-    id: 1,
-    subject: 'Patient P1 Health Update',
-    from: 'Manager',
-    date: '2025-01-15 10:30',
-    status: 'unread',
-    content: 'Dear Family Member,\n\nI wanted to update you on P1\'s current health status. The recent examination shows improvement in blood pressure levels. Please let me know if you have any questions.\n\nBest regards,\nManager'
-  },
-  {
-    id: 2,
-    subject: 'Budget Approval Request',
-    from: 'F1',
-    date: '2025-01-14 14:20',
-    status: 'replied',
-    content: 'Hello Manager,\n\nI would like to request approval for additional budget allocation for P1\'s medication. The current budget is insufficient for the new prescription.\n\nPlease review and approve.\n\nThank you,\nF1'
-  },
-  {
-    id: 3,
-    subject: 'Weekly Care Report',
-    from: 'Manager',
-    date: '2025-01-13 09:15',
-    status: 'read',
-    content: 'Weekly care report for P1 is now available. All scheduled tasks have been completed successfully. No issues to report.\n\nManager'
-  }
-])
+
+const messages = ref([])
 
 // 表格列定义
 const columns = [
@@ -210,10 +192,26 @@ onMounted(async () => {
   try {
     const userInfo = await getMe()
     userRole.value = userInfo?.data?.role || 'worker'
+    
+    // Load messages from API
+    await loadMessages()
   } catch (e) {
     console.error('Failed to get user info:', e)
   }
 })
+
+// Load messages from API
+const loadMessages = async () => {
+  try {
+    const response = await getAllMessages()
+    if (response?.data) {
+      messages.value = response.data
+    }
+  } catch (error) {
+    console.error('Failed to load messages:', error)
+    // Keep using mock data if API fails
+  }
+}
 
 // 获取状态颜色
 const getStatusColor = (status) => {
@@ -246,25 +244,36 @@ const showComposeModal = () => {
 }
 
 // 发送消息
-const sendMessage = () => {
+const sendMessage = async () => {
   if (!composeForm.to || !composeForm.subject || !composeForm.message) {
     message.error('Please fill in all required fields')
     return
   }
   
-  // 添加新消息到列表
-  const newMessage = {
-    id: Date.now(),
-    subject: composeForm.subject,
-    from: userRole.value === 'poa' ? 'F1' : 'Manager',
-    date: new Date().toLocaleString(),
-    status: 'unread',
-    content: composeForm.message
+  try {
+    const messageData = {
+      to: composeForm.to,
+      subject: composeForm.subject,
+      content: composeForm.message,
+      from: userRole.value === 'poa' ? 'F1' : 'Manager'
+    }
+    
+    const response = await sendMessageAPI(messageData)
+    
+    if (response.data) {
+      messages.value.unshift(response.data)
+      message.success('Message sent successfully')
+      isComposeModalOpen.value = false
+      
+      // Reset form
+      composeForm.to = ''
+      composeForm.subject = ''
+      composeForm.message = ''
+    }
+  } catch (error) {
+    console.error('Failed to send message:', error)
+    message.error(error.message || 'Failed to send message')
   }
-  
-  messages.value.unshift(newMessage)
-  message.success('Message sent successfully')
-  isComposeModalOpen.value = false
 }
 
 // 取消撰写

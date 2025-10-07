@@ -79,13 +79,26 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { QuestionCircleOutlined } from '@ant-design/icons-vue'
+import { message } from 'ant-design-vue'
+import { getMe } from '@/services/userService'
+import { uploadWorkerPhoto } from '@/services/workerService'
 
-const files = ref([
-  { id: 1, name: 'Examination Report.pdf', category: 'Worker Upload', uploadedBy: 'C1', time: '2025-09-21', comment: '' },
-  { id: 2, name: 'Budget Report.pdf', category: 'Admin Upload', uploadedBy: 'Name', time: '2025-09-21', comment: '' },
-])
+// Files list - loaded from API
+const files = ref([])
+
+const currentUser = ref(null)
+
+// Load user info on mount
+onMounted(async () => {
+  try {
+    const userInfo = await getMe()
+    currentUser.value = userInfo?.data
+  } catch (error) {
+    console.error('Failed to get user info:', error)
+  }
+})
 
 // 表格
 const columns = [
@@ -98,21 +111,45 @@ const columns = [
 ]
 
 // 上传文件
-const handleBeforeUpload = (file) => {
-  // 创建文件URL用于预览
-  const fileUrl = URL.createObjectURL(file)
+const handleBeforeUpload = async (file) => {
+  try {
+    // Get current user info
+    const userInfo = await getMe()
+    if (!userInfo?.data?.id) {
+      message.error('User not authenticated')
+      return false
+    }
+    
+    // Create FormData for file upload
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('workerId', userInfo.data.id)
+    
+    // Upload file via API
+    const response = await uploadWorkerPhoto(userInfo.data.id, formData)
+    
+    if (response.data) {
+      // Add to local files list
+      const fileUrl = URL.createObjectURL(file)
+      files.value.push({
+        id: Date.now(),
+        name: file.name,
+        category: 'Worker Upload',
+        uploadedBy: userInfo.data.name || 'You',
+        time: new Date().toLocaleDateString(),
+        comment: '',
+        file: file,
+        fileUrl: fileUrl
+      })
+      
+      message.success('File uploaded successfully')
+    }
+  } catch (error) {
+    console.error('Failed to upload file:', error)
+    message.error(error.message || 'Failed to upload file')
+  }
   
-  files.value.push({
-    id: Date.now(),
-    name: file.name,
-    category: 'Worker Upload',
-    uploadedBy: 'You',
-    time: new Date().toLocaleDateString(),
-    comment: '',
-    file: file,
-    fileUrl: fileUrl
-  })
-  return false // 阻止默认上传，改为本地存储
+  return false // 阻止默认上传
 }
 
 // 评论弹窗逻辑

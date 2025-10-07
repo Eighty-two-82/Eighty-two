@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { getMe, getInviteStatus } from '../services/userService'
 
 import Login from '../views/Login.vue'
 import Register from '../views/Register.vue'
@@ -10,22 +11,7 @@ function isAuthed() {
   return !!(localStorage.getItem('token') || sessionStorage.getItem('token'))
 }
 
-// Mock function to get user information
-async function getMe() {
-  // You can modify the role here to test different flows
-  return { role: 'manager' } // Change to 'manager' or 'worker' to test invite code flow (poa = Power of Attorney)
-}
-
-// Mock function to get invite status
-async function getInviteStatus() {
-  // Check if invite code was submitted (stored in sessionStorage)
-  const inviteSubmitted = sessionStorage.getItem('inviteSubmitted') === 'true';
-  
-  return {
-    valid: inviteSubmitted, // Set to true if invite code was submitted
-    reason: inviteSubmitted ? "valid" : "missing"
-  };
-}
+// Now using real API from userService
 
 
 const routes = [

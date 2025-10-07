@@ -204,6 +204,8 @@
 import { ref, computed, onMounted, h } from 'vue'
 import { QuestionCircleOutlined, CheckSquareOutlined, BarChartOutlined, SettingOutlined, AppstoreOutlined, MessageOutlined, HomeOutlined, TeamOutlined, UploadOutlined } from '@ant-design/icons-vue'
 import { getMe } from '@/services/userService'
+import { getBudgetByPatient, getBudgetCalculations } from '@/services/budgetService'
+import { getTasksByPatient, getTasksByWorker, getAllTasks } from '@/services/taskService'
 
 const userRole = ref('worker')
 
@@ -211,10 +213,66 @@ onMounted(async () => {
   try {
     const me = await getMe()
     userRole.value = me?.data?.role || 'worker'
+    
+    // Load real data based on user role
+    await loadHomeData()
   } catch (e) {
     // keep default
   }
 })
+
+// Load home page data from API
+const loadHomeData = async () => {
+  try {
+    const userInfo = await getMe()
+    if (!userInfo?.data) return
+    
+    // Load budget data for non-worker roles
+    if (userRole.value !== 'worker' && userInfo.data.patientId) {
+      try {
+        const budgetResponse = await getBudgetByPatient(userInfo.data.patientId)
+        if (budgetResponse?.data) {
+          budgetCategories.value = budgetResponse.data.categories || []
+        }
+      } catch (error) {
+        console.error('Failed to load budget data:', error)
+        budgetCategories.value = []
+      }
+    }
+    
+    // Load task data
+    try {
+      let taskResponse
+      if (userRole.value === 'worker') {
+        taskResponse = await getTasksByWorker(userInfo.data.id)
+      } else if (userRole.value === 'poa') {
+        taskResponse = await getTasksByPatient(userInfo.data.patientId)
+      } else if (userRole.value === 'manager') {
+        taskResponse = await getAllTasks()
+      }
+      
+      if (taskResponse?.data) {
+        taskPreview.value = taskResponse.data.slice(0, 3).map(task => ({
+          id: task.id,
+          title: task.title,
+          priority: task.priority,
+          dueDate: task.dueDate,
+          status: task.status
+        }))
+      } else {
+        taskPreview.value = []
+      }
+    } catch (error) {
+      console.error('Failed to load task data:', error)
+      taskPreview.value = []
+    }
+    
+  } catch (error) {
+    console.error('Failed to load home data:', error)
+    budgetCategories.value = []
+    taskPreview.value = []
+  }
+}
 
 const roleDisplay = computed(() => {
   switch (userRole.value) {
@@ -225,13 +283,8 @@ const roleDisplay = computed(() => {
   }
 })
 
-// --- Budget Preview (mock) ---
-const budgetCategories = ref([
-  { name: 'Hygiene Products', budget: 12000, used: 9500 },
-  { name: 'Health', budget: 25000, used: 18900 },
-  { name: 'Clothing', budget: 15000, used: 10200 },
-  { name: 'Entertainment', budget: 8000, used: 6140 }
-])
+// --- Budget Preview - loaded from API ---
+const budgetCategories = ref([])
 
 const totalBudget = computed(() => budgetCategories.value.reduce((s, c) => s + c.budget, 0))
 const totalUsed = computed(() => budgetCategories.value.reduce((s, c) => s + c.used, 0))
@@ -258,12 +311,8 @@ const topCategoryColumns = [
   { title: 'Progress', key: 'progress', width: 160 }
 ]
 
-// --- Tasks Preview (mock) ---
-const taskPreview = ref([
-  { id: 1, title: 'Morning Medication', priority: 'normal', dueDate: '2025-09-21', status: 'Worker Completed' },
-  { id: 2, title: 'Physical Therapy', priority: 'urgent', dueDate: '2025-09-21', status: 'In Progress' },
-  { id: 3, title: 'Evening Care', priority: 'normal', dueDate: '2025-09-21', status: 'Pending' }
-])
+// --- Tasks Preview - loaded from API ---
+const taskPreview = ref([])
 
 const taskPreviewColumns = [
   { title: 'Title', dataIndex: 'title', key: 'title' },

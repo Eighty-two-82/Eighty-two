@@ -202,13 +202,13 @@
                 <a-button 
                   size="small" 
                   type="primary" 
-                  @click="completeTask(record)"
+                  @click="handleCompleteTask(record)"
                   :disabled="record.status === 'Completed'"
                   style="background-color: #52c41a; border-color: #52c41a;"
                 >
                   Complete
                 </a-button>
-                <a-button size="small" danger @click="deleteTask(record)">
+                <a-button size="small" danger @click="handleDeleteTask(record)">
                   Delete
                 </a-button>
               </a-space>
@@ -269,7 +269,7 @@
                 >
                   {{ record.isActive ? 'Deactivate' : 'Activate' }}
                 </a-button>
-                <a-button size="small" danger @click="deleteRecurringTask(record)">
+                <a-button size="small" danger @click="handleDeleteRecurringTask(record)">
                   Delete
                 </a-button>
               </a-space>
@@ -890,6 +890,22 @@ import { message } from 'ant-design-vue'
 import dayjs from 'dayjs'
 import { CheckSquareOutlined, PlusOutlined } from '@ant-design/icons-vue'
 import { getMe } from '../services/userService'
+import { 
+  getAllTasks, 
+  getTasksByPatient, 
+  getTasksByWorker, 
+  createTask, 
+  updateTask, 
+  deleteTask as deleteTaskAPI,
+  assignTask,
+  completeTask as completeTaskAPI,
+  approveTask,
+  rejectTask,
+  getRecurringTasks,
+  createRecurringTask,
+  updateRecurringTask,
+  deleteRecurringTask as deleteRecurringTaskAPI
+} from '../services/taskService'
 
 // Reactive data
 const selectedDate = ref(null)
@@ -987,172 +1003,21 @@ const editRecurringTaskForm = ref({
   isActive: true
 })
 
-// Mock data
-const availableWorkers = ref([
-  { id: 1, name: 'A', workerId: 'W001' },
-  { id: 2, name: 'B', workerId: 'W002' },
-  { id: 3, name: 'C', workerId: 'W003' },
-  { id: 4, name: 'D', workerId: 'W004' },
-  { id: 5, name: 'E', workerId: 'W005' },
-  { id: 6, name: 'F', workerId: 'W006' },
-  { id: 7, name: 'G', workerId: 'W007' },
-  { id: 8, name: 'H', workerId: 'W008' }
-])
+// Available workers - loaded from API
+const availableWorkers = ref([])
 
-const todayTasks = ref([
-  {
-    id: 1,
-    title: 'Morning Medication',
-    description: 'Administer morning medication to patient',
-    assignedTo: 'A',
-    priority: 'normal',
-    dueDate: '2025-09-21',
-    status: 'Worker Completed'
-  },
-  {
-    id: 2,
-    title: 'Physical Therapy',
-    description: 'Assist with physical therapy exercises',
-    assignedTo: 'B',
-    priority: 'urgent',
-    dueDate: '2025-09-21',
-    status: 'In Progress'
-  },
-  {
-    id: 3,
-    title: 'Emergency Response',
-    description: 'Monitor patient condition closely',
-    assignedTo: 'A',
-    priority: 'very-urgent',
-    dueDate: '2025-09-21',
-    status: 'Worker Completed'
-  },
-  {
-    id: 4,
-    title: 'Evening Care',
-    description: 'Prepare patient for evening routine',
-    assignedTo: 'C',
-    priority: 'normal',
-    dueDate: '2025-09-21',
-    status: 'Worker Completed'
-  }
-])
+// Today's tasks - loaded from API
+const todayTasks = ref([])
 
 
-const changeRequests = ref([
-  {
-    id: 1,
-    requester: 'POA',
-    taskTitle: 'Monthly Health Check',
-    requestType: 'recurring',
-    frequency: 'monthly',
-    frequencyNumber: 3,
-    timeOfDay: '10:00',
-    dayOfMonth: 15,
-    startDate: '2025-02-01',
-    endDate: null,
-    reason: 'Patient needs quarterly health assessments',
-    status: 'Pending'
-  },
-  {
-    id: 2,
-    requester: 'Family Member',
-    taskTitle: 'Morning Medication',
-    requestType: 'Time Change',
-    reason: 'Patient prefers medication at 9 AM instead of 8 AM',
-    status: 'Pending'
-  }
-])
+// Change requests - loaded from API
+const changeRequests = ref([])
 
-// POA's own requests (for viewing status and manager responses)
-const myRequests = ref([
-  {
-    id: 1,
-    taskTitle: 'Morning Medication',
-    requestType: 'Time Change',
-    reason: 'Patient prefers medication at 9 AM instead of 8 AM',
-    status: 'Pending',
-    submittedDate: '2025-01-20',
-    approvalReason: null,
-    rejectionReason: null
-  },
-  {
-    id: 2,
-    taskTitle: 'Physical Therapy',
-    requestType: 'Add New Task',
-    reason: 'Patient needs additional physical therapy sessions',
-    status: 'Approved',
-    submittedDate: '2025-01-18',
-    approvalReason: 'Approved. Will add 2 additional sessions per week.',
-    rejectionReason: null
-  },
-  {
-    id: 3,
-    taskTitle: 'Monthly Health Check',
-    requestType: 'recurring',
-    frequency: 'monthly',
-    frequencyNumber: 3,
-    reason: 'Patient needs quarterly health assessments',
-    status: 'Pending',
-    submittedDate: '2025-01-19',
-    approvalReason: null,
-    rejectionReason: null
-  },
-  {
-    id: 4,
-    taskTitle: 'Evening Care',
-    requestType: 'Remove Task',
-    reason: 'Patient no longer needs evening care assistance',
-    status: 'Rejected',
-    submittedDate: '2025-01-15',
-    approvalReason: null,
-    rejectionReason: 'Cannot remove evening care as patient still requires assistance with bedtime routine.'
-  }
-])
+// POA's own requests - loaded from API
+const myRequests = ref([])
 
-const recurringTasks = ref([
-  {
-    id: 1,
-    title: 'Morning Medication',
-    description: 'Administer morning medication to patient',
-    assignedTo: 'A',
-    frequency: 'daily',
-    frequencyNumber: 1,
-    timeOfDay: '08:00',
-    startDate: '2025-01-01',
-    endDate: null,
-    isActive: true,
-    createdAt: '2025-01-01'
-  },
-  {
-    id: 2,
-    title: 'Physical Therapy',
-    description: 'Assist with physical therapy exercises',
-    assignedTo: 'B',
-    frequency: 'weekly',
-    frequencyNumber: 2,
-    dayOfWeek: 'monday',
-    timeOfDay: '14:00',
-    startDate: '2025-01-01',
-    endDate: null,
-    isActive: true,
-    createdAt: '2025-01-01'
-  },
-  {
-    id: 3,
-    title: 'Monthly Health Check',
-    description: 'Conduct monthly health assessment',
-    assignedTo: 'A',
-    frequency: 'monthly',
-    frequencyNumber: 6,
-    dayOfMonth: 15,
-    timeOfDay: '10:00',
-    startDate: '2025-01-01',
-    endDate: null,
-    isActive: true,
-    createdAt: '2025-01-01'
-  }
-])
+// Recurring tasks - loaded from API
+const recurringTasks = ref([])
 
 // Table columns
 const taskColumns = [
@@ -1262,25 +1127,45 @@ const confirmCreateTask = async () => {
   
   try {
     message.loading('Creating task...', 0)
-    await new Promise(resolve => setTimeout(resolve, 1000))
     
-    const newTask = {
-      id: Date.now(),
+    const taskData = {
       title: createTaskForm.value.title,
       description: createTaskForm.value.description,
       assignedTo: createTaskForm.value.assignedTo || null,
       priority: createTaskForm.value.priority,
       dueDate: createTaskForm.value.dueDate.format('YYYY-MM-DD'),
-      status: 'Pending'
+      status: 'Pending',
+      patientId: currentUser.value?.patientId || null,
+      createdBy: currentUser.value?.id || null
     }
     
-    todayTasks.value.push(newTask)
-    message.destroy()
-    message.success('Task created successfully!')
-    createTaskModalVisible.value = false
+    const response = await createTask(taskData)
+    
+    if (response.data) {
+      // Add to local tasks array
+      const newTask = {
+        ...response.data,
+        id: response.data.id || Date.now()
+      }
+      todayTasks.value.push(newTask)
+      
+      message.destroy()
+      message.success('Task created successfully!')
+      createTaskModalVisible.value = false
+      
+      // Reset form
+      createTaskForm.value = {
+        title: '',
+        description: '',
+        assignedTo: '',
+        priority: '',
+        dueDate: null
+      }
+    }
   } catch (error) {
     message.destroy()
-    message.error('Failed to create task')
+    console.error('Failed to create task:', error)
+    message.error(error.message || 'Failed to create task')
   }
 }
 
@@ -1324,7 +1209,7 @@ const confirmEditTask = async () => {
   }
 }
 
-const completeTask = async (task) => {
+const handleCompleteTask = async (task) => {
   try {
     message.loading('Completing task...', 0)
     await new Promise(resolve => setTimeout(resolve, 1000))
@@ -1342,7 +1227,7 @@ const completeTask = async (task) => {
   }
 }
 
-const deleteTask = async (task) => {
+const handleDeleteTask = async (task) => {
   try {
     message.loading('Deleting task...', 0)
     await new Promise(resolve => setTimeout(resolve, 1000))
@@ -1783,7 +1668,7 @@ const toggleRecurringTask = async (task) => {
   }
 }
 
-const deleteRecurringTask = async (task) => {
+const handleDeleteRecurringTask = async (task) => {
   try {
     message.loading('Deleting recurring task template...', 0)
     await new Promise(resolve => setTimeout(resolve, 1000))
@@ -1962,16 +1847,63 @@ const getFrequencyText = (frequency, frequencyNumber = 1) => {
 // Initialize
 onMounted(async () => {
   selectedDate.value = dayjs()
-  updateTasksForDate(selectedDate.value)
   
   // Get current user information
   try {
     const response = await getMe()
     currentUser.value = response.data
+    
+    // Load tasks based on user role
+    await loadTasks()
+    
+    // Update tasks for selected date
+    updateTasksForDate(selectedDate.value)
   } catch (error) {
     console.error('Failed to get user info:', error)
+    // Fallback to mock data if API fails
+    updateTasksForDate(selectedDate.value)
   }
 })
+
+// Load tasks from API based on user role
+const loadTasks = async () => {
+  try {
+    if (!currentUser.value) return
+    
+    let response
+    if (currentUser.value.role === 'worker') {
+      // Load tasks assigned to this worker
+      response = await getTasksByWorker(currentUser.value.id)
+    } else if (currentUser.value.role === 'poa') {
+      // Load tasks for patient(s) this POA manages
+      response = await getTasksByPatient(currentUser.value.patientId)
+    } else if (currentUser.value.role === 'manager') {
+      // Load all tasks
+      response = await getAllTasks()
+    }
+    
+    if (response && response.data) {
+      // Update tasks with real data
+      todayTasks.value = response.data
+    }
+    
+    // Load recurring tasks
+    try {
+      const recurringResponse = await getRecurringTasks()
+      if (recurringResponse && recurringResponse.data) {
+        recurringTasks.value = recurringResponse.data
+      }
+    } catch (error) {
+      console.error('Failed to load recurring tasks:', error)
+    }
+    
+  } catch (error) {
+    console.error('Failed to load tasks:', error)
+    // Show empty state if API fails
+    todayTasks.value = []
+    recurringTasks.value = []
+  }
+}
 </script>
 
 <style scoped>

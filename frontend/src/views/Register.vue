@@ -94,6 +94,7 @@
 <script setup>
 import { reactive, ref } from 'vue';
 import { message } from 'ant-design-vue';
+import { register } from '@/services/userService';
 
 const formState = reactive({
   firstName: '',
@@ -112,11 +113,34 @@ const onFinish = async (values) => {
     if (values.password !== values.confirm) {
       throw new Error('Passwords do not match');
     }
-    console.log('Selected role:', values.role);
-    message.success('Registered successfully (mock)');
-    window.location.href = '/login';
+    
+    // Map frontend role to backend userType
+    const roleMapping = {
+      'poa': 'POA',
+      'worker': 'WORKER', 
+      'manager': 'MANAGER'
+    };
+    
+    const userData = {
+      firstName: values.firstName,
+      lastName: values.lastName,
+      email: values.email,
+      password: values.password,
+      role: values.role,
+      userType: roleMapping[values.role] || 'WORKER'
+    };
+    
+    console.log('Registering user with data:', userData);
+    
+    const result = await register(userData);
+    
+    if (result.data) {
+      message.success('Registration successful! Please login with your credentials.');
+      window.location.href = '/login';
+    }
   } catch (e) {
-    message.error(e?.message || 'Register failed');
+    console.error('Registration error:', e);
+    message.error(e?.message || 'Registration failed');
   } finally {
     loading.value = false;
   }
