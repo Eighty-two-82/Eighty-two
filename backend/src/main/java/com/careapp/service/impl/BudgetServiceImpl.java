@@ -197,6 +197,91 @@ public class BudgetServiceImpl implements BudgetService {
         return budgetRepository.save(budget);
     }
 
+    @Override
+    public Budget reallocateBetweenCategories(String patientId, String fromCategoryId, String toCategoryId, double amount, String reason) {
+        if (amount <= 0) {
+            throw new IllegalArgumentException("Amount must be positive");
+        }
+        Budget budget = getBudgetByPatientId(patientId);
+        BudgetCategory from = budget.getCategories().stream().filter(c -> c.getId().equals(fromCategoryId))
+            .findFirst().orElseThrow(() -> new IllegalArgumentException("From category not found: " + fromCategoryId));
+        BudgetCategory to = budget.getCategories().stream().filter(c -> c.getId().equals(toCategoryId))
+            .findFirst().orElseThrow(() -> new IllegalArgumentException("To category not found: " + toCategoryId));
+        if (from.getCategoryBudget() - amount < 0) {
+            throw new IllegalArgumentException("From category budget cannot go negative");
+        }
+        from.setCategoryBudget(from.getCategoryBudget() - amount);
+        to.setCategoryBudget(to.getCategoryBudget() + amount);
+        budget.setUpdatedAt(LocalDateTime.now());
+        budget = budgetCalculationService.calculateBudgetMetrics(budget);
+        return budgetRepository.save(budget);
+    }
+
+    @Override
+    public Budget reallocateBetweenSubElements(String patientId, String categoryId, String fromSubElementId, String toSubElementId, double amount, String reason) {
+        if (amount <= 0) {
+            throw new IllegalArgumentException("Amount must be positive");
+        }
+        Budget budget = getBudgetByPatientId(patientId);
+        BudgetCategory category = budget.getCategories().stream()
+            .filter(c -> c.getId().equals(categoryId))
+            .findFirst().orElseThrow(() -> new IllegalArgumentException("Category not found: " + categoryId));
+        BudgetSubElement from = category.getSubElements().stream().filter(s -> s.getId().equals(fromSubElementId))
+            .findFirst().orElseThrow(() -> new IllegalArgumentException("From sub-element not found: " + fromSubElementId));
+        BudgetSubElement to = category.getSubElements().stream().filter(s -> s.getId().equals(toSubElementId))
+            .findFirst().orElseThrow(() -> new IllegalArgumentException("To sub-element not found: " + toSubElementId));
+        if (from.getSubElementBudget() - amount < 0) {
+            throw new IllegalArgumentException("From sub-element budget cannot go negative");
+        }
+        from.setSubElementBudget(from.getSubElementBudget() - amount);
+        to.setSubElementBudget(to.getSubElementBudget() + amount);
+        budget.setUpdatedAt(LocalDateTime.now());
+        budget = budgetCalculationService.calculateBudgetMetrics(budget);
+        return budgetRepository.save(budget);
+    }
+
+    @Override
+    public Budget refundSubElement(String patientId, String categoryId, String subElementId, double amount, String reason) {
+        if (amount <= 0) {
+            throw new IllegalArgumentException("Amount must be positive");
+        }
+        Budget budget = getBudgetByPatientId(patientId);
+        BudgetCategory category = budget.getCategories().stream()
+            .filter(c -> c.getId().equals(categoryId))
+            .findFirst().orElseThrow(() -> new IllegalArgumentException("Category not found: " + categoryId));
+        BudgetSubElement sub = category.getSubElements().stream().filter(s -> s.getId().equals(subElementId))
+            .findFirst().orElseThrow(() -> new IllegalArgumentException("Sub-element not found: " + subElementId));
+        // Refund means decrease utilised and increase balance
+        double newTotal = Math.max(0, sub.getTotalUtilised() - amount);
+        sub.setTotalUtilised(newTotal);
+        sub.calculateBalance();
+        sub.calculateWarningLevel();
+        // Optionally append reason in comments
+        String comments = sub.getComments();
+        String delta = "Refund: " + amount + (reason != null && !reason.isEmpty() ? (" (" + reason + ")") : "");
+        sub.setComments(comments == null || comments.isEmpty() ? delta : comments + "; " + delta);
+        budget.setUpdatedAt(LocalDateTime.now());
+        budget = budgetCalculationService.calculateBudgetMetrics(budget);
+        return budgetRepository.save(budget);
+    }
+
+    @Override
+    public Budget updateMonthlyUsageBulk(String patientId, String categoryId, String subElementId, java.util.List<Double> monthlyAmounts) {
+        if (monthlyAmounts == null || monthlyAmounts.size() != 12) {
+            throw new IllegalArgumentException("monthlyAmounts must be 12-length list");
+        }
+        Budget budget = getBudgetByPatientId(patientId);
+        BudgetCategory category = budget.getCategories().stream()
+            .filter(c -> c.getId().equals(categoryId))
+            .findFirst().orElseThrow(() -> new IllegalArgumentException("Category not found: " + categoryId));
+        BudgetSubElement sub = category.getSubElements().stream().filter(s -> s.getId().equals(subElementId))
+            .findFirst().orElseThrow(() -> new IllegalArgumentException("Sub-element not found: " + subElementId));
+        sub.setMonthlyUsage(monthlyAmounts);
+        budget.setUpdatedAt(LocalDateTime.now());
+        budget = budgetCalculationService.calculateBudgetMetrics(budget);
+        return budgetRepository.save(budget);
+    }
+
 
     /**
      * Generate unique IDs for categories and sub-elements that don't have IDs

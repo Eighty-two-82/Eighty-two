@@ -4,7 +4,6 @@ import com.careapp.domain.Budget;
 import com.careapp.domain.BudgetCategory;
 import com.careapp.domain.BudgetSubElement;
 
-import java.util.List;
 
 /**
  * Service interface for Budget operations
@@ -81,5 +80,14 @@ public interface BudgetService {
      */
     Budget updateMonthlyUsage(String patientId, String categoryId, String subElementId, 
                              int month, double amount);
+    
+    // Advanced adjustments
+    Budget reallocateBetweenCategories(String patientId, String fromCategoryId, String toCategoryId, double amount, String reason);
+    
+    Budget reallocateBetweenSubElements(String patientId, String categoryId, String fromSubElementId, String toSubElementId, double amount, String reason);
+    
+    Budget refundSubElement(String patientId, String categoryId, String subElementId, double amount, String reason);
+    
+    Budget updateMonthlyUsageBulk(String patientId, String categoryId, String subElementId, java.util.List<Double> monthlyAmounts);
     
 }

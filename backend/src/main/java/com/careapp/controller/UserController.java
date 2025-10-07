@@ -171,4 +171,24 @@ public class UserController {
         return Result.success(userInfo, "User information retrieved successfully!");
     }
 
+    // Logout endpoint
+    @PostMapping("/logout")
+    public Result<String> logout(@RequestHeader(value = "Authorization", required = false) String authHeader,
+                                @RequestParam(required = false) String token) {
+        try {
+            // In a real implementation, you would:
+            // 1. Validate the token from Authorization header or request parameter
+            // 2. Invalidate the token on the server side (if using JWT blacklist)
+            // 3. Clear any server-side session data
+            // 4. Log the logout event for security purposes
+            
+            // For now, we'll just return a success message
+            // TODO: Implement proper token invalidation and session cleanup
+            
+            return Result.success("Logout successful", "User logged out successfully!");
+        } catch (Exception e) {
+            return Result.error("500", "Logout failed: " + e.getMessage());
+        }
+    }
+
 }

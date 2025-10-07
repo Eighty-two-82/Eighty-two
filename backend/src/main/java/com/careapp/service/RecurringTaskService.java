@@ -151,24 +151,13 @@ public class RecurringTaskService {
     
     // Create a task from a recurring template
     private Task createTaskFromTemplate(RecurringTask template, LocalDate date) {
-        // Check if task already exists for this date
-        List<Task> existingTasks;
-        if (template.getAssignedToId() != null) {
-            existingTasks = taskRepository.findByAssignedToIdAndDueDate(
-                template.getAssignedToId(), date);
-        } else {
-            // For unassigned tasks, check by title and due date
-            existingTasks = taskRepository.findByDueDate(date).stream()
-                .filter(task -> task.getTitle().equals(template.getTitle()) && 
-                               task.getAssignedToId() == null)
-                .collect(java.util.stream.Collectors.toList());
-        }
-        
-        boolean taskExists = existingTasks.stream()
-            .anyMatch(task -> task.getTitle().equals(template.getTitle()));
-        
+        // Enforce global uniqueness by (title + date) across all tasks, regardless of assignment.
+        // If any task with the same title already exists for the given date, skip generation.
+        boolean taskExists = taskRepository.findByDueDate(date).stream()
+            .anyMatch(t -> t.getTitle().equals(template.getTitle()));
+
         if (taskExists) {
-            return null; // Task already exists
+            return null; // A task with the same title already exists for this date
         }
         
         // Create new task
