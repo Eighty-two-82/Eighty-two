@@ -329,4 +329,257 @@ public class BudgetController {
         }
     }
 
+    // ========== Additional API endpoints for frontend compatibility ==========
+
+    /**
+     * Get budget categories by patient ID
+     * GET /api/budget/patient/{patientId}/categories
+     */
+    @GetMapping("/patient/{patientId}/categories")
+    public Result<List<BudgetCategory>> getBudgetCategories(@PathVariable String patientId) {
+        try {
+            Budget budget = budgetService.getBudgetByPatientId(patientId);
+            if (budget != null && budget.getCategories() != null) {
+                return Result.success(budget.getCategories(), "Budget categories retrieved successfully!");
+            } else {
+                return Result.success(List.of(), "No categories found for this patient!");
+            }
+        } catch (Exception e) {
+            return Result.error("404", "Failed to retrieve budget categories: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Create budget category for patient
+     * POST /api/budget/patient/{patientId}/categories
+     */
+    @PostMapping("/patient/{patientId}/categories")
+    public Result<BudgetCategory> createBudgetCategory(@PathVariable String patientId, @RequestBody BudgetCategory categoryData) {
+        try {
+            Budget updatedBudget = budgetService.addCategory(patientId, categoryData);
+            if (updatedBudget != null && updatedBudget.getCategories() != null) {
+                // Find the newly created category (assuming it's the last one)
+                List<BudgetCategory> categories = updatedBudget.getCategories();
+                BudgetCategory newCategory = categories.get(categories.size() - 1);
+                return Result.success(newCategory, "Budget category created successfully!");
+            } else {
+                return Result.error("400", "Failed to create budget category!");
+            }
+        } catch (Exception e) {
+            return Result.error("400", "Failed to create budget category: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Update budget category
+     * PUT /api/budget/patient/{patientId}/categories/{categoryId}
+     */
+    @PutMapping("/patient/{patientId}/categories/{categoryId}")
+    public Result<BudgetCategory> updateBudgetCategory(@PathVariable String patientId, @PathVariable String categoryId, @RequestBody BudgetCategory categoryData) {
+        try {
+            Budget budget = budgetService.getBudgetByPatientId(patientId);
+            if (budget != null && budget.getCategories() != null) {
+                for (BudgetCategory category : budget.getCategories()) {
+                    if (category.getId().equals(categoryId)) {
+                        category.setName(categoryData.getName());
+                        category.setDescription(categoryData.getDescription());
+                        category.setCategoryBudget(categoryData.getCategoryBudget());
+                        
+                        Budget updatedBudget = budgetService.updateBudget(budget);
+                        return Result.success(category, "Budget category updated successfully!");
+                    }
+                }
+                return Result.error("404", "Category not found!");
+            } else {
+                return Result.error("404", "Budget not found!");
+            }
+        } catch (Exception e) {
+            return Result.error("400", "Failed to update budget category: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Delete budget category
+     * DELETE /api/budget/patient/{patientId}/categories/{categoryId}
+     */
+    @DeleteMapping("/patient/{patientId}/categories/{categoryId}")
+    public Result<String> deleteBudgetCategory(@PathVariable String patientId, @PathVariable String categoryId) {
+        try {
+            Budget budget = budgetService.getBudgetByPatientId(patientId);
+            if (budget != null && budget.getCategories() != null) {
+                budget.getCategories().removeIf(category -> category.getId().equals(categoryId));
+                budgetService.updateBudget(budget);
+                return Result.success("Category deleted", "Budget category deleted successfully!");
+            } else {
+                return Result.error("404", "Budget not found!");
+            }
+        } catch (Exception e) {
+            return Result.error("400", "Failed to delete budget category: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Get budget sub-elements by category
+     * GET /api/budget/patient/{patientId}/categories/{categoryId}/sub-elements
+     */
+    @GetMapping("/patient/{patientId}/categories/{categoryId}/sub-elements")
+    public Result<List<BudgetSubElement>> getBudgetSubElements(@PathVariable String patientId, @PathVariable String categoryId) {
+        try {
+            Budget budget = budgetService.getBudgetByPatientId(patientId);
+            if (budget != null && budget.getCategories() != null) {
+                for (BudgetCategory category : budget.getCategories()) {
+                    if (category.getId().equals(categoryId)) {
+                        List<BudgetSubElement> subElements = category.getSubElements();
+                        return Result.success(subElements != null ? subElements : List.of(), "Budget sub-elements retrieved successfully!");
+                    }
+                }
+                return Result.error("404", "Category not found!");
+            } else {
+                return Result.error("404", "Budget not found!");
+            }
+        } catch (Exception e) {
+            return Result.error("404", "Failed to retrieve budget sub-elements: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Create budget sub-element
+     * POST /api/budget/patient/{patientId}/categories/{categoryId}/sub-elements
+     */
+    @PostMapping("/patient/{patientId}/categories/{categoryId}/sub-elements")
+    public Result<BudgetSubElement> createBudgetSubElement(@PathVariable String patientId, @PathVariable String categoryId, @RequestBody BudgetSubElement subElementData) {
+        try {
+            Budget updatedBudget = budgetService.addSubElement(patientId, categoryId, subElementData);
+            if (updatedBudget != null) {
+                // Find the newly created sub-element
+                for (BudgetCategory category : updatedBudget.getCategories()) {
+                    if (category.getId().equals(categoryId) && category.getSubElements() != null) {
+                        List<BudgetSubElement> subElements = category.getSubElements();
+                        BudgetSubElement newSubElement = subElements.get(subElements.size() - 1);
+                        return Result.success(newSubElement, "Budget sub-element created successfully!");
+                    }
+                }
+            }
+            return Result.error("400", "Failed to create budget sub-element!");
+        } catch (Exception e) {
+            return Result.error("400", "Failed to create budget sub-element: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Update budget sub-element
+     * PUT /api/budget/patient/{patientId}/categories/{categoryId}/sub-elements/{subElementId}
+     */
+    @PutMapping("/patient/{patientId}/categories/{categoryId}/sub-elements/{subElementId}")
+    public Result<BudgetSubElement> updateBudgetSubElement(@PathVariable String patientId, @PathVariable String categoryId, @PathVariable String subElementId, @RequestBody BudgetSubElement subElementData) {
+        try {
+            Budget budget = budgetService.getBudgetByPatientId(patientId);
+            if (budget != null && budget.getCategories() != null) {
+                for (BudgetCategory category : budget.getCategories()) {
+                    if (category.getId().equals(categoryId) && category.getSubElements() != null) {
+                        for (BudgetSubElement subElement : category.getSubElements()) {
+                            if (subElement.getId().equals(subElementId)) {
+                                subElement.setName(subElementData.getName());
+                                subElement.setDescription(subElementData.getDescription());
+                                subElement.setSubElementBudget(subElementData.getSubElementBudget());
+                                
+                                Budget updatedBudget = budgetService.updateBudget(budget);
+                                return Result.success(subElement, "Budget sub-element updated successfully!");
+                            }
+                        }
+                        return Result.error("404", "Sub-element not found!");
+                    }
+                }
+                return Result.error("404", "Category not found!");
+            } else {
+                return Result.error("404", "Budget not found!");
+            }
+        } catch (Exception e) {
+            return Result.error("400", "Failed to update budget sub-element: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Delete budget sub-element
+     * DELETE /api/budget/patient/{patientId}/categories/{categoryId}/sub-elements/{subElementId}
+     */
+    @DeleteMapping("/patient/{patientId}/categories/{categoryId}/sub-elements/{subElementId}")
+    public Result<String> deleteBudgetSubElement(@PathVariable String patientId, @PathVariable String categoryId, @PathVariable String subElementId) {
+        try {
+            Budget budget = budgetService.getBudgetByPatientId(patientId);
+            if (budget != null && budget.getCategories() != null) {
+                for (BudgetCategory category : budget.getCategories()) {
+                    if (category.getId().equals(categoryId) && category.getSubElements() != null) {
+                        boolean removed = category.getSubElements().removeIf(subElement -> subElement.getId().equals(subElementId));
+                        if (removed) {
+                            budgetService.updateBudget(budget);
+                            return Result.success("Sub-element deleted", "Budget sub-element deleted successfully!");
+                        } else {
+                            return Result.error("404", "Sub-element not found!");
+                        }
+                    }
+                }
+                return Result.error("404", "Category not found!");
+            } else {
+                return Result.error("404", "Budget not found!");
+            }
+        } catch (Exception e) {
+            return Result.error("400", "Failed to delete budget sub-element: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Get budget calculations
+     * GET /api/budget/patient/{patientId}/calculations
+     */
+    @GetMapping("/patient/{patientId}/calculations")
+    public Result<Map<String, Object>> getBudgetCalculations(@PathVariable String patientId) {
+        try {
+            Budget budget = budgetService.getBudgetByPatientId(patientId);
+            if (budget != null) {
+                Map<String, Object> calculations = Map.of(
+                    "totalBudget", budget.getTotalBudget(),
+                    "totalUsed", budgetCalculationService.calculateTotalUsed(budget),
+                    "totalBalance", budgetCalculationService.calculateTotalBalance(budget),
+                    "usagePercentage", budgetCalculationService.calculateUsagePercentage(budget),
+                    "isOverBudget", budgetCalculationService.isOverBudget(budget)
+                );
+                return Result.success(calculations, "Budget calculations retrieved successfully!");
+            } else {
+                return Result.error("404", "Budget not found!");
+            }
+        } catch (Exception e) {
+            return Result.error("404", "Failed to retrieve budget calculations: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Get budget reports
+     * GET /api/budget/patient/{patientId}/reports
+     */
+    @GetMapping("/patient/{patientId}/reports")
+    public Result<List<Map<String, Object>>> getBudgetReports(@PathVariable String patientId, @RequestParam(required = false) String type, @RequestParam(required = false) String startDate, @RequestParam(required = false) String endDate) {
+        try {
+            Budget budget = budgetService.getBudgetByPatientId(patientId);
+            if (budget != null) {
+                // Generate mock reports based on the budget data
+                List<Map<String, Object>> reports = List.of(
+                    Map.of(
+                        "reportId", "R001",
+                        "reportType", type != null ? type : "monthly",
+                        "generatedDate", java.time.LocalDate.now().toString(),
+                        "totalBudget", budget.getTotalBudget(),
+                        "totalUsed", budgetCalculationService.calculateTotalUsed(budget),
+                        "categories", budget.getCategories() != null ? budget.getCategories().size() : 0
+                    )
+                );
+                return Result.success(reports, "Budget reports retrieved successfully!");
+            } else {
+                return Result.error("404", "Budget not found!");
+            }
+        } catch (Exception e) {
+            return Result.error("404", "Failed to retrieve budget reports: " + e.getMessage());
+        }
+    }
+
 }
