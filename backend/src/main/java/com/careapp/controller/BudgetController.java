@@ -110,6 +110,67 @@ public class BudgetController {
     }
 
     /**
+     * Reallocate budget between two categories
+     * POST /api/budget/reallocate-category
+     */
+    @PostMapping("/reallocate-category")
+    public Result<Budget> reallocateBetweenCategories(@RequestBody Map<String, Object> request) {
+        try {
+            String patientId = (String) request.get("patientId");
+            String fromCategoryId = (String) request.get("fromCategoryId");
+            String toCategoryId = (String) request.get("toCategoryId");
+            Double amount = Double.valueOf(request.get("amount").toString());
+            String reason = (String) request.get("reason");
+
+            Budget updated = budgetService.reallocateBetweenCategories(patientId, fromCategoryId, toCategoryId, amount, reason);
+            return Result.success(updated, "Category reallocation completed!");
+        } catch (Exception e) {
+            return Result.error("400", "Failed to reallocate category budget: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Reallocate budget between two sub-elements within a category
+     * POST /api/budget/reallocate-subelement
+     */
+    @PostMapping("/reallocate-subelement")
+    public Result<Budget> reallocateBetweenSubElements(@RequestBody Map<String, Object> request) {
+        try {
+            String patientId = (String) request.get("patientId");
+            String categoryId = (String) request.get("categoryId");
+            String fromSubElementId = (String) request.get("fromSubElementId");
+            String toSubElementId = (String) request.get("toSubElementId");
+            Double amount = Double.valueOf(request.get("amount").toString());
+            String reason = (String) request.get("reason");
+
+            Budget updated = budgetService.reallocateBetweenSubElements(patientId, categoryId, fromSubElementId, toSubElementId, amount, reason);
+            return Result.success(updated, "Sub-element reallocation completed!");
+        } catch (Exception e) {
+            return Result.error("400", "Failed to reallocate sub-element budget: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Process a refund for a sub-element (decrease utilised, increase balance)
+     * POST /api/budget/refund
+     */
+    @PostMapping("/refund")
+    public Result<Budget> refundSubElement(@RequestBody Map<String, Object> request) {
+        try {
+            String patientId = (String) request.get("patientId");
+            String categoryId = (String) request.get("categoryId");
+            String subElementId = (String) request.get("subElementId");
+            Double amount = Double.valueOf(request.get("amount").toString());
+            String reason = (String) request.get("reason");
+
+            Budget updated = budgetService.refundSubElement(patientId, categoryId, subElementId, amount, reason);
+            return Result.success(updated, "Refund processed successfully!");
+        } catch (Exception e) {
+            return Result.error("400", "Failed to process refund: " + e.getMessage());
+        }
+    }
+
+    /**
      * Add new category to budget
      * POST /api/budget/category
      */
@@ -169,6 +230,38 @@ public class BudgetController {
 
             Budget updatedBudget = budgetService.updateMonthlyUsage(patientId, categoryId, subElementId, month, amount);
             return Result.success(updatedBudget, "Monthly usage updated successfully!");
+        } catch (Exception e) {
+            return Result.error("400", "Failed to update monthly usage: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Bulk update monthly usage for a sub-element (12 months array)
+     * POST /api/budget/monthly-usage/bulk
+     */
+    @PostMapping("/monthly-usage/bulk")
+    public Result<Budget> updateMonthlyUsageBulk(@RequestBody Map<String, Object> request) {
+        try {
+            String patientId = (String) request.get("patientId");
+            String categoryId = (String) request.get("categoryId");
+            String subElementId = (String) request.get("subElementId");
+            @SuppressWarnings("unchecked")
+            List<Object> raw = (List<Object>) request.get("monthlyUsage");
+            if (raw == null) {
+                return Result.error("400", "monthlyUsage is required and must be an array of 12 numbers");
+            }
+            java.util.ArrayList<Double> monthly = new java.util.ArrayList<>();
+            for (Object v : raw) {
+                if (v == null) {
+                    monthly.add(0.0);
+                } else if (v instanceof Number) {
+                    monthly.add(((Number) v).doubleValue());
+                } else {
+                    monthly.add(Double.valueOf(v.toString()));
+                }
+            }
+            Budget updated = budgetService.updateMonthlyUsageBulk(patientId, categoryId, subElementId, monthly);
+            return Result.success(updated, "Monthly usage updated successfully!");
         } catch (Exception e) {
             return Result.error("400", "Failed to update monthly usage: " + e.getMessage());
         }
