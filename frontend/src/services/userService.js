@@ -49,8 +49,9 @@ export async function login(credentials) {
                 id: user.id,
                 role: user.role || user.userType || 'worker',
                 email: user.email,
-                name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
+                name: `${user.firstName || ''} ${user.middleName || ''} ${user.lastName || ''}`.trim() || user.email,
                 firstName: user.firstName,
+                middleName: user.middleName,
                 lastName: user.lastName,
                 userType: user.userType,
                 organizationId: user.organizationId,
@@ -207,6 +208,7 @@ export async function register(userData) {
     try {
         const response = await api.post('/auth/register', {
             firstName: userData.firstName,
+            middleName: userData.middleName,
             lastName: userData.lastName,
             email: userData.email,
             password: userData.password,
