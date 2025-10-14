@@ -10,6 +10,7 @@ public class User {
     
     // Frontend required fields
     private String firstName;    // first name
+    private String middleName;   // middle name
     private String lastName;     // last name
     private String email;        // email
     private String role;         // role: POA, Worker, Admin
@@ -34,6 +35,9 @@ public class User {
 
     public String getFirstName() { return firstName; }
     public void setFirstName(String firstName) { this.firstName = firstName; }
+
+    public String getMiddleName() { return middleName; }
+    public void setMiddleName(String middleName) { this.middleName = middleName; }
 
     public String getLastName() { return lastName; }
     public void setLastName(String lastName) { this.lastName = lastName; }

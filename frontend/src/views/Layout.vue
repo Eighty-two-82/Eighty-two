@@ -122,7 +122,11 @@
           <!-- Right side - Actions -->
           <div style="display: flex; align-items: center; gap: 16px;">
             <!-- Notification Bell -->
-            <a-badge :count="unreadNotificationsCount" :offset="[10, 0]">
+            <a-badge 
+              :count="unreadNotificationsCount" 
+              :offset="[10, 0]"
+              :show-zero="false"
+            >
               <a-tooltip title="View notifications and alerts">
                 <a-button type="text" @click="showNotificationModal" style="color: #1890ff; position: relative;">
                   <template #icon><BellOutlined /></template>
@@ -428,8 +432,8 @@
     if (path) router.push(path)
   }
 
-  // Role-based notification data
-  const allNotifications = {
+  // Role-based notification data - Make it reactive
+  const allNotifications = ref({
     manager: [
       {
         id: 1,
@@ -564,16 +568,18 @@
         read: false
       }
     ]
-  }
+  })
 
   // Get notifications based on user role
   const notifications = computed(() => {
-    return allNotifications[userRole.value] || []
+    return allNotifications.value[userRole.value] || []
   })
 
   // Computed property for unread notifications count
   const unreadNotificationsCount = computed(() => {
-    return notifications.value.filter(n => !n.read).length
+    const count = notifications.value.filter(n => !n.read).length
+    console.log('Unread notifications count:', count)
+    return count
   })
 
   // Notification functions
@@ -582,21 +588,40 @@
   }
 
   const markAsRead = (notificationId) => {
-    const roleNotifications = allNotifications[userRole.value]
+    const roleNotifications = allNotifications.value[userRole.value]
     if (roleNotifications) {
       const notification = roleNotifications.find(n => n.id === notificationId)
       if (notification) {
         notification.read = true
+        console.log('Marked notification as read:', notificationId)
+        console.log('Unread count after mark as read:', unreadNotificationsCount.value)
+        
+        // Show success message
+        message.success('Notification marked as read')
       }
     }
   }
 
   const markAllAsRead = () => {
-    const roleNotifications = allNotifications[userRole.value]
+    const roleNotifications = allNotifications.value[userRole.value]
     if (roleNotifications) {
+      let markedCount = 0
       roleNotifications.forEach(notification => {
-        notification.read = true
+        if (!notification.read) {
+          notification.read = true
+          markedCount++
+        }
       })
+      
+      console.log('Marked all notifications as read, count:', markedCount)
+      console.log('Unread count after mark all as read:', unreadNotificationsCount.value)
+      
+      // Show success message
+      if (markedCount > 0) {
+        message.success(`All ${markedCount} notifications marked as read`)
+      } else {
+        message.info('No unread notifications to mark')
+      }
     }
   }
 

@@ -28,115 +28,175 @@
             <UserOutlined style="margin-right: 8px;" />
             Today's Care Team - {{ selectedDate ? selectedDate.format('YYYY-MM-DD') : '' }}
           </h3>
-          <a-date-picker
-            v-model:value="selectedDate"
-            @change="onDateChange"
-            style="width: 200px;"
-            placeholder="Select date"
-          />
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <a-date-picker
+              v-model:value="selectedDate"
+              @change="onDateChange"
+              style="width: 200px;"
+              placeholder="Select date"
+            />
+          </div>
         </div>
-        <a-row :gutter="[16, 16]">
-          <a-col
-            v-for="worker in dailyWorkers"
-            :key="worker.id"
-            :xs="12"
-            :sm="8"
-            :md="6"
-            :lg="4"
-            :xl="3"
-          >
-            <a-card
-              hoverable
-              size="small"
-              style="text-align: center; height: 140px;"
-              @click="selectWorker(worker)"
-              :class="{ 'selected-worker': selectedWorker?.id === worker.id }"
+        
+        <!-- Shift Selection -->
+        <div style="margin-bottom: 20px;">
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+            <span style="font-weight: 500; color: #666;">Select Shift:</span>
+            <a-radio-group v-model:value="selectedShift" @change="onShiftChange" button-style="solid">
+              <a-radio-button value="morning">
+                <ClockCircleOutlined style="margin-right: 4px;" />
+                Morning Shift (06:00-14:00)
+              </a-radio-button>
+              <a-radio-button value="afternoon">
+                <ClockCircleOutlined style="margin-right: 4px;" />
+                Afternoon Shift (14:00-22:00)
+              </a-radio-button>
+              <a-radio-button value="night">
+                <ClockCircleOutlined style="margin-right: 4px;" />
+                Night Shift (22:00-06:00)
+              </a-radio-button>
+            </a-radio-group>
+          </div>
+          
+          <!-- Shift Info -->
+          <div style="background: #f6ffed; border: 1px solid #b7eb8f; border-radius: 6px; padding: 12px; margin-bottom: 16px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <InfoCircleOutlined style="color: #52c41a;" />
+              <span style="font-weight: 500; color: #52c41a;">{{ getShiftInfo().title }}</span>
+            </div>
+            <div style="margin-top: 4px; font-size: 12px; color: #666;">
+              {{ getShiftInfo().description }}
+            </div>
+          </div>
+        </div>
+        
+        <!-- Workers Grid -->
+        <div v-if="filteredWorkers.length > 0">
+          <div style="margin-bottom: 12px; color: #666; font-size: 14px;">
+            Showing {{ filteredWorkers.length }} worker(s) for {{ getShiftInfo().title }}
+          </div>
+          <a-row :gutter="[16, 16]">
+            <a-col
+              v-for="worker in filteredWorkers"
+              :key="worker.id"
+              :xs="12"
+              :sm="8"
+              :md="6"
+              :lg="4"
+              :xl="3"
             >
-              <div style="display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: space-between;">
-                <!-- Photo -->
-                <div style="margin-top: 8px;">
-                  <a-avatar
-                    :size="50"
-                    :src="worker.photo"
-                    :alt="worker.name"
-                    style="border: 2px solid #f0f0f0;"
-                  >
-                    {{ worker.name.charAt(0).toUpperCase() }}
-                  </a-avatar>
+              <a-card
+                hoverable
+                size="small"
+                style="text-align: center; height: 200px;"
+                @click="selectWorker(worker)"
+                :class="{ 'selected-worker': selectedWorker?.id === worker.id }"
+              >
+                <div style="display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: space-between;">
+                  <!-- Photo -->
+                  <div style="margin-top: 8px;">
+                    <a-avatar
+                      :size="50"
+                      :src="worker.photo"
+                      :alt="worker.name"
+                      style="border: 2px solid #f0f0f0;"
+                    >
+                      {{ worker.name.charAt(0).toUpperCase() }}
+                    </a-avatar>
+                  </div>
+                  
+                  <!-- Worker ID -->
+                  <div style="font-weight: bold; color: #1890ff; font-size: 12px;">
+                    {{ worker.workerId }}
+                  </div>
+                  
+                  <!-- Name -->
+                  <div style="font-size: 11px; color: #666; margin-bottom: 4px; line-height: 1.2;">
+                    {{ worker.name }}
+                  </div>
+                  
+                  <!-- Position -->
+                  <div style="font-size: 10px; color: #999; margin-bottom: 4px; line-height: 1.2;">
+                    {{ worker.position }}
+                  </div>
+                  
+                  <!-- Role Badge -->
+                  <div style="margin-bottom: 4px;">
+                    <a-tag :color="getRoleColor(worker.role)" size="small">
+                      {{ worker.role }}
+                    </a-tag>
+                  </div>
+                  
+                  <!-- Shift Badge -->
+                  <div style="margin-bottom: 4px;">
+                    <a-tag :color="getShiftColor(worker.shift)" size="small">
+                      {{ getShiftDisplayName(worker.shift) }}
+                    </a-tag>
+                  </div>
                 </div>
-                
-                <!-- Worker ID -->
-                <div style="font-weight: bold; color: #1890ff; font-size: 12px;">
-                  {{ worker.workerId }}
-                </div>
-                
-                <!-- Name -->
-                <div style="font-size: 11px; color: #666; margin-bottom: 8px; line-height: 1.2;">
-                  {{ worker.name }}
-                </div>
-              </div>
-            </a-card>
-          </a-col>
-        </a-row>
+              </a-card>
+            </a-col>
+          </a-row>
+        </div>
+        
+        <!-- No Workers Message -->
+        <div v-else style="text-align: center; padding: 40px; color: #999;">
+          <UserOutlined style="font-size: 48px; margin-bottom: 16px;" />
+          <div style="font-size: 16px; margin-bottom: 8px;">No workers assigned</div>
+          <div style="font-size: 12px;">No workers are scheduled for {{ getShiftInfo().title }} on {{ selectedDate ? selectedDate.format('YYYY-MM-DD') : '' }}</div>
+        </div>
       </div>
 
-      <!-- All Care Team Members -->
-      <div style="margin-bottom: 20px;">
-        <h3 style="margin-bottom: 16px; color: #52c41a;">
-          <TeamOutlined style="margin-right: 8px;" />
-          All Care Team Members
-        </h3>
-        <a-table
-          :columns="carerColumns"
-          :data-source="allCarers"
-          :pagination="{ pageSize: 10 }"
-          row-key="id"
-          :loading="loading"
-        >
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'photo'">
-              <a-avatar
-                :size="40"
-                :src="record.photo"
-                :alt="record.name"
-              >
-                {{ record.name.charAt(0).toUpperCase() }}
-              </a-avatar>
-            </template>
-            
-            <template v-if="column.key === 'status'">
-              <a-tag :color="getStatusColor(record.status)">
-                {{ record.status }}
-              </a-tag>
-            </template>
-            
-            <template v-if="column.key === 'role'">
-              <a-tag :color="getRoleColor(record.role)">
-                {{ record.role }}
-              </a-tag>
-            </template>
-          </template>
-        </a-table>
-      </div>
     </a-card>
 
     <!-- Generate Invite Token Modal -->
     <a-modal
       v-model:open="generateTokenModalVisible"
       title="Generate Invite Token"
-      width="600px"
+      width="700px"
       @ok="confirmGenerateToken"
       @cancel="generateTokenModalVisible = false"
     >
+      <!-- Usage Instructions -->
+      <div style="background: #f6ffed; border: 1px solid #b7eb8f; border-radius: 6px; padding: 16px; margin-bottom: 20px;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+          <InfoCircleOutlined style="color: #52c41a; font-size: 16px;" />
+          <span style="font-weight: 600; color: #52c41a; font-size: 14px;">How to Use Invite Tokens</span>
+        </div>
+        <div style="font-size: 13px; line-height: 1.6; color: #666;">
+          <div style="margin-bottom: 8px;">
+            <strong>Step 1:</strong> Fill out the form below to generate a unique invite token
+          </div>
+          <div style="margin-bottom: 8px;">
+            <strong>Step 2:</strong> Share the generated token with the organization or individual
+          </div>
+          <div style="margin-bottom: 8px;">
+            <strong>Step 3:</strong> They can use this token during registration to join your care team
+          </div>
+          <div style="margin-bottom: 8px;">
+            <strong>Step 4:</strong> The token will automatically expire after the specified number of days
+          </div>
+          <div style="color: #ff4d4f; font-weight: 500;">
+            <strong>Important:</strong> Keep tokens secure and only share with trusted parties
+          </div>
+        </div>
+      </div>
+
       <a-form :model="tokenForm" layout="vertical">
         <a-form-item label="Organization Name" required>
           <a-input v-model:value="tokenForm.organizationName" placeholder="Enter organization name" />
+          <div style="font-size: 12px; color: #999; margin-top: 4px;">
+            The name of the organization or individual who will receive this token
+          </div>
         </a-form-item>
         
         <a-form-item label="Token Type" required>
           <a-select v-model:value="tokenForm.tokenType" placeholder="Select token type" style="width: 100%;">
             <a-select-option value="manager">Manager</a-select-option>
           </a-select>
+          <div style="font-size: 12px; color: #999; margin-top: 4px;">
+            Manager tokens allow organizations to register new manager accounts
+          </div>
         </a-form-item>
         
         <a-form-item label="Expiration Days" required>
@@ -147,6 +207,9 @@
             style="width: 100%;"
             placeholder="Enter expiration days (1-30)"
           />
+          <div style="font-size: 12px; color: #999; margin-top: 4px;">
+            Token will be valid for this many days after generation
+          </div>
         </a-form-item>
         
         <a-form-item label="Notes">
@@ -155,6 +218,9 @@
             placeholder="Enter any additional notes for the organization"
             :rows="3"
           />
+          <div style="font-size: 12px; color: #999; margin-top: 4px;">
+            Optional notes that will be included with the token (e.g., contact information, special instructions)
+          </div>
         </a-form-item>
       </a-form>
     </a-modal>
@@ -163,7 +229,7 @@
     <a-modal
       v-model:open="tokenDisplayModalVisible"
       title="Invite Token Generated"
-      width="500px"
+      width="600px"
       :footer="null"
     >
       <div style="text-align: center; padding: 20px;">
@@ -189,13 +255,42 @@
           </a-button>
         </div>
         
-        <div style="text-align: left; background: #fff7e6; border: 1px solid #ffd591; border-radius: 6px; padding: 12px;">
-          <div style="font-weight: bold; margin-bottom: 8px;">Instructions for Organization:</div>
-          <div style="font-size: 12px; line-height: 1.5;">
-            1. Share this token with {{ tokenForm.organizationName }}<br/>
-            2. The organization can use this token to register new {{ tokenForm.tokenType }} accounts<br/>
-            3. Token expires in {{ tokenForm.expirationDays }} days<br/>
-            4. Keep this token secure and do not share publicly
+        <!-- Detailed Usage Instructions -->
+        <div style="text-align: left; background: #fff7e6; border: 1px solid #ffd591; border-radius: 6px; padding: 16px; margin-bottom: 20px;">
+          <div style="font-weight: bold; margin-bottom: 12px; color: #d46b08;">
+            <InfoCircleOutlined style="margin-right: 6px;" />
+            Instructions for {{ tokenForm.organizationName || 'the Organization' }}:
+          </div>
+          <div style="font-size: 13px; line-height: 1.6; color: #666;">
+            <div style="margin-bottom: 8px;">
+              <strong>1. Registration Process:</strong><br/>
+              • Go to the registration page<br/>
+              • Enter the invite token when prompted<br/>
+              • Complete the registration form with your details
+            </div>
+            <div style="margin-bottom: 8px;">
+              <strong>2. Token Details:</strong><br/>
+              • Token Type: {{ tokenForm.tokenType === 'manager' ? 'Manager' : 'Worker' }}<br/>
+              • Expires in: {{ tokenForm.expirationDays }} days<br/>
+              • Generated: {{ new Date().toLocaleDateString() }}
+            </div>
+            <div style="margin-bottom: 8px;">
+              <strong>3. After Registration:</strong><br/>
+              • You'll be automatically added to the care team<br/>
+              • You can start managing schedules and tasks<br/>
+              • Contact the team lead if you have any questions
+            </div>
+            <div style="color: #ff4d4f; font-weight: 500;">
+              <strong>⚠️ Important:</strong> This token can only be used once and will expire automatically
+            </div>
+          </div>
+        </div>
+        
+        <!-- Contact Information -->
+        <div v-if="tokenForm.notes" style="text-align: left; background: #f0f9ff; border: 1px solid #91d5ff; border-radius: 6px; padding: 12px; margin-bottom: 20px;">
+          <div style="font-weight: bold; margin-bottom: 8px; color: #1890ff;">Additional Notes:</div>
+          <div style="font-size: 12px; line-height: 1.5; color: #666;">
+            {{ tokenForm.notes }}
           </div>
         </div>
         
@@ -215,7 +310,9 @@ import {
   QuestionCircleOutlined, 
   UserOutlined,
   TeamOutlined,
-  UserAddOutlined
+  UserAddOutlined,
+  ClockCircleOutlined,
+  InfoCircleOutlined
 } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
 import dayjs from 'dayjs'
@@ -227,6 +324,7 @@ import { generateInviteCode } from '@/services/inviteCodeService'
 const loading = ref(false)
 const selectedWorker = ref(null)
 const selectedDate = ref(null)
+const selectedShift = ref('morning')
 const generateTokenModalVisible = ref(false)
 const tokenDisplayModalVisible = ref(false)
 const generatedToken = ref('')
@@ -242,8 +340,6 @@ const tokenForm = ref({
 // Workers data - loaded from API
 const workers = ref([])
 
-// Add Manager and POA to the team
-const allCarers = ref([])
 
 // Daily workers (subset of active workers)
 const dailyWorkers = ref([])
@@ -251,57 +347,9 @@ const dailyWorkers = ref([])
 // Daily schedules data - loaded from API
 const dailySchedules = ref({})
 
-// Table columns for all carers
-const carerColumns = [
-  {
-    title: 'Photo',
-    key: 'photo',
-    width: 80,
-    align: 'center'
-  },
-  {
-    title: 'ID',
-    dataIndex: 'workerId',
-    key: 'workerId',
-    width: 100
-  },
-  {
-    title: 'Name',
-    dataIndex: 'name',
-    key: 'name',
-    width: 150
-  },
-  {
-    title: 'Position',
-    dataIndex: 'position',
-    key: 'position',
-    width: 150
-  },
-  {
-    title: 'Role',
-    key: 'role',
-    width: 100,
-    align: 'center'
-  },
-  {
-    title: 'Status',
-    key: 'status',
-    width: 100,
-    align: 'center'
-  },
-  {
-    title: 'Join Date',
-    dataIndex: 'joinDate',
-    key: 'joinDate',
-    width: 120
-  },
-  {
-    title: 'Email',
-    dataIndex: 'email',
-    key: 'email',
-    width: 200
-  }
-]
+// Computed property for filtered workers based on selected shift
+const filteredWorkers = ref([])
+
 
 // Methods
 const selectWorker = (worker) => {
@@ -313,12 +361,62 @@ const onDateChange = (date) => {
   if (date) {
     const dateStr = date.format('YYYY-MM-DD')
     updateDailyWorkers(dateStr)
+    updateFilteredWorkers()
   }
 }
 
+const onShiftChange = () => {
+  updateFilteredWorkers()
+}
+
 const updateDailyWorkers = (dateStr) => {
-  const workerIds = dailySchedules.value[dateStr] || []
-  dailyWorkers.value = workers.value.filter(worker => workerIds.includes(worker.id))
+  // For now, show all active team members for the selected date
+  // In a real implementation, this would filter based on actual schedule data
+  dailyWorkers.value = workers.value.filter(worker => worker.status === 'Active')
+}
+
+const updateFilteredWorkers = () => {
+  // Filter workers based on selected shift
+  filteredWorkers.value = dailyWorkers.value.filter(worker => {
+    return worker.shift === selectedShift.value
+  })
+}
+
+// Shift-related methods
+const getShiftInfo = () => {
+  const shiftInfo = {
+    morning: {
+      title: 'Morning Shift',
+      description: 'Covers morning care activities, breakfast assistance, and morning medications (06:00 - 14:00)'
+    },
+    afternoon: {
+      title: 'Afternoon Shift', 
+      description: 'Handles afternoon activities, lunch assistance, and afternoon care (14:00 - 22:00)'
+    },
+    night: {
+      title: 'Night Shift',
+      description: 'Provides overnight care, evening medications, and night monitoring (22:00 - 06:00)'
+    }
+  }
+  return shiftInfo[selectedShift.value] || shiftInfo.morning
+}
+
+const getShiftColor = (shift) => {
+  const colors = {
+    morning: 'green',
+    afternoon: 'blue', 
+    night: 'purple'
+  }
+  return colors[shift] || 'default'
+}
+
+const getShiftDisplayName = (shift) => {
+  const names = {
+    morning: 'Morning',
+    afternoon: 'Afternoon',
+    night: 'Night'
+  }
+  return names[shift] || 'Unknown'
 }
 
 const getStatusColor = (status) => {
@@ -445,9 +543,8 @@ onMounted(async () => {
     // Load workers from API
     await loadWorkers()
     
-    // Initialize all carers (workers + manager + POA)
-    allCarers.value = [
-      ...workers.value,
+    // Add Manager and POA to workers list with shift assignments
+    const managerAndPOA = [
       {
         id: 99,
         workerId: 'M001',
@@ -457,7 +554,8 @@ onMounted(async () => {
         status: 'Active',
         joinDate: '2022-01-01',
         email: 'manager@careapp.com',
-        role: 'Manager'
+        role: 'Manager',
+        shift: 'morning' // Manager typically works morning shift
       },
       {
         id: 100,
@@ -468,9 +566,13 @@ onMounted(async () => {
         status: 'Active',
         joinDate: '2022-01-01',
         email: 'family@careapp.com',
-        role: 'POA'
+        role: 'POA',
+        shift: 'morning' // POA typically available during morning shift
       }
     ]
+    
+    // Combine all team members
+    workers.value = [...workers.value, ...managerAndPOA]
     
     // Set today as default date
     selectedDate.value = dayjs()
@@ -478,6 +580,9 @@ onMounted(async () => {
     
     // Load daily schedule for today
     await loadDailySchedule(organizationId, todayStr)
+    
+    // Initialize filtered workers
+    updateFilteredWorkers()
     
   } catch (error) {
     console.error('Failed to load carer team data:', error)
@@ -487,6 +592,7 @@ onMounted(async () => {
     selectedDate.value = dayjs()
     const todayStr = selectedDate.value.format('YYYY-MM-DD')
     updateDailyWorkers(todayStr)
+    updateFilteredWorkers()
   } finally {
     loading.value = false
   }
@@ -497,12 +603,108 @@ const loadWorkers = async () => {
   try {
     const response = await getAllWorkers()
     if (response?.data) {
-      workers.value = response.data
+      // Add shift information to workers
+      workers.value = response.data.map(worker => ({
+        ...worker,
+        shift: getRandomShift() // Assign random shift for demo purposes
+      }))
     }
   } catch (error) {
     console.error('Failed to load workers:', error)
-    // Keep using mock data
+    // Keep using mock data with shift information
+    workers.value = [
+      {
+        id: 1,
+        workerId: 'W001',
+        name: 'Alice Johnson',
+        photo: null,
+        position: 'Senior Care Worker',
+        status: 'Active',
+        joinDate: '2022-01-15',
+        email: 'alice@careapp.com',
+        role: 'Worker',
+        shift: 'morning'
+      },
+      {
+        id: 2,
+        workerId: 'W002',
+        name: 'Bob Smith',
+        photo: null,
+        position: 'Care Worker',
+        status: 'Active',
+        joinDate: '2022-03-20',
+        email: 'bob@careapp.com',
+        role: 'Worker',
+        shift: 'afternoon'
+      },
+      {
+        id: 3,
+        workerId: 'W003',
+        name: 'Carol Davis',
+        photo: null,
+        position: 'Night Care Worker',
+        status: 'Active',
+        joinDate: '2022-05-10',
+        email: 'carol@careapp.com',
+        role: 'Worker',
+        shift: 'night'
+      },
+      {
+        id: 4,
+        workerId: 'W004',
+        name: 'David Wilson',
+        photo: null,
+        position: 'Care Worker',
+        status: 'Active',
+        joinDate: '2022-07-05',
+        email: 'david@careapp.com',
+        role: 'Worker',
+        shift: 'morning'
+      },
+      {
+        id: 5,
+        workerId: 'W005',
+        name: 'Eva Brown',
+        photo: null,
+        position: 'Senior Care Worker',
+        status: 'Active',
+        joinDate: '2022-09-12',
+        email: 'eva@careapp.com',
+        role: 'Worker',
+        shift: 'afternoon'
+      },
+      {
+        id: 6,
+        workerId: 'W006',
+        name: 'Frank Miller',
+        photo: null,
+        position: 'Care Worker',
+        status: 'Active',
+        joinDate: '2022-11-08',
+        email: 'frank@careapp.com',
+        role: 'Worker',
+        shift: 'night'
+      },
+      {
+        id: 7,
+        workerId: 'W007',
+        name: 'Grace Lee',
+        photo: null,
+        position: 'Senior Care Worker',
+        status: 'Active',
+        joinDate: '2023-01-15',
+        email: 'grace@careapp.com',
+        role: 'Worker',
+        shift: 'morning'
+      }
+    ]
   }
+}
+
+// Helper function to assign random shifts for demo
+const getRandomShift = () => {
+  const shifts = ['morning', 'afternoon', 'night']
+  return shifts[Math.floor(Math.random() * shifts.length)]
 }
 
 // Load daily schedule from API
