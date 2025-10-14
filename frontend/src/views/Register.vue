@@ -21,6 +21,16 @@
         </div>
       </a-form-item>
 
+      <a-form-item name="middleName" style="display: flex; align-items: center;">
+        <span style="margin-right: 16px; white-space: nowrap;">Middle name</span>
+        <div style="flex: 1; display: flex; align-items: center;">
+          <a-input v-model:value="formState.middleName" placeholder="Middle name (optional)" style="flex: 1;"/>
+          <a-tooltip title="Enter your middle name (optional)">
+            <span class="help-icon">?</span>
+          </a-tooltip>
+        </div>
+      </a-form-item>
+
       <a-form-item name="lastName" :rules="[{ required: true, message: 'Enter last name' }]" style="display: flex; align-items: center;">
         <span style="margin-right: 16px; white-space: nowrap;"><span style="color: #ff4d4f;">*</span> Last name</span>
         <div style="flex: 1; display: flex; align-items: center;">
@@ -98,6 +108,7 @@ import { register } from '@/services/userService';
 
 const formState = reactive({
   firstName: '',
+  middleName: '',
   lastName: '',
   email: '',
   password: '',
@@ -123,6 +134,7 @@ const onFinish = async (values) => {
     
     const userData = {
       firstName: values.firstName,
+      middleName: values.middleName,
       lastName: values.lastName,
       email: values.email,
       password: values.password,
