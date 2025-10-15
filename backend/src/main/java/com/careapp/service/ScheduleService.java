@@ -1,12 +1,17 @@
 package com.careapp.service;
 
 import com.careapp.domain.Schedule;
+import com.careapp.domain.Worker;
+import com.careapp.dto.DailyScheduleRequest;
 import com.careapp.repository.ScheduleRepository;
+import com.careapp.repository.WorkerRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -15,6 +20,9 @@ public class ScheduleService {
 
     @Autowired
     private ScheduleRepository scheduleRepository;
+    
+    @Autowired
+    private WorkerRepository workerRepository;
 
     /**
      * Create a new schedule
@@ -254,5 +262,181 @@ public class ScheduleService {
         stats.put("cancelled", scheduleRepository.countByStatus("cancelled"));
         stats.put("today", scheduleRepository.countByScheduleDate(date));
         return stats;
+    }
+    
+    /**
+     * Batch create schedules for a specific date with different shift types
+     * @param request The daily schedule request containing worker IDs and shift information
+     * @param organizationId The organization ID
+     * @param managerId The manager ID who is creating the schedules
+     * @return A list of created schedules
+     */
+    public List<Schedule> batchCreateDailySchedules(DailyScheduleRequest request, String organizationId, String managerId) {
+        List<Schedule> createdSchedules = new ArrayList<>();
+        LocalDate scheduleDate = LocalDate.parse(request.getScheduleDate(), DateTimeFormatter.ISO_DATE);
+        
+        // Create morning shift schedules (8:00-16:00)
+        if (request.getMorningShiftWorkerIds() != null && !request.getMorningShiftWorkerIds().isEmpty()) {
+            for (String workerId : request.getMorningShiftWorkerIds()) {
+                Optional<Worker> workerOpt = workerRepository.findById(workerId);
+                if (workerOpt.isPresent()) {
+                    Worker worker = workerOpt.get();
+                    Schedule schedule = new Schedule();
+                    schedule.setWorkerId(workerId);
+                    schedule.setWorkerName(worker.getName());
+                    schedule.setScheduleDate(scheduleDate);
+                    schedule.setShiftType("morning");
+                    schedule.setShiftStartTime("08:00");
+                    schedule.setShiftEndTime("16:00");
+                    schedule.setOrganizationId(organizationId);
+                    schedule.setManagerId(managerId);
+                    schedule.setStatus("scheduled");
+                    schedule.setNotes(request.getScheduleNotes());
+                    schedule.setWorkerPhotoUrl(worker.getPhotoUrl());
+                    createdSchedules.add(scheduleRepository.save(schedule));
+                }
+            }
+        }
+        
+        // Create evening shift schedules (16:00-24:00)
+        if (request.getEveningShiftWorkerIds() != null && !request.getEveningShiftWorkerIds().isEmpty()) {
+            for (String workerId : request.getEveningShiftWorkerIds()) {
+                Optional<Worker> workerOpt = workerRepository.findById(workerId);
+                if (workerOpt.isPresent()) {
+                    Worker worker = workerOpt.get();
+                    Schedule schedule = new Schedule();
+                    schedule.setWorkerId(workerId);
+                    schedule.setWorkerName(worker.getName());
+                    schedule.setScheduleDate(scheduleDate);
+                    schedule.setShiftType("evening");
+                    schedule.setShiftStartTime("16:00");
+                    schedule.setShiftEndTime("24:00");
+                    schedule.setOrganizationId(organizationId);
+                    schedule.setManagerId(managerId);
+                    schedule.setStatus("scheduled");
+                    schedule.setNotes(request.getScheduleNotes());
+                    schedule.setWorkerPhotoUrl(worker.getPhotoUrl());
+                    createdSchedules.add(scheduleRepository.save(schedule));
+                }
+            }
+        }
+        
+        return createdSchedules;
+    }
+    
+    /**
+     * Batch update schedule statuses
+     * @param scheduleIds List of schedule IDs to update
+     * @param status The new status
+     * @return A list of updated schedules
+     */
+    public List<Schedule> batchUpdateScheduleStatus(List<String> scheduleIds, String status) {
+        List<Schedule> updatedSchedules = new ArrayList<>();
+        for (String scheduleId : scheduleIds) {
+            Schedule updated = updateScheduleStatus(scheduleId, status);
+            if (updated != null) {
+                updatedSchedules.add(updated);
+            }
+        }
+        return updatedSchedules;
+    }
+    
+    /**
+     * Batch delete schedules by IDs
+     * @param scheduleIds List of schedule IDs to delete
+     * @return The number of successfully deleted schedules
+     */
+    public int batchDeleteSchedules(List<String> scheduleIds) {
+        int deletedCount = 0;
+        for (String scheduleId : scheduleIds) {
+            if (deleteSchedule(scheduleId)) {
+                deletedCount++;
+            }
+        }
+        return deletedCount;
+    }
+    
+    /**
+     * Delete all schedules for a specific date
+     * @param date The schedule date
+     * @param organizationId The organization ID (optional, null to delete all)
+     * @return The number of deleted schedules
+     */
+    public int deleteSchedulesByDate(LocalDate date, String organizationId) {
+        List<Schedule> schedules;
+        if (organizationId != null && !organizationId.isEmpty()) {
+            schedules = scheduleRepository.findByOrganizationIdAndScheduleDate(organizationId, date);
+        } else {
+            schedules = scheduleRepository.findByScheduleDate(date);
+        }
+        
+        int deletedCount = 0;
+        for (Schedule schedule : schedules) {
+            scheduleRepository.deleteById(schedule.getId());
+            deletedCount++;
+        }
+        return deletedCount;
+    }
+    
+    /**
+     * Copy schedules from one date to another
+     * @param sourceDate The source date to copy from
+     * @param targetDate The target date to copy to
+     * @param organizationId The organization ID
+     * @param managerId The manager ID
+     * @return A list of newly created schedules
+     */
+    public List<Schedule> copySchedules(LocalDate sourceDate, LocalDate targetDate, String organizationId, String managerId) {
+        List<Schedule> sourceSchedules = scheduleRepository.findByOrganizationIdAndScheduleDate(organizationId, sourceDate);
+        List<Schedule> copiedSchedules = new ArrayList<>();
+        
+        for (Schedule source : sourceSchedules) {
+            Schedule copy = new Schedule();
+            copy.setWorkerId(source.getWorkerId());
+            copy.setWorkerName(source.getWorkerName());
+            copy.setScheduleDate(targetDate);
+            copy.setShiftType(source.getShiftType());
+            copy.setShiftStartTime(source.getShiftStartTime());
+            copy.setShiftEndTime(source.getShiftEndTime());
+            copy.setOrganizationId(organizationId);
+            copy.setManagerId(managerId);
+            copy.setStatus("scheduled");
+            copy.setNotes(source.getNotes());
+            copy.setWorkerPhotoUrl(source.getWorkerPhotoUrl());
+            copiedSchedules.add(scheduleRepository.save(copy));
+        }
+        
+        return copiedSchedules;
+    }
+    
+    /**
+     * Get weekly schedule overview
+     * @param startDate The start date of the week
+     * @param organizationId The organization ID
+     * @return A list of schedules for the week
+     */
+    public List<Schedule> getWeeklySchedule(LocalDate startDate, String organizationId) {
+        LocalDate endDate = startDate.plusDays(6);
+        return scheduleRepository.findByOrganizationIdAndScheduleDateBetween(organizationId, startDate, endDate);
+    }
+    
+    /**
+     * Validate if schedule can be created (check for conflicts)
+     * @param workerId The worker ID
+     * @param scheduleDate The schedule date
+     * @param shiftType The shift type
+     * @return true if valid (no conflicts), false otherwise
+     */
+    public boolean validateSchedule(String workerId, LocalDate scheduleDate, String shiftType) {
+        List<Schedule> existingSchedules = scheduleRepository.findByWorkerIdAndScheduleDate(workerId, scheduleDate);
+        
+        // Check if worker already has a schedule on this date with the same or overlapping shift
+        for (Schedule existing : existingSchedules) {
+            if (existing.getShiftType().equals(shiftType) || existing.getShiftType().equals("full-day")) {
+                return false; // Conflict found
+            }
+        }
+        
+        return true; // No conflicts
     }
 }

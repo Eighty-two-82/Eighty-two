@@ -314,4 +314,70 @@ public class WorkerService {
         
         return updatedCount;
     }
+    
+    /**
+     * Upload photo for a worker (simplified version)
+     * @param workerId The worker ID
+     * @param photoUrl The photo URL
+     * @return Updated worker with photo URL
+     */
+    public Worker uploadWorkerPhotoSimple(String workerId, String photoUrl) {
+        Optional<Worker> optionalWorker = workerRepository.findById(workerId);
+        if (optionalWorker.isPresent()) {
+            Worker worker = optionalWorker.get();
+            worker.setPhotoUrl(photoUrl);
+            worker.setUpdatedAt(LocalDateTime.now());
+            return workerRepository.save(worker);
+        }
+        return null;
+    }
+    
+    /**
+     * Batch upload photos for multiple workers
+     * @param photoUploads Map of worker ID to photo URL
+     * @return List of updated workers
+     */
+    public List<Worker> batchUploadWorkerPhotos(java.util.Map<String, String> photoUploads) {
+        List<Worker> updatedWorkers = new ArrayList<>();
+        
+        for (java.util.Map.Entry<String, String> entry : photoUploads.entrySet()) {
+            String workerId = entry.getKey();
+            String photoUrl = entry.getValue();
+            
+            Worker updatedWorker = uploadWorkerPhotoSimple(workerId, photoUrl);
+            if (updatedWorker != null) {
+                updatedWorkers.add(updatedWorker);
+            }
+        }
+        
+        return updatedWorkers;
+    }
+    
+    /**
+     * Delete worker photo
+     * @param workerId The worker ID
+     * @return Updated worker with photo URL removed
+     */
+    public Worker deleteWorkerPhoto(String workerId) {
+        Optional<Worker> optionalWorker = workerRepository.findById(workerId);
+        if (optionalWorker.isPresent()) {
+            Worker worker = optionalWorker.get();
+            worker.setPhotoUrl(null);
+            worker.setUpdatedAt(LocalDateTime.now());
+            return workerRepository.save(worker);
+        }
+        return null;
+    }
+    
+    /**
+     * Get workers without photos
+     * @param organizationId The organization ID
+     * @return List of workers without photos
+     */
+    public List<Worker> getWorkersWithoutPhotos(String organizationId) {
+        List<Worker> workers = workerRepository.findByOrganizationId(organizationId);
+        return workers.stream()
+            .filter(worker -> worker.getPhotoUrl() == null || worker.getPhotoUrl().isEmpty())
+            .collect(java.util.stream.Collectors.toList());
+    }
 }
