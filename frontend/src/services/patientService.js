@@ -192,3 +192,27 @@ export async function getPatientByClientId(clientId) {
         }
     }
 }
+
+// Remove organization from patient
+export async function removeOrganizationFromPatient(patientId, removalData) {
+    try {
+        const response = await api.post(`/patients/${patientId}/remove-organization`, removalData);
+        const result = response.data;
+        
+        if (result.code === "0") {
+            return {
+                data: result.data
+            };
+        } else {
+            throw new Error(result.msg || 'Failed to remove organization from patient');
+        }
+    } catch (error) {
+        if (error.response?.data?.msg) {
+            throw new Error(error.response.data.msg);
+        } else if (error.message) {
+            throw error;
+        } else {
+            throw new Error('Failed to remove organization from patient');
+        }
+    }
+}

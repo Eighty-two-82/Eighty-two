@@ -15,8 +15,49 @@
       <div style="color:#666;">Choose a shortcut below to jump directly to a feature page.</div>
     </a-card>
 
-    <!-- Worker: Tasks + Upload -->
+    <!-- Worker: Schedule + Tasks (First Row) -->
     <a-row v-if="userRole === 'worker'" :gutter="16" style="margin-bottom: 16px;">
+      <!-- Schedule Preview -->
+      <a-col :xs="24" :md="12">
+        <a-card>
+          <template #title>
+            <div style="display:flex;align-items:center;gap:8px;justify-content:space-between;">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <ClockCircleOutlined />
+                <span style="color:#1890ff;">My Schedule</span>
+              </div>
+              <a-button type="link" @click="showScheduleModal">View all</a-button>
+            </div>
+          </template>
+
+          <div v-if="workerSchedule.length > 0">
+            <a-list :data-source="workerSchedule" bordered size="small">
+              <template #renderItem="{ item }">
+                <a-list-item>
+                  <a-list-item-meta>
+                    <template #title>
+                      <div style="display: flex; align-items: center; gap: 8px;">
+                        <span>{{ item.date }}</span>
+                        <a-tag :color="getShiftColor(item.shift)">{{ item.shift }}</a-tag>
+                      </div>
+                    </template>
+                    <template #description>
+                      <div style="font-size: 12px; color: #666;">
+                        {{ item.time }}
+                      </div>
+                    </template>
+                  </a-list-item-meta>
+                </a-list-item>
+              </template>
+            </a-list>
+          </div>
+          <div v-else style="text-align: center; padding: 20px; color: #999;">
+            <ClockCircleOutlined style="font-size: 24px; margin-bottom: 8px;" />
+            <div>No schedule assigned</div>
+          </div>
+        </a-card>
+      </a-col>
+
       <!-- Tasks Preview -->
       <a-col :xs="24" :md="12">
         <a-card>
@@ -44,7 +85,10 @@
           </a-table>
         </a-card>
       </a-col>
+    </a-row>
 
+    <!-- Worker: Upload (Second Row) -->
+    <a-row v-if="userRole === 'worker'" :gutter="16" style="margin-bottom: 16px;">
       <!-- Upload Preview -->
       <a-col :xs="24" :md="12">
         <a-card>
@@ -197,17 +241,85 @@
         </template>
       </a-list>
     </a-card>
+
+    <!-- Worker Schedule Modal -->
+    <a-modal
+      v-model:open="scheduleModalVisible"
+      title="My Schedule"
+      width="800px"
+      :footer="null"
+      @cancel="scheduleModalVisible = false"
+    >
+      <div v-if="userRole === 'worker'">
+        <div style="margin-bottom: 16px;">
+          <a-date-picker
+            v-model:value="selectedScheduleDate"
+            @change="onScheduleDateChange"
+            style="width: 200px;"
+            placeholder="Select date to view schedule"
+          />
+        </div>
+        
+        <div v-if="selectedScheduleDate">
+          <a-card :title="`Schedule for ${selectedScheduleDate.format('YYYY-MM-DD')}`" size="small">
+            <div v-if="getScheduleForDate(selectedScheduleDate).length > 0">
+              <a-list :data-source="getScheduleForDate(selectedScheduleDate)" bordered>
+                <template #renderItem="{ item }">
+                  <a-list-item>
+                    <a-list-item-meta>
+                      <template #title>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                          <a-tag :color="getShiftColor(item.shift)" style="font-size: 14px; padding: 4px 8px;">
+                            {{ item.shift }}
+                          </a-tag>
+                          <span style="font-weight: 500;">{{ item.time }}</span>
+                        </div>
+                      </template>
+                      <template #description>
+                        <div style="color: #666;">
+                          <div>Date: {{ item.date }}</div>
+                          <div>Duration: {{ item.duration }}</div>
+                          <div v-if="item.notes">Notes: {{ item.notes }}</div>
+                        </div>
+                      </template>
+                    </a-list-item-meta>
+                  </a-list-item>
+                </template>
+              </a-list>
+            </div>
+            <div v-else style="text-align: center; padding: 40px; color: #999;">
+              <ClockCircleOutlined style="font-size: 48px; margin-bottom: 16px;" />
+              <div style="font-size: 16px; margin-bottom: 8px;">No schedule for this date</div>
+              <div style="font-size: 12px;">You are not scheduled to work on {{ selectedScheduleDate.format('YYYY-MM-DD') }}</div>
+            </div>
+          </a-card>
+        </div>
+        
+        <div v-else style="text-align: center; padding: 40px; color: #999;">
+          <CalendarOutlined style="font-size: 48px; margin-bottom: 16px;" />
+          <div style="font-size: 16px; margin-bottom: 8px;">Select a date to view your schedule</div>
+          <div style="font-size: 12px;">Choose a date from the date picker above to see your work schedule</div>
+        </div>
+      </div>
+    </a-modal>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, h } from 'vue'
-import { QuestionCircleOutlined, CheckSquareOutlined, BarChartOutlined, SettingOutlined, AppstoreOutlined, MessageOutlined, HomeOutlined, TeamOutlined, UploadOutlined } from '@ant-design/icons-vue'
+import dayjs from 'dayjs'
+import { QuestionCircleOutlined, CheckSquareOutlined, BarChartOutlined, SettingOutlined, AppstoreOutlined, MessageOutlined, HomeOutlined, TeamOutlined, UploadOutlined, ClockCircleOutlined, CalendarOutlined } from '@ant-design/icons-vue'
 import { getMe } from '@/services/userService'
 import { getBudgetByPatient, getBudgetCalculations } from '@/services/budgetService'
 import { getTasksByPatient, getTasksByWorker, getAllTasks } from '@/services/taskService'
 
 const userRole = ref('worker')
+
+// Schedule related data
+const scheduleModalVisible = ref(false)
+const selectedScheduleDate = ref(null)
+const workerSchedule = ref([])
+const allWorkerSchedules = ref([])
 
 onMounted(async () => {
   try {
@@ -265,6 +377,17 @@ const loadHomeData = async () => {
     } catch (error) {
       console.error('Failed to load task data:', error)
       taskPreview.value = []
+    }
+    
+    // Load worker schedule data
+    if (userRole.value === 'worker') {
+      try {
+        await loadWorkerSchedule(userInfo.data.id)
+      } catch (error) {
+        console.error('Failed to load worker schedule:', error)
+        workerSchedule.value = []
+        allWorkerSchedules.value = []
+      }
     }
     
   } catch (error) {
@@ -369,6 +492,82 @@ const communicationPreview = ref([
   { id: 102, subject: 'New task request', preview: 'POA requested: Add Physical Therapy Session.', unread: true, time: '5h ago' },
   { id: 103, subject: 'System maintenance notice', preview: 'System maintenance tonight from 2:00 AM to 4:00 AM.', unread: false, time: 'Yesterday' }
 ])
+
+// --- Worker Schedule Functions ---
+const loadWorkerSchedule = async (workerId) => {
+  // Mock data for now - in real implementation, this would call an API
+  const mockSchedule = [
+    {
+      id: 1,
+      date: '2024-01-15',
+      shift: 'Morning Shift',
+      time: '06:00 - 14:00',
+      duration: '8 hours',
+      notes: 'Regular morning care duties'
+    },
+    {
+      id: 2,
+      date: '2024-01-16',
+      shift: 'Afternoon Shift',
+      time: '14:00 - 22:00',
+      duration: '8 hours',
+      notes: 'Afternoon care and medication assistance'
+    },
+    {
+      id: 3,
+      date: '2024-01-17',
+      shift: 'Night Shift',
+      time: '22:00 - 06:00',
+      duration: '8 hours',
+      notes: 'Overnight monitoring and care'
+    },
+    {
+      id: 4,
+      date: '2024-01-18',
+      shift: 'Morning Shift',
+      time: '06:00 - 14:00',
+      duration: '8 hours',
+      notes: 'Morning care and breakfast assistance'
+    },
+    {
+      id: 5,
+      date: '2024-01-19',
+      shift: 'Afternoon Shift',
+      time: '14:00 - 22:00',
+      duration: '8 hours',
+      notes: 'Afternoon activities and dinner assistance'
+    }
+  ]
+  
+  allWorkerSchedules.value = mockSchedule
+  // Show next 3 upcoming schedules in preview
+  workerSchedule.value = mockSchedule.slice(0, 3)
+}
+
+const showScheduleModal = () => {
+  scheduleModalVisible.value = true
+  selectedScheduleDate.value = dayjs()
+}
+
+const onScheduleDateChange = (date) => {
+  selectedScheduleDate.value = date
+}
+
+const getScheduleForDate = (date) => {
+  if (!date || !allWorkerSchedules.value.length) return []
+  
+  const dateStr = date.format('YYYY-MM-DD')
+  return allWorkerSchedules.value.filter(schedule => schedule.date === dateStr)
+}
+
+const getShiftColor = (shift) => {
+  switch (shift) {
+    case 'Morning Shift': return 'green'
+    case 'Afternoon Shift': return 'blue'
+    case 'Night Shift': return 'purple'
+    default: return 'default'
+  }
+}
 </script>
 
 <style scoped>

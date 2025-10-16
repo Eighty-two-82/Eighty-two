@@ -228,9 +228,24 @@
               <a-input v-model:value="profileForm.email" placeholder="Enter your email" />
             </a-form-item>
 
+            <a-form-item
+              v-if="userRole === 'worker'"
+              label="Hobbies"
+              name="hobbies"
+            >
+              <a-textarea
+                v-model:value="profileForm.hobbies"
+                placeholder="Enter your hobbies and interests (optional)"
+                :rows="3"
+              />
+              <div style="font-size: 12px; color: #999; margin-top: 4px;">
+                Share your hobbies and interests to help team members get to know you better
+              </div>
+            </a-form-item>
+
             <a-form-item :wrapper-col="{ offset: 3, span: 21 }">
               <a-button type="primary" html-type="submit" :loading="profileLoading">
-                Update Email
+                Update Profile
               </a-button>
             </a-form-item>
           </a-form>
@@ -364,7 +379,8 @@ const patientForm = reactive({
 // Profile Form
 const profileForm = reactive({
   fullName: '',
-  email: ''
+  email: '',
+  hobbies: ''
 })
 
 // Notification Form
@@ -388,6 +404,11 @@ onMounted(async () => {
     // Load user profile data
     profileForm.fullName = userInfo?.data?.name || 'Test User'
     profileForm.email = userInfo?.data?.email || 'test@example.com'
+    
+    // Only load hobbies for worker users
+    if (userRole.value === 'worker') {
+      profileForm.hobbies = userInfo?.data?.hobbies || ''
+    }
     
     // Load patient information if user is POA, Manager, or Worker
     if (userRole.value === 'poa' || userRole.value === 'manager' || userRole.value === 'worker') {
@@ -618,6 +639,11 @@ const onProfileFormFinish = async () => {
       middleName: '',
       lastName: profileForm.fullName.split(' ').slice(1).join(' ') || '',
       email: profileForm.email
+    }
+    
+    // Only include hobbies for worker users
+    if (userRole.value === 'worker') {
+      profileData.hobbies = profileForm.hobbies
     }
     
     await updateUserProfile(userInfo.data.id, profileData)

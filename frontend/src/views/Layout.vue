@@ -307,18 +307,38 @@
   const checkFirstVisit = async () => {
     try {
       const userInfo = await getMe()
-      // For now, always show the modal (can be enhanced later with user preferences)
-      firstVisitModalVisible.value = true
+      const userId = userInfo?.data?.id || 'anonymous'
+      const appFirstVisitKey = `app_first_visit_${userId}`
+      
+      // Check if user has visited the app before
+      const hasVisitedBefore = localStorage.getItem(appFirstVisitKey)
+      
+      if (!hasVisitedBefore) {
+        // First time visiting the app
+        firstVisitModalVisible.value = true
+      }
     } catch (error) {
       console.error('Failed to check first visit:', error)
-      firstVisitModalVisible.value = true
+      // On error, don't show the modal to avoid annoying users
+      firstVisitModalVisible.value = false
     }
   }
 
   // Close first visit modal and mark as visited
-  const closeFirstVisitModal = () => {
+  const closeFirstVisitModal = async () => {
     firstVisitModalVisible.value = false
-    // In the future, this could save user preference to backend
+    
+    try {
+      const userInfo = await getMe()
+      const userId = userInfo?.data?.id || 'anonymous'
+      const appFirstVisitKey = `app_first_visit_${userId}`
+      
+      // Mark that user has visited the app
+      localStorage.setItem(appFirstVisitKey, 'true')
+      console.log('App first visit marked as completed for user:', userId)
+    } catch (error) {
+      console.error('Failed to save first visit status:', error)
+    }
   }
   
   // Show help modal

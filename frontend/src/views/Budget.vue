@@ -686,18 +686,38 @@ const loadBudgetData = async () => {
 const checkFirstVisit = async () => {
   try {
     const userInfo = await getMe()
-    // For now, always show the modal (can be enhanced later with user preferences)
-    firstVisitModalVisible.value = true
+    const userId = userInfo?.data?.id || 'anonymous'
+    const budgetFirstVisitKey = `budget_first_visit_${userId}`
+    
+    // Check if user has visited budget page before
+    const hasVisitedBefore = localStorage.getItem(budgetFirstVisitKey)
+    
+    if (!hasVisitedBefore) {
+      // First time visiting budget page
+      firstVisitModalVisible.value = true
+    }
   } catch (error) {
     console.error('Failed to check first visit:', error)
-    firstVisitModalVisible.value = true
+    // On error, don't show the modal to avoid annoying users
+    firstVisitModalVisible.value = false
   }
 }
 
 // Close first visit modal and mark as visited
-const closeFirstVisitModal = () => {
+const closeFirstVisitModal = async () => {
   firstVisitModalVisible.value = false
-  // In the future, this could save user preference to backend
+  
+  try {
+    const userInfo = await getMe()
+    const userId = userInfo?.data?.id || 'anonymous'
+    const budgetFirstVisitKey = `budget_first_visit_${userId}`
+    
+    // Mark that user has visited budget page
+    localStorage.setItem(budgetFirstVisitKey, 'true')
+    console.log('Budget page first visit marked as completed for user:', userId)
+  } catch (error) {
+    console.error('Failed to save first visit status:', error)
+  }
 }
 
 const getPageTooltip = () => {
