@@ -98,3 +98,4 @@ public class User {
 
     public boolean isEmailNotifications() { return emailNotifications; }
     public void setEmailNotifications(boolean emailNotifications) { this.emailNotifications = emailNotifications; }
+}

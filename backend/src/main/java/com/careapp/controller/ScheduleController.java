@@ -1,16 +1,25 @@
 package com.careapp.controller;
 
 import com.careapp.domain.Schedule;
+import com.careapp.dto.DailyScheduleRequest;
 import com.careapp.service.ScheduleService;
 import com.careapp.utils.Result;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/schedules")
@@ -250,7 +259,66 @@ public class ScheduleController {
     }
 
     /**
-     * Upload worker photo for a schedule
+     * Upload worker photo FILE for a schedule (真正的文件上传 - Swagger会显示Choose File按钮)
+     * POST /api/schedules/{id}/upload-photo-file
+     * @param id The schedule ID
+     * @param file Photo file
+     * @return The updated schedule, or 404 if not found
+     */
+    @PostMapping(value = "/{id}/upload-photo-file", consumes = "multipart/form-data")
+    public Result<Schedule> uploadWorkerPhotoFile(
+            @PathVariable String id, 
+            @RequestPart("file") MultipartFile file) {
+        try {
+            if (file.isEmpty()) {
+                return Result.error("400", "Please select a file to upload!");
+            }
+            
+            // 验证文件类型
+            String contentType = file.getContentType();
+            if (contentType == null || !contentType.startsWith("image/")) {
+                return Result.error("400", "Only image files are allowed!");
+            }
+            
+            // 创建上传目录
+            String uploadDir = "uploads/schedule-photos/";
+            File directory = new File(uploadDir);
+            if (!directory.exists()) {
+                directory.mkdirs();
+            }
+            
+            // 生成唯一文件名
+            String originalFilename = file.getOriginalFilename();
+            String fileExtension = "";
+            if (originalFilename != null && originalFilename.contains(".")) {
+                fileExtension = originalFilename.substring(originalFilename.lastIndexOf("."));
+            }
+            String newFilename = "schedule_" + id + "_" + UUID.randomUUID().toString() + fileExtension;
+            
+            // 保存文件
+            Path filePath = Paths.get(uploadDir + newFilename);
+            Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+            
+            // 生成访问URL
+            String photoUrl = "/uploads/schedule-photos/" + newFilename;
+            
+            // 更新数据库
+            Schedule updatedSchedule = scheduleService.uploadWorkerPhoto(id, photoUrl);
+            if (updatedSchedule != null) {
+                return Result.success(updatedSchedule, "Worker photo uploaded successfully! URL: " + photoUrl);
+            } else {
+                return Result.error("404", "Schedule not found!");
+            }
+        } catch (IOException e) {
+            return Result.error("500", "Failed to save file: " + e.getMessage());
+        } catch (Exception e) {
+            return Result.error("500", "Failed to upload worker photo: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Upload worker photo URL for a schedule (通过URL上传 - 接收JSON)
+     * POST /api/schedules/{id}/upload-photo
      * @param id The schedule ID
      * @param body A map containing the photo URL
      * @return The updated schedule, or 404 if not found
@@ -261,7 +329,7 @@ public class ScheduleController {
             String photoUrl = body.get("photoUrl");
             Schedule updatedSchedule = scheduleService.uploadWorkerPhoto(id, photoUrl);
             if (updatedSchedule != null) {
-                return Result.success(updatedSchedule, "Worker photo uploaded successfully!");
+                return Result.success(updatedSchedule, "Worker photo URL updated successfully!");
             } else {
                 return Result.error("404", "Schedule not found!");
             }
@@ -323,6 +391,182 @@ public class ScheduleController {
             return Result.success(stats, "Schedule statistics retrieved successfully!");
         } catch (Exception e) {
             return Result.error("500", "Failed to retrieve schedule statistics: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Batch create daily schedules for multiple workers
+     * POST /api/schedules/batch-create
+     * @param request The daily schedule request
+     * @param organizationId Organization ID from header
+     * @param managerId Manager ID from header
+     * @return A list of created schedules
+     */
+    @PostMapping("/batch-create")
+    public Result<List<Schedule>> batchCreateDailySchedules(
+            @RequestBody DailyScheduleRequest request,
+            @RequestHeader(value = "X-Organization-Id", required = false) String organizationId,
+            @RequestHeader(value = "X-User-Id", required = false) String managerId) {
+        try {
+            // Use default values if headers not provided
+            String orgId = organizationId != null ? organizationId : "org-001";
+            String mgrId = managerId != null ? managerId : "manager-001";
+            
+            List<Schedule> createdSchedules = scheduleService.batchCreateDailySchedules(request, orgId, mgrId);
+            return Result.success(createdSchedules, "Schedules created successfully for " + createdSchedules.size() + " workers!");
+        } catch (Exception e) {
+            return Result.error("500", "Failed to batch create schedules: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Batch update schedule statuses
+     * PUT /api/schedules/batch-update-status
+     * @param body Map containing scheduleIds (List<String>) and status (String)
+     * @return A list of updated schedules
+     */
+    @PutMapping("/batch-update-status")
+    public Result<List<Schedule>> batchUpdateScheduleStatus(@RequestBody Map<String, Object> body) {
+        try {
+            @SuppressWarnings("unchecked")
+            List<String> scheduleIds = (List<String>) body.get("scheduleIds");
+            String status = (String) body.get("status");
+            
+            if (scheduleIds == null || scheduleIds.isEmpty()) {
+                return Result.error("400", "scheduleIds are required!");
+            }
+            if (status == null || status.isEmpty()) {
+                return Result.error("400", "status is required!");
+            }
+            
+            List<Schedule> updatedSchedules = scheduleService.batchUpdateScheduleStatus(scheduleIds, status);
+            return Result.success(updatedSchedules, "Successfully updated " + updatedSchedules.size() + " schedules!");
+        } catch (Exception e) {
+            return Result.error("500", "Failed to batch update schedules: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Batch delete schedules by IDs
+     * DELETE /api/schedules/batch-delete
+     * @param body Map containing scheduleIds (List<String>)
+     * @return Number of deleted schedules
+     */
+    @DeleteMapping("/batch-delete")
+    public Result<Integer> batchDeleteSchedules(@RequestBody Map<String, Object> body) {
+        try {
+            @SuppressWarnings("unchecked")
+            List<String> scheduleIds = (List<String>) body.get("scheduleIds");
+            
+            if (scheduleIds == null || scheduleIds.isEmpty()) {
+                return Result.error("400", "scheduleIds are required!");
+            }
+            
+            int deletedCount = scheduleService.batchDeleteSchedules(scheduleIds);
+            return Result.success(deletedCount, "Successfully deleted " + deletedCount + " schedules!");
+        } catch (Exception e) {
+            return Result.error("500", "Failed to batch delete schedules: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Delete all schedules for a specific date
+     * DELETE /api/schedules/date/{date}
+     * @param date The schedule date (YYYY-MM-DD format)
+     * @param organizationId Organization ID (optional)
+     * @return Number of deleted schedules
+     */
+    @DeleteMapping("/date/{date}")
+    public Result<Integer> deleteSchedulesByDate(
+            @PathVariable String date,
+            @RequestParam(required = false) String organizationId) {
+        try {
+            LocalDate scheduleDate = LocalDate.parse(date, DateTimeFormatter.ISO_DATE);
+            int deletedCount = scheduleService.deleteSchedulesByDate(scheduleDate, organizationId);
+            return Result.success(deletedCount, "Successfully deleted " + deletedCount + " schedules for " + date);
+        } catch (Exception e) {
+            return Result.error("500", "Failed to delete schedules by date: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Copy schedules from one date to another
+     * POST /api/schedules/copy
+     * @param body Map containing sourceDate, targetDate, organizationId, managerId
+     * @return A list of newly created schedules
+     */
+    @PostMapping("/copy")
+    public Result<List<Schedule>> copySchedules(
+            @RequestBody Map<String, String> body,
+            @RequestHeader(value = "X-Organization-Id", required = false) String headerOrgId,
+            @RequestHeader(value = "X-User-Id", required = false) String headerMgrId) {
+        try {
+            String sourceDate = body.get("sourceDate");
+            String targetDate = body.get("targetDate");
+            String organizationId = body.getOrDefault("organizationId", headerOrgId != null ? headerOrgId : "org-001");
+            String managerId = body.getOrDefault("managerId", headerMgrId != null ? headerMgrId : "manager-001");
+            
+            if (sourceDate == null || targetDate == null) {
+                return Result.error("400", "sourceDate and targetDate are required!");
+            }
+            
+            LocalDate source = LocalDate.parse(sourceDate, DateTimeFormatter.ISO_DATE);
+            LocalDate target = LocalDate.parse(targetDate, DateTimeFormatter.ISO_DATE);
+            
+            List<Schedule> copiedSchedules = scheduleService.copySchedules(source, target, organizationId, managerId);
+            return Result.success(copiedSchedules, "Successfully copied " + copiedSchedules.size() + " schedules from " + sourceDate + " to " + targetDate);
+        } catch (Exception e) {
+            return Result.error("500", "Failed to copy schedules: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Get weekly schedule overview
+     * GET /api/schedules/weekly
+     * @param startDate The start date of the week (YYYY-MM-DD format)
+     * @param organizationId Organization ID
+     * @return A list of schedules for the week
+     */
+    @GetMapping("/weekly")
+    public Result<List<Schedule>> getWeeklySchedule(
+            @RequestParam String startDate,
+            @RequestParam(required = false) String organizationId,
+            @RequestHeader(value = "X-Organization-Id", required = false) String headerOrgId) {
+        try {
+            LocalDate start = LocalDate.parse(startDate, DateTimeFormatter.ISO_DATE);
+            String orgId = organizationId != null ? organizationId : (headerOrgId != null ? headerOrgId : "org-001");
+            
+            List<Schedule> schedules = scheduleService.getWeeklySchedule(start, orgId);
+            return Result.success(schedules, "Weekly schedule retrieved successfully!");
+        } catch (Exception e) {
+            return Result.error("500", "Failed to retrieve weekly schedule: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Validate if schedule can be created (check for conflicts)
+     * GET /api/schedules/validate
+     * @param workerId Worker ID
+     * @param date Schedule date (YYYY-MM-DD format)
+     * @param shiftType Shift type (morning/evening/full-day)
+     * @return True if valid, false if conflict exists
+     */
+    @GetMapping("/validate")
+    public Result<Boolean> validateSchedule(
+            @RequestParam String workerId,
+            @RequestParam String date,
+            @RequestParam String shiftType) {
+        try {
+            LocalDate scheduleDate = LocalDate.parse(date, DateTimeFormatter.ISO_DATE);
+            boolean isValid = scheduleService.validateSchedule(workerId, scheduleDate, shiftType);
+            
+            if (isValid) {
+                return Result.success(true, "No conflicts found. Schedule can be created.");
+            } else {
+                return Result.success(false, "Conflict found. Worker already has a schedule for this shift.");
+            }
+        } catch (Exception e) {
+            return Result.error("500", "Failed to validate schedule: " + e.getMessage());
         }
     }
 }

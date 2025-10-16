@@ -7,10 +7,18 @@ import com.careapp.service.WorkerService;
 import com.careapp.utils.Result;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/workers")
@@ -278,6 +286,174 @@ public class WorkerController {
             }
         } catch (Exception e) {
             return Result.error("500", "Failed to upload worker photo: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Upload worker photo FILE (真正的文件上传 - Swagger会显示Choose File按钮)
+     * POST /api/workers/{id}/photo-file
+     * @param id Worker ID
+     * @param file Photo file
+     * @return Updated worker
+     */
+    @PostMapping(value = "/{id}/photo-file", consumes = "multipart/form-data")
+    public Result<Worker> uploadWorkerPhotoFile(
+            @PathVariable String id, 
+            @RequestPart("file") MultipartFile file) {
+        try {
+            if (file.isEmpty()) {
+                return Result.error("400", "Please select a file to upload!");
+            }
+            
+            // 验证文件类型
+            String contentType = file.getContentType();
+            if (contentType == null || !contentType.startsWith("image/")) {
+                return Result.error("400", "Only image files are allowed!");
+            }
+            
+            // 创建上传目录
+            String uploadDir = "uploads/worker-photos/";
+            File directory = new File(uploadDir);
+            if (!directory.exists()) {
+                directory.mkdirs();
+            }
+            
+            // 生成唯一文件名
+            String originalFilename = file.getOriginalFilename();
+            String fileExtension = "";
+            if (originalFilename != null && originalFilename.contains(".")) {
+                fileExtension = originalFilename.substring(originalFilename.lastIndexOf("."));
+            }
+            String newFilename = id + "_" + UUID.randomUUID().toString() + fileExtension;
+            
+            // 保存文件
+            Path filePath = Paths.get(uploadDir + newFilename);
+            Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+            
+            // 生成访问URL（这里简化为相对路径，实际应该是完整的URL）
+            String photoUrl = "/uploads/worker-photos/" + newFilename;
+            
+            // 更新数据库
+            Worker worker = workerService.uploadWorkerPhotoSimple(id, photoUrl);
+            if (worker != null) {
+                return Result.success(worker, "Worker photo uploaded successfully! URL: " + photoUrl);
+            } else {
+                return Result.error("404", "Worker not found!");
+            }
+        } catch (IOException e) {
+            return Result.error("500", "Failed to save file: " + e.getMessage());
+        } catch (Exception e) {
+            return Result.error("500", "Failed to upload worker photo: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Upload worker photo URL (通过URL上传 - 接收JSON)
+     * POST /api/workers/{id}/photo-url
+     * @param id Worker ID
+     * @param body Map containing photoUrl
+     * @return Updated worker
+     */
+    @PostMapping("/{id}/photo-url")
+    public Result<Worker> uploadWorkerPhotoUrl(@PathVariable String id, @RequestBody Map<String, String> body) {
+        try {
+            String photoUrl = body.get("photoUrl");
+            
+            if (photoUrl == null || photoUrl.isEmpty()) {
+                return Result.error("400", "Photo URL is required!");
+            }
+            
+            Worker worker = workerService.uploadWorkerPhotoSimple(id, photoUrl);
+            if (worker != null) {
+                return Result.success(worker, "Worker photo URL updated successfully!");
+            } else {
+                return Result.error("404", "Worker not found!");
+            }
+        } catch (Exception e) {
+            return Result.error("500", "Failed to upload worker photo: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Upload worker photo (兼容旧版本 - 接收JSON)
+     * POST /api/workers/{id}/photo
+     * @param id Worker ID
+     * @param body Map containing photoUrl
+     * @return Updated worker
+     */
+    @PostMapping("/{id}/photo")
+    public Result<Worker> uploadWorkerPhotoSimple(@PathVariable String id, @RequestBody Map<String, String> body) {
+        try {
+            String photoUrl = body.get("photoUrl");
+            
+            if (photoUrl == null || photoUrl.isEmpty()) {
+                return Result.error("400", "Photo URL is required!");
+            }
+            
+            Worker worker = workerService.uploadWorkerPhotoSimple(id, photoUrl);
+            if (worker != null) {
+                return Result.success(worker, "Worker photo uploaded successfully!");
+            } else {
+                return Result.error("404", "Worker not found!");
+            }
+        } catch (Exception e) {
+            return Result.error("500", "Failed to upload worker photo: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Batch upload worker photos
+     * POST /api/workers/batch-upload-photos
+     * @param body Map of worker ID to photo URL
+     * @return List of updated workers
+     */
+    @PostMapping("/batch-upload-photos")
+    public Result<List<Worker>> batchUploadWorkerPhotos(@RequestBody Map<String, String> body) {
+        try {
+            if (body == null || body.isEmpty()) {
+                return Result.error("400", "Photo upload data is required!");
+            }
+            
+            List<Worker> updatedWorkers = workerService.batchUploadWorkerPhotos(body);
+            return Result.success(updatedWorkers, "Successfully uploaded photos for " + updatedWorkers.size() + " workers!");
+        } catch (Exception e) {
+            return Result.error("500", "Failed to batch upload worker photos: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Delete worker photo
+     * DELETE /api/workers/{id}/photo
+     * @param id Worker ID
+     * @return Updated worker
+     */
+    @DeleteMapping("/{id}/photo")
+    public Result<Worker> deleteWorkerPhoto(@PathVariable String id) {
+        try {
+            Worker worker = workerService.deleteWorkerPhoto(id);
+            if (worker != null) {
+                return Result.success(worker, "Worker photo deleted successfully!");
+            } else {
+                return Result.error("404", "Worker not found!");
+            }
+        } catch (Exception e) {
+            return Result.error("500", "Failed to delete worker photo: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Get workers without photos
+     * GET /api/workers/organization/{organizationId}/without-photos
+     * @param organizationId Organization ID
+     * @return List of workers without photos
+     */
+    @GetMapping("/organization/{organizationId}/without-photos")
+    public Result<List<Worker>> getWorkersWithoutPhotos(@PathVariable String organizationId) {
+        try {
+            List<Worker> workers = workerService.getWorkersWithoutPhotos(organizationId);
+            return Result.success(workers, "Retrieved " + workers.size() + " workers without photos!");
+        } catch (Exception e) {
+            return Result.error("500", "Failed to retrieve workers without photos: " + e.getMessage());
         }
     }
 
