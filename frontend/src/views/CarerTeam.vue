@@ -21,6 +21,67 @@
         </div>
       </template>
       
+      <!-- Organization Management Section -->
+      <div style="margin-bottom: 30px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <h3 style="margin: 0; color: #1890ff;">
+            <TeamOutlined style="margin-right: 8px;" />
+            Organization Management
+          </h3>
+        </div>
+        
+        <!-- Current Organization Info -->
+        <a-card v-if="currentOrganization" style="margin-bottom: 16px;">
+          <template #title>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span>Current Organization</span>
+                <a-tag color="blue">{{ currentOrganization.name }}</a-tag>
+              </div>
+              <a-button 
+                type="primary" 
+                danger 
+                @click="showRemoveOrgModal"
+                :loading="removingOrg"
+              >
+                <DeleteOutlined />
+                Remove Organization
+              </a-button>
+            </div>
+          </template>
+          
+          <a-descriptions :column="2" bordered size="small">
+            <a-descriptions-item label="Organization ID">
+              {{ currentOrganization.id }}
+            </a-descriptions-item>
+            <a-descriptions-item label="Organization Name">
+              {{ currentOrganization.name }}
+            </a-descriptions-item>
+            <a-descriptions-item label="Joined Date">
+              {{ formatDate(currentOrganization.joinedDate) }}
+            </a-descriptions-item>
+            <a-descriptions-item label="Status">
+              <a-tag :color="currentOrganization.status === 'Active' ? 'green' : 'red'">
+                {{ currentOrganization.status }}
+              </a-tag>
+            </a-descriptions-item>
+          </a-descriptions>
+        </a-card>
+        
+        <!-- No Organization Message -->
+        <a-card v-else style="margin-bottom: 16px;">
+          <a-empty description="No organization associated">
+            <template #image>
+              <TeamOutlined style="font-size: 48px; color: #d9d9d9;" />
+            </template>
+            <a-button type="primary" @click="showGenerateTokenModal">
+              <UserAddOutlined />
+              Invite Organization
+            </a-button>
+          </a-empty>
+        </a-card>
+      </div>
+
       <!-- Daily Workers Section -->
       <div style="margin-bottom: 30px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
@@ -45,15 +106,15 @@
             <a-radio-group v-model:value="selectedShift" @change="onShiftChange" button-style="solid">
               <a-radio-button value="morning">
                 <ClockCircleOutlined style="margin-right: 4px;" />
-                Morning Shift (06:00-14:00)
+                Morning Shift
               </a-radio-button>
               <a-radio-button value="afternoon">
                 <ClockCircleOutlined style="margin-right: 4px;" />
-                Afternoon Shift (14:00-22:00)
+                Afternoon Shift
               </a-radio-button>
               <a-radio-button value="night">
                 <ClockCircleOutlined style="margin-right: 4px;" />
-                Night Shift (22:00-06:00)
+                Night Shift
               </a-radio-button>
             </a-radio-group>
           </div>
@@ -324,6 +385,59 @@
         </div>
       </div>
     </a-modal>
+
+    <!-- Remove Organization Confirmation Modal -->
+    <a-modal
+      v-model:open="removeOrgModalVisible"
+      title="Remove Organization"
+      width="500px"
+      @ok="confirmRemoveOrganization"
+      @cancel="removeOrgModalVisible = false"
+      :confirmLoading="removingOrg"
+    >
+      <div style="text-align: center; padding: 20px 0;">
+        <div style="font-size: 48px; color: #ff4d4f; margin-bottom: 16px;">⚠️</div>
+        <h3 style="color: #ff4d4f; margin-bottom: 16px;">Confirm Organization Removal</h3>
+        <p style="margin-bottom: 16px; color: #666;">
+          Are you sure you want to remove <strong>{{ currentOrganization?.name }}</strong> from your care team?
+        </p>
+        
+        <div style="background: #fff2f0; border: 1px solid #ffccc7; border-radius: 6px; padding: 16px; margin-bottom: 20px; text-align: left;">
+          <div style="font-weight: bold; margin-bottom: 8px; color: #ff4d4f;">
+            <ExclamationCircleOutlined style="margin-right: 6px;" />
+            This action will:
+          </div>
+          <ul style="margin: 0; padding-left: 20px; color: #666; font-size: 14px;">
+            <li>Remove all workers from this organization</li>
+            <li>Cancel all pending tasks assigned to these workers</li>
+            <li>Clear all schedules for this organization</li>
+            <li>Remove access to patient information</li>
+            <li>This action cannot be undone</li>
+          </ul>
+        </div>
+        
+        <div style="background: #f6ffed; border: 1px solid #b7eb8f; border-radius: 6px; padding: 12px; margin-bottom: 20px;">
+          <div style="font-weight: bold; margin-bottom: 4px; color: #52c41a;">
+            <InfoCircleOutlined style="margin-right: 6px;" />
+            Alternative Options:
+          </div>
+          <div style="font-size: 13px; color: #666;">
+            • You can deactivate individual workers instead of removing the entire organization<br/>
+            • You can temporarily suspend the organization's access<br/>
+            • Contact the organization directly to resolve any issues
+          </div>
+        </div>
+        
+        <p style="color: #ff4d4f; font-weight: bold;">
+          Type <strong>"REMOVE"</strong> to confirm this action:
+        </p>
+        <a-input 
+          v-model:value="removeConfirmationText" 
+          placeholder="Type REMOVE to confirm"
+          style="margin-bottom: 16px;"
+        />
+      </div>
+    </a-modal>
   </div>
 </template>
 
@@ -335,12 +449,14 @@ import {
   TeamOutlined,
   UserAddOutlined,
   ClockCircleOutlined,
-  InfoCircleOutlined
+  InfoCircleOutlined,
+  DeleteOutlined,
+  ExclamationCircleOutlined
 } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
 import dayjs from 'dayjs'
 import { getMe } from '@/services/userService'
-import { getAllWorkers, getDailySchedule } from '@/services/workerService'
+import { getAllWorkers, getWorkersByOrganization, getDailySchedule } from '@/services/workerService'
 import { generateInviteCode } from '@/services/inviteCodeService'
 
 // Reactive data
@@ -354,6 +470,12 @@ const generatedToken = ref('')
 const isShowingExistingToken = ref(false)
 const tokenExists = ref(false) // 标记Token是否存在
 const tokenExpirationDate = ref(null) // 保存Token过期时间
+
+// Organization management
+const currentOrganization = ref(null)
+const removeOrgModalVisible = ref(false)
+const removingOrg = ref(false)
+const removeConfirmationText = ref('')
 
 // Token form data
 const tokenForm = ref({
@@ -413,15 +535,15 @@ const getShiftInfo = () => {
   const shiftInfo = {
     morning: {
       title: 'Morning Shift',
-      description: 'Covers morning care activities, breakfast assistance, and morning medications (06:00 - 14:00)'
+      description: 'Covers morning care activities, breakfast assistance, and morning medications'
     },
     afternoon: {
       title: 'Afternoon Shift', 
-      description: 'Handles afternoon activities, lunch assistance, and afternoon care (14:00 - 22:00)'
+      description: 'Handles afternoon activities, lunch assistance, and afternoon care'
     },
     night: {
       title: 'Night Shift',
-      description: 'Provides overnight care, evening medications, and night monitoring (22:00 - 06:00)'
+      description: 'Provides overnight care, evening medications, and night monitoring'
     }
   }
   return shiftInfo[selectedShift.value] || shiftInfo.morning
@@ -700,6 +822,97 @@ const downloadToken = () => {
   message.success('Token data downloaded successfully!')
 }
 
+// Organization management methods
+const loadCurrentOrganization = async () => {
+  try {
+    const userInfo = await getMe()
+    if (userInfo?.data?.organizationId) {
+      // Mock organization data - in real implementation, this would come from API
+      currentOrganization.value = {
+        id: userInfo.data.organizationId,
+        name: userInfo.data.organizationName || 'Default Organization',
+        joinedDate: '2024-01-01',
+        status: 'Active'
+      }
+    } else {
+      currentOrganization.value = null
+    }
+  } catch (error) {
+    console.error('Failed to load current organization:', error)
+    currentOrganization.value = null
+  }
+}
+
+const showRemoveOrgModal = () => {
+  removeOrgModalVisible.value = true
+  removeConfirmationText.value = ''
+}
+
+const confirmRemoveOrganization = async () => {
+  if (removeConfirmationText.value !== 'REMOVE') {
+    message.error('Please type "REMOVE" to confirm this action')
+    return
+  }
+
+  if (!currentOrganization.value) {
+    message.error('No organization to remove')
+    return
+  }
+
+  removingOrg.value = true
+  
+  try {
+    message.loading('Removing organization...', 0)
+    
+    // Import the remove organization function
+    const { removeOrganizationFromPatient } = await import('@/services/patientService')
+    
+    // Get current user info
+    const userInfo = await getMe()
+    if (!userInfo?.data?.patientId) {
+      throw new Error('Patient ID not found')
+    }
+    
+    // Call the API to remove organization
+    await removeOrganizationFromPatient(userInfo.data.patientId, {
+      organizationId: currentOrganization.value.id,
+      removedBy: userInfo.data.id,
+      removedAt: new Date().toISOString(),
+      reason: 'Manual removal by POA'
+    })
+    
+    message.destroy()
+    message.success('Organization removed successfully!')
+    
+    // Clear organization data
+    currentOrganization.value = null
+    
+    // Clear token data as well since organization is removed
+    generatedToken.value = ''
+    tokenExists.value = false
+    tokenExpirationDate.value = null
+    
+    // Reload workers to reflect changes
+    await loadWorkers()
+    
+    // Close modal
+    removeOrgModalVisible.value = false
+    removeConfirmationText.value = ''
+    
+  } catch (error) {
+    message.destroy()
+    console.error('Failed to remove organization:', error)
+    message.error(error.message || 'Failed to remove organization')
+  } finally {
+    removingOrg.value = false
+  }
+}
+
+const formatDate = (dateString) => {
+  if (!dateString) return 'N/A'
+  return dayjs(dateString).format('YYYY-MM-DD')
+}
+
 onMounted(async () => {
   loading.value = true
   
@@ -707,6 +920,9 @@ onMounted(async () => {
     // Get current user info
     const userInfo = await getMe()
     const organizationId = userInfo?.data?.organizationId || 'default-org'
+    
+    // Load current organization info
+    await loadCurrentOrganization()
     
     // Load workers from API
     await loadWorkers()
@@ -814,13 +1030,26 @@ const loadExistingTokenInfo = async () => {
 // Load workers from API
 const loadWorkers = async () => {
   try {
-    const response = await getAllWorkers()
+    // Get current user info to get organizationId
+    const userInfo = await getMe()
+    const organizationId = userInfo?.data?.organizationId || 'default-org'
+    
+    // Use organization-specific API if organizationId is available
+    let response
+    if (organizationId && organizationId !== 'default-org') {
+      response = await getWorkersByOrganization(organizationId)
+    } else {
+      // Fallback to all workers if no organization ID
+      response = await getAllWorkers()
+    }
+    
     if (response?.data) {
       // Add shift information to workers
       workers.value = response.data.map(worker => ({
         ...worker,
         shift: getRandomShift() // Assign random shift for demo purposes
       }))
+      console.log('Loaded workers for CarerTeam:', workers.value.length, 'for organization:', organizationId)
     }
   } catch (error) {
     console.error('Failed to load workers:', error)

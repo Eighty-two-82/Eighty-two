@@ -52,57 +52,6 @@
               </a-tag>
             </template>
             
-            <template v-if="column.key === 'actions'">
-              <!-- POA: Can confirm worker completion or mark as completed -->
-              <div v-if="isPOA">
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <a-button 
-                    v-if="record.status === 'Worker Completed'"
-                    size="small" 
-                    type="primary" 
-                    @click="showConfirmModal(record, 'approve')"
-                    style="background-color: #52c41a; border-color: #52c41a;"
-                  >
-                    Approve
-                  </a-button>
-                  <a-button 
-                    v-if="record.status === 'Worker Completed'"
-                    size="small" 
-                    danger
-                    @click="showConfirmModal(record, 'reject')"
-                  >
-                    Reject
-                  </a-button>
-                  <span v-if="record.status === 'In Progress'" style="color: #999; font-size: 12px; margin-left: 8px;">
-                    Wait for worker to finish
-                  </span>
-                  <span v-if="record.status === 'Pending'" style="color: #999; font-size: 12px; margin-left: 8px;">
-                    Task not started yet
-                  </span>
-                  <span v-if="record.status === 'Completed'" style="color: #52c41a; font-weight: bold;">✓ Completed</span>
-                  <span v-else-if="record.status === 'Rejected'" style="color: #ff4d4f; font-weight: bold;">✗ Rejected</span>
-                </div>
-              </div>
-              <!-- Worker: Can only mark their own tasks as completed -->
-              <div v-else>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                <a-button 
-                    v-if="record.status !== 'Completed' && record.status !== 'Worker Completed'"
-                    size="small" 
-                  type="primary" 
-                    @click="workerCompleteTask(record)"
-                    style="background-color: #52c41a; border-color: #52c41a;"
-                  >
-                    Complete
-                  </a-button>
-                  <a-tooltip v-if="record.status !== 'Completed' && record.status !== 'Worker Completed'" title="Click when task is done">
-                    <span style="color: #999; cursor: help; font-size: 12px; border: 1px solid #999; border-radius: 50%; width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center;">?</span>
-                  </a-tooltip>
-                  <span v-if="record.status === 'Worker Completed'" style="color: #faad14; font-weight: bold;">⏳ Pending Review</span>
-                  <span v-else-if="record.status === 'Completed'" style="color: #52c41a; font-weight: bold;">✓ Completed</span>
-                </div>
-              </div>
-            </template>
           </template>
         </a-table>
       </a-card>
@@ -1031,11 +980,9 @@ const taskColumns = [
 
 const simpleTaskColumns = [
   { title: 'Title', dataIndex: 'title', key: 'title' },
-  { title: 'Description', dataIndex: 'description', key: 'description' },
   { title: 'Priority', dataIndex: 'priority', key: 'priority' },
   { title: 'Due', dataIndex: 'dueDate', key: 'dueDate' },
-  { title: 'Status', dataIndex: 'status', key: 'status' },
-  { title: 'Actions', key: 'actions', width: 120 }
+  { title: 'Status', dataIndex: 'status', key: 'status' }
 ]
 
 

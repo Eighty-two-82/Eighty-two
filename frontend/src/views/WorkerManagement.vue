@@ -36,6 +36,18 @@
           </a-tooltip>
         </div>
         
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <a-button type="default" @click="showShiftTimeSettingsModal">
+            <template #icon>
+              <ClockCircleOutlined />
+            </template>
+            Shift Time Settings
+          </a-button>
+          <a-tooltip title="Configure shift start and end times. These settings will be used as defaults for all future schedules." placement="top">
+            <span style="color: #999; cursor: help; font-size: 12px; width: 16px; height: 16px; border-radius: 50%; border: 1px solid #999; display: inline-flex; align-items: center; justify-content: center; line-height: 1;">?</span>
+          </a-tooltip>
+        </div>
+        
       </div>
 
       <!-- Invite Token Display -->
@@ -63,9 +75,42 @@
             placeholder="Select date"
           />
         </div>
+        
+        <!-- Shift Selection -->
+        <div style="margin-bottom: 20px;">
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+            <span style="font-weight: 500; color: #666;">Select Shift:</span>
+            <a-radio-group v-model:value="selectedShift" @change="onShiftChange" button-style="solid">
+              <a-radio-button value="morning">
+                <ClockCircleOutlined style="margin-right: 4px;" />
+                Morning Shift
+              </a-radio-button>
+              <a-radio-button value="afternoon">
+                <ClockCircleOutlined style="margin-right: 4px;" />
+                Afternoon Shift
+              </a-radio-button>
+              <a-radio-button value="evening">
+                <ClockCircleOutlined style="margin-right: 4px;" />
+                Evening Shift
+              </a-radio-button>
+            </a-radio-group>
+          </div>
+          
+          <!-- Shift Info -->
+          <div style="background: #f6ffed; border: 1px solid #b7eb8f; border-radius: 6px; padding: 12px; margin-bottom: 16px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <InfoCircleOutlined style="color: #52c41a;" />
+              <span style="font-weight: 500; color: #52c41a;">{{ getShiftInfo().title }}</span>
+            </div>
+            <div style="margin-top: 4px; font-size: 12px; color: #666;">
+              {{ getShiftInfo().description }}
+            </div>
+          </div>
+        </div>
+        
         <a-row :gutter="[16, 16]">
           <a-col
-            v-for="worker in dailyWorkers"
+            v-for="worker in getFilteredDailyWorkers()"
             :key="worker.id"
             :xs="12"
             :sm="8"
@@ -106,6 +151,13 @@
             </a-card>
           </a-col>
         </a-row>
+        
+        <!-- No Workers Message -->
+        <div v-if="getFilteredDailyWorkers().length === 0" style="text-align: center; padding: 40px; color: #999;">
+          <UserOutlined style="font-size: 48px; margin-bottom: 16px;" />
+          <div style="font-size: 16px; margin-bottom: 8px;">No workers assigned</div>
+          <div style="font-size: 12px;">No workers are scheduled for {{ getShiftInfo().title }} on {{ selectedDate ? selectedDate.format('YYYY-MM-DD') : '' }}</div>
+        </div>
       </div>
 
       <!-- All Workers Table -->
@@ -345,46 +397,115 @@
           />
         </a-form-item>
         
-        <a-row :gutter="24">
-          <!-- Left Column: Worker Selection -->
-          <a-col :span="12">
-            <a-form-item label="Select Workers for Today">
-              <div style="max-height: 300px; overflow-y: auto; border: 1px solid #d9d9d9; border-radius: 6px; padding: 12px;">
-                <a-checkbox-group v-model:value="scheduleForm.selectedWorkers" style="width: 100%;">
-                  <div
-                    v-for="worker in availableWorkers"
-                    :key="worker.id"
-                    style="margin-bottom: 12px; padding: 8px; border: 1px solid #f0f0f0; border-radius: 4px;"
-                    :style="{ backgroundColor: scheduleForm.selectedWorkers.includes(worker.id) ? '#f6ffed' : '#fff' }"
-                  >
-                    <a-checkbox :value="worker.id" style="width: 100%;">
-                      <div style="display: flex; align-items: center; gap: 12px;">
-                        <a-avatar :size="32" :src="worker.photo">
-                          {{ worker.name.charAt(0).toUpperCase() }}
-                        </a-avatar>
-                        <div style="flex: 1;">
-                          <div style="font-weight: bold;">{{ worker.name }}</div>
-                          <div style="font-size: 12px; color: #666;">{{ worker.workerId }} - {{ worker.position }}</div>
-                        </div>
-                        <a-button 
-                          v-if="scheduleForm.selectedWorkers.includes(worker.id)"
-                          size="small" 
-                          type="primary"
-                          @click.stop="handleUploadWorkerPhoto(worker)"
-                        >
-                          Upload Photo
-                        </a-button>
-                      </div>
-                    </a-checkbox>
-                  </div>
-                </a-checkbox-group>
-              </div>
-            </a-form-item>
-          </a-col>
+        <!-- Shift Information -->
+        <div style="margin-bottom: 20px;">
+          <h3 style="margin-bottom: 16px; color: #1890ff;">
+            <ClockCircleOutlined style="margin-right: 8px;" />
+            Shift Information
+          </h3>
           
-          <!-- Right Column: Photo Upload for Selected Worker -->
-          <a-col :span="12">
-            <a-form-item label="Upload Photo for Selected Worker">
+          <!-- Morning Shift -->
+          <div style="margin-bottom: 20px; border: 1px solid #d9d9d9; border-radius: 8px; padding: 16px;">
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+              <ClockCircleOutlined style="color: #52c41a;" />
+              <span style="font-weight: 500; color: #52c41a;">Morning Shift (8:00-16:00)</span>
+            </div>
+            <a-form-item label="Select morning shift workers">
+              <a-select
+                v-model:value="scheduleForm.morningShift"
+                mode="multiple"
+                placeholder="Click to select workers"
+                style="width: 100%;"
+                @change="onMorningShiftChange"
+                :options="morningShiftOptions"
+              >
+                <template #notFoundContent>
+                  <div style="text-align: center; color: #999; padding: 20px;">
+                    No workers available
+                  </div>
+                </template>
+                <template #option="{ value, label }">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <a-avatar :size="20" :src="getWorkerById(value)?.photo">
+                      {{ getWorkerById(value)?.name?.charAt(0)?.toUpperCase() }}
+                    </a-avatar>
+                    <span>{{ label }}</span>
+                  </div>
+                </template>
+              </a-select>
+            </a-form-item>
+          </div>
+          
+          <!-- Afternoon Shift -->
+          <div style="margin-bottom: 20px; border: 1px solid #d9d9d9; border-radius: 8px; padding: 16px;">
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+              <ClockCircleOutlined style="color: #1890ff;" />
+              <span style="font-weight: 500; color: #1890ff;">Afternoon Shift (16:00-24:00)</span>
+            </div>
+            <a-form-item label="Select afternoon shift workers">
+              <a-select
+                v-model:value="scheduleForm.eveningShift"
+                mode="multiple"
+                placeholder="Click to select workers"
+                style="width: 100%;"
+                :options="afternoonShiftOptions"
+              >
+                <template #notFoundContent>
+                  <div style="text-align: center; color: #999; padding: 20px;">
+                    No workers available
+                  </div>
+                </template>
+                <template #option="{ value, label }">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <a-avatar :size="20" :src="getWorkerById(value)?.photo">
+                      {{ getWorkerById(value)?.name?.charAt(0)?.toUpperCase() }}
+                    </a-avatar>
+                    <span>{{ label }}</span>
+                  </div>
+                </template>
+              </a-select>
+            </a-form-item>
+          </div>
+          
+          <!-- Night Shift -->
+          <div style="margin-bottom: 20px; border: 1px solid #d9d9d9; border-radius: 8px; padding: 16px;">
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+              <ClockCircleOutlined style="color: #722ed1;" />
+              <span style="font-weight: 500; color: #722ed1;">Evening Shift (24:00-8:00)</span>
+            </div>
+            <a-form-item label="Select night shift workers">
+              <a-select
+                v-model:value="scheduleForm.nightShift"
+                mode="multiple"
+                placeholder="Click to select workers"
+                style="width: 100%;"
+                :options="nightShiftOptions"
+              >
+                <template #notFoundContent>
+                  <div style="text-align: center; color: #999; padding: 20px;">
+                    No workers available
+                  </div>
+                </template>
+                <template #option="{ value, label }">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <a-avatar :size="20" :src="getWorkerById(value)?.photo">
+                      {{ getWorkerById(value)?.name?.charAt(0)?.toUpperCase() }}
+                    </a-avatar>
+                    <span>{{ label }}</span>
+                  </div>
+                </template>
+              </a-select>
+            </a-form-item>
+          </div>
+        </div>
+        
+        <!-- Photo Upload Section -->
+        <div style="margin-top: 20px;">
+          <h3 style="margin-bottom: 16px; color: #1890ff;">
+            <UploadOutlined style="margin-right: 8px;" />
+            Upload Photos for Workers
+          </h3>
+          <a-form-item label="Upload Photo for Selected Worker">
               <div v-if="selectedWorkerForPhoto" style="margin-bottom: 16px; padding: 12px; background: #f6ffed; border-radius: 6px;">
                 <div style="display: flex; align-items: center; gap: 12px;">
                   <a-avatar :size="40" :src="selectedWorkerForPhoto.photo">
@@ -458,67 +579,7 @@
                 />
               </div>
             </a-form-item>
-          </a-col>
-        </a-row>
-
-        <a-form-item label="Shift Information">
-          <a-row :gutter="16">
-            <a-col :span="8">
-              <a-form-item label="Morning Shift (8:00-16:00)">
-                <a-select
-                  v-model:value="scheduleForm.morningShift"
-                  mode="multiple"
-                  placeholder="Select morning shift workers"
-                  style="width: 100%;"
-                >
-                  <a-select-option
-                    v-for="worker in availableWorkers"
-                    :key="worker.id"
-                    :value="worker.id"
-                  >
-                    {{ worker.name }} ({{ worker.workerId }})
-                  </a-select-option>
-                </a-select>
-              </a-form-item>
-            </a-col>
-            <a-col :span="8">
-              <a-form-item label="Evening Shift (16:00-24:00)">
-                <a-select
-                  v-model:value="scheduleForm.eveningShift"
-                  mode="multiple"
-                  placeholder="Select evening shift workers"
-                  style="width: 100%;"
-                >
-                  <a-select-option
-                    v-for="worker in availableWorkers"
-                    :key="worker.id"
-                    :value="worker.id"
-                  >
-                    {{ worker.name }} ({{ worker.workerId }})
-                  </a-select-option>
-                </a-select>
-              </a-form-item>
-            </a-col>
-            <a-col :span="8">
-              <a-form-item label="Night Shift (24:00-8:00)">
-                <a-select
-                  v-model:value="scheduleForm.nightShift"
-                  mode="multiple"
-                  placeholder="Select night shift workers"
-                  style="width: 100%;"
-                >
-                  <a-select-option
-                    v-for="worker in availableWorkers"
-                    :key="worker.id"
-                    :value="worker.id"
-                  >
-                    {{ worker.name }} ({{ worker.workerId }})
-                  </a-select-option>
-                </a-select>
-              </a-form-item>
-            </a-col>
-          </a-row>
-        </a-form-item>
+        </div>
 
         <a-form-item label="Schedule Notes">
           <a-textarea
@@ -543,7 +604,7 @@
         <!-- Worker Photo and Basic Info -->
         <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 24px; padding: 16px; background: #f6ffed; border-radius: 8px;">
           <a-avatar
-            :size="80"
+ma a            :size="80"
             :src="selectedWorkerDetail.photo"
             :alt="selectedWorkerDetail.name"
             style="border: 3px solid #52c41a;"
@@ -808,11 +869,103 @@
       </a-form>
     </a-modal>
 
+    <!-- Shift Time Settings Modal -->
+    <a-modal
+      v-model:open="shiftTimeSettingsModalVisible"
+      title="Shift Time Settings"
+      width="600px"
+      @ok="confirmShiftTimeSettings"
+      @cancel="shiftTimeSettingsModalVisible = false"
+    >
+      <div style="margin-bottom: 20px;">
+        <a-alert
+          message="Configure Default Shift Times"
+          description="Set the default start and end times for each shift. These settings will be used as defaults for all future schedules and will be saved locally."
+          type="info"
+          show-icon
+          style="margin-bottom: 16px;"
+        />
+      </div>
+
+      <a-form :model="shiftTimeForm" layout="vertical">
+        <a-row :gutter="16">
+          <a-col :span="8">
+            <a-form-item label="Morning Shift">
+              <div style="margin-bottom: 8px;">
+                <label style="font-size: 12px; color: #666;">Start Time:</label>
+                <a-time-picker
+                  v-model:value="shiftTimeForm.morningStart"
+                  format="HH:mm"
+                  style="width: 100%;"
+                  placeholder="Start time"
+                />
+              </div>
+              <div>
+                <label style="font-size: 12px; color: #666;">End Time:</label>
+                <a-time-picker
+                  v-model:value="shiftTimeForm.morningEnd"
+                  format="HH:mm"
+                  style="width: 100%;"
+                  placeholder="End time"
+                />
+              </div>
+            </a-form-item>
+          </a-col>
+          
+          <a-col :span="8">
+            <a-form-item label="Afternoon Shift">
+              <div style="margin-bottom: 8px;">
+                <label style="font-size: 12px; color: #666;">Start Time:</label>
+                <a-time-picker
+                  v-model:value="shiftTimeForm.afternoonStart"
+                  format="HH:mm"
+                  style="width: 100%;"
+                  placeholder="Start time"
+                />
+              </div>
+              <div>
+                <label style="font-size: 12px; color: #666;">End Time:</label>
+                <a-time-picker
+                  v-model:value="shiftTimeForm.afternoonEnd"
+                  format="HH:mm"
+                  style="width: 100%;"
+                  placeholder="End time"
+                />
+              </div>
+            </a-form-item>
+          </a-col>
+          
+          <a-col :span="8">
+            <a-form-item label="Evening Shift">
+              <div style="margin-bottom: 8px;">
+                <label style="font-size: 12px; color: #666;">Start Time:</label>
+                <a-time-picker
+                  v-model:value="shiftTimeForm.nightStart"
+                  format="HH:mm"
+                  style="width: 100%;"
+                  placeholder="Start time"
+                />
+              </div>
+              <div>
+                <label style="font-size: 12px; color: #666;">End Time:</label>
+                <a-time-picker
+                  v-model:value="shiftTimeForm.nightEnd"
+                  format="HH:mm"
+                  style="width: 100%;"
+                  placeholder="End time"
+                />
+              </div>
+            </a-form-item>
+          </a-col>
+        </a-row>
+      </a-form>
+    </a-modal>
+
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, h, resolveComponent } from 'vue'
+import { ref, onMounted, h, resolveComponent, computed } from 'vue'
 import dayjs from 'dayjs'
 import { 
   QuestionCircleOutlined, 
@@ -823,12 +976,14 @@ import {
   TeamOutlined,
   CalendarOutlined,
   InfoCircleOutlined,
-  ReloadOutlined
+  ReloadOutlined,
+  ClockCircleOutlined
 } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
 import { addRemovedWorker } from '@/services/userService'
 import { 
-  getAllWorkers, 
+  getAllWorkers,
+  getWorkersByOrganization, 
   createWorker, 
   updateWorker, 
   deleteWorker, 
@@ -863,6 +1018,30 @@ const removeFromTeamModalVisible = ref(false)
 const removeConfirmationModalVisible = ref(false)
 const workerToRemove = ref(null)
 const removeConfirmationChecked = ref(false)
+const selectedShift = ref('morning')
+const shiftTimeSettingsModalVisible = ref(false)
+
+// Computed properties
+const morningShiftOptions = computed(() => {
+  return availableWorkers.value.map(worker => ({
+    value: worker.id,
+    label: `${worker.name} (${worker.workerId})`
+  }))
+})
+
+const afternoonShiftOptions = computed(() => {
+  return availableWorkers.value.map(worker => ({
+    value: worker.id,
+    label: `${worker.name} (${worker.workerId})`
+  }))
+})
+
+const nightShiftOptions = computed(() => {
+  return availableWorkers.value.map(worker => ({
+    value: worker.id,
+    label: `${worker.name} (${worker.workerId})`
+  }))
+})
 
 // Forms
 const tokenForm = ref({
@@ -886,7 +1065,6 @@ const removeFromTeamForm = ref({
 
 const scheduleForm = ref({
   date: null,
-  selectedWorkers: [],
   morningShift: [],
   eveningShift: [],
   nightShift: [],
@@ -895,6 +1073,21 @@ const scheduleForm = ref({
 
 const photoForm = ref({
   date: null
+})
+
+const shiftTimeForm = ref({
+  morningStart: null,
+  morningEnd: null,
+  afternoonStart: null,
+  afternoonEnd: null,
+  nightStart: null,
+  nightEnd: null
+})
+
+const shiftTimeSettings = ref({
+  morning: { start: '06:00', end: '14:00' },
+  afternoon: { start: '14:00', end: '22:00' },
+  night: { start: '22:00', end: '06:00' }
 })
 
 // Worker data from API
@@ -939,22 +1132,10 @@ const workerColumns = [
     width: 150
   },
   {
-    title: 'Position',
-    dataIndex: 'position',
-    key: 'position',
-    width: 150
-  },
-  {
     title: 'Status',
     key: 'status',
     width: 100,
     align: 'center'
-  },
-  {
-    title: 'Join Date',
-    dataIndex: 'joinDate',
-    key: 'joinDate',
-    width: 120
   },
   {
     title: 'Email',
@@ -1163,6 +1344,68 @@ const handleUploadWorkerPhoto = (worker) => {
   selectedWorkerForPhoto.value = worker
   fileList.value = [] // Clear previous files
   message.info(`Ready to upload photo for ${worker.name}`)
+}
+
+const onWorkerSelectForPhoto = (worker) => {
+  selectedWorkerForPhoto.value = worker
+  fileList.value = [] // Clear previous files
+  message.info(`Ready to upload photo for ${worker.name}`)
+}
+
+const onMorningShiftChange = (checkedValues) => {
+  // If any workers are selected for morning shift, set the first one as selected for photo upload
+  if (checkedValues.length > 0) {
+    const firstSelectedWorkerId = checkedValues[0]
+    const selectedWorker = availableWorkers.value.find(w => w.id === firstSelectedWorkerId)
+    if (selectedWorker) {
+      selectedWorkerForPhoto.value = selectedWorker
+      fileList.value = [] // Clear previous files
+    }
+  } else {
+    // If no workers selected, clear the photo upload selection
+    selectedWorkerForPhoto.value = null
+    fileList.value = []
+  }
+}
+
+const toggleMorningShiftWorker = (workerId) => {
+  const currentIndex = scheduleForm.morningShift.indexOf(workerId)
+  if (currentIndex > -1) {
+    // Remove worker if already selected
+    scheduleForm.morningShift.splice(currentIndex, 1)
+  } else {
+    // Add worker if not selected
+    scheduleForm.morningShift.push(workerId)
+  }
+  
+  // Trigger the change event to update photo upload selection
+  onMorningShiftChange(scheduleForm.morningShift)
+}
+
+const toggleEveningShiftWorker = (workerId) => {
+  const currentIndex = scheduleForm.eveningShift.indexOf(workerId)
+  if (currentIndex > -1) {
+    // Remove worker if already selected
+    scheduleForm.eveningShift.splice(currentIndex, 1)
+  } else {
+    // Add worker if not selected
+    scheduleForm.eveningShift.push(workerId)
+  }
+}
+
+const toggleNightShiftWorker = (workerId) => {
+  const currentIndex = scheduleForm.nightShift.indexOf(workerId)
+  if (currentIndex > -1) {
+    // Remove worker if already selected
+    scheduleForm.nightShift.splice(currentIndex, 1)
+  } else {
+    // Add worker if not selected
+    scheduleForm.nightShift.push(workerId)
+  }
+}
+
+const getWorkerById = (workerId) => {
+  return availableWorkers.value.find(worker => worker.id === workerId)
 }
 
 const beforeUpload = (file) => {
@@ -1431,14 +1674,32 @@ const showScheduleModal = () => {
 
 const confirmDailyManagement = async () => {
   // Handle schedule update
-  if (!scheduleForm.value.date || scheduleForm.value.selectedWorkers.length === 0) {
-    message.warning('Please select a date and at least one worker')
+  if (!scheduleForm.value.date) {
+    message.warning('Please select a date')
+    return
+  }
+  
+  // Check if at least one shift has workers assigned
+  const hasWorkers = scheduleForm.value.morningShift.length > 0 || 
+                    scheduleForm.value.eveningShift.length > 0 || 
+                    scheduleForm.value.nightShift.length > 0
+  
+  if (!hasWorkers) {
+    message.warning('Please select at least one worker for any shift')
     return
   }
   
   try {
     const dateStr = scheduleForm.value.date.format('YYYY-MM-DD')
-    dailySchedules.value[dateStr] = scheduleForm.value.selectedWorkers
+    
+    // Combine all selected workers from all shifts
+    const allSelectedWorkers = [
+      ...scheduleForm.value.morningShift,
+      ...scheduleForm.value.eveningShift,
+      ...scheduleForm.value.nightShift
+    ]
+    
+    dailySchedules.value[dateStr] = allSelectedWorkers
     
     // Update daily workers if it's the selected date
     if (dateStr === selectedDate.value?.format('YYYY-MM-DD')) {
@@ -1478,7 +1739,6 @@ const confirmDailyManagement = async () => {
   // Reset forms
   scheduleForm.value = {
     date: null,
-    selectedWorkers: [],
     morningShift: [],
     eveningShift: [],
     nightShift: [],
@@ -1514,7 +1774,6 @@ const confirmScheduleUpdate = async () => {
     // Reset form
     scheduleForm.value = {
       date: null,
-      selectedWorkers: [],
       morningShift: [],
       eveningShift: [],
       nightShift: [],
@@ -1543,6 +1802,111 @@ const formatDate = (date) => {
   return date.format('YYYY-MM-DD')
 }
 
+// Shift management functions
+const getFilteredDailyWorkers = () => {
+  if (!dailyWorkers.value || dailyWorkers.value.length === 0) {
+    return []
+  }
+  
+  // Filter workers based on selected shift
+  // Check if worker is assigned to the selected shift
+  const dateStr = selectedDate.value?.format('YYYY-MM-DD')
+  if (!dateStr) return []
+  
+  // For now, show all daily workers for the selected shift
+  // In a real implementation, this would filter based on shift assignments
+  return dailyWorkers.value
+}
+
+const onShiftChange = () => {
+  // Update filtered workers when shift selection changes
+  // This will trigger re-render with the new filtered list
+}
+
+const getShiftInfo = () => {
+  const shiftTimeSettings = JSON.parse(localStorage.getItem('shiftTimeSettings') || '{}')
+  
+  const defaultSettings = {
+    morning: { start: '06:00', end: '14:00' },
+    afternoon: { start: '14:00', end: '22:00' },
+    night: { start: '22:00', end: '06:00' }
+  }
+  
+  const settings = {
+    morning: shiftTimeSettings.morning || defaultSettings.morning,
+    afternoon: shiftTimeSettings.afternoon || defaultSettings.afternoon,
+    night: shiftTimeSettings.night || defaultSettings.night
+  }
+  
+  const shiftInfo = {
+    morning: {
+      title: 'Morning Shift',
+      description: `Covers morning care activities (${settings.morning.start} - ${settings.morning.end}), breakfast assistance, and morning medications`
+    },
+    afternoon: {
+      title: 'Afternoon Shift',
+      description: `Handles afternoon activities (${settings.afternoon.start} - ${settings.afternoon.end}), lunch assistance, and afternoon care`
+    },
+    night: {
+      title: 'Night Shift',
+      description: `Provides overnight care (${settings.night.start} - ${settings.night.end}), evening medications, and night monitoring`
+    }
+  }
+  
+  return shiftInfo[selectedShift.value] || shiftInfo.morning
+}
+
+
+// Shift time settings functions
+const showShiftTimeSettingsModal = () => {
+  // Load current settings from localStorage
+  const savedSettings = JSON.parse(localStorage.getItem('shiftTimeSettings') || '{}')
+  
+  // Set form values with current settings or defaults
+  shiftTimeForm.value = {
+    morningStart: savedSettings.morning?.start ? dayjs(savedSettings.morning.start, 'HH:mm') : dayjs('06:00', 'HH:mm'),
+    morningEnd: savedSettings.morning?.end ? dayjs(savedSettings.morning.end, 'HH:mm') : dayjs('14:00', 'HH:mm'),
+    afternoonStart: savedSettings.afternoon?.start ? dayjs(savedSettings.afternoon.start, 'HH:mm') : dayjs('14:00', 'HH:mm'),
+    afternoonEnd: savedSettings.afternoon?.end ? dayjs(savedSettings.afternoon.end, 'HH:mm') : dayjs('22:00', 'HH:mm'),
+    nightStart: savedSettings.night?.start ? dayjs(savedSettings.night.start, 'HH:mm') : dayjs('22:00', 'HH:mm'),
+    nightEnd: savedSettings.night?.end ? dayjs(savedSettings.night.end, 'HH:mm') : dayjs('06:00', 'HH:mm')
+  }
+  
+  shiftTimeSettingsModalVisible.value = true
+}
+
+const confirmShiftTimeSettings = () => {
+  // Validate that all times are set
+  if (!shiftTimeForm.value.morningStart || !shiftTimeForm.value.morningEnd ||
+      !shiftTimeForm.value.afternoonStart || !shiftTimeForm.value.afternoonEnd ||
+      !shiftTimeForm.value.nightStart || !shiftTimeForm.value.nightEnd) {
+    message.error('Please set all shift times')
+    return
+  }
+  
+  // Save settings to localStorage
+  const settings = {
+    morning: {
+      start: shiftTimeForm.value.morningStart.format('HH:mm'),
+      end: shiftTimeForm.value.morningEnd.format('HH:mm')
+    },
+    afternoon: {
+      start: shiftTimeForm.value.afternoonStart.format('HH:mm'),
+      end: shiftTimeForm.value.afternoonEnd.format('HH:mm')
+    },
+    night: {
+      start: shiftTimeForm.value.nightStart.format('HH:mm'),
+      end: shiftTimeForm.value.nightEnd.format('HH:mm')
+    }
+  }
+  
+  localStorage.setItem('shiftTimeSettings', JSON.stringify(settings))
+  shiftTimeSettings.value = settings
+  
+  message.success('Shift time settings saved successfully!')
+  shiftTimeSettingsModalVisible.value = false
+}
+
 onMounted(async () => {
   loading.value = true
   
@@ -1562,6 +1926,12 @@ onMounted(async () => {
     // Load daily schedule for today
     await loadDailySchedule(todayStr)
     
+    // Load shift time settings from localStorage
+    const savedSettings = JSON.parse(localStorage.getItem('shiftTimeSettings') || '{}')
+    if (Object.keys(savedSettings).length > 0) {
+      shiftTimeSettings.value = savedSettings
+    }
+    
   } catch (error) {
     console.error('Failed to load worker management data:', error)
     message.error('Failed to load worker data')
@@ -1573,11 +1943,23 @@ onMounted(async () => {
 // Load workers from API
 const loadWorkers = async () => {
   try {
-    const response = await getAllWorkers()
+    // Use organization-specific API if organizationId is available
+    let response
+    if (organizationId.value && organizationId.value !== 'default-org') {
+      response = await getWorkersByOrganization(organizationId.value)
+    } else {
+      // Fallback to all workers if no organization ID
+      response = await getAllWorkers()
+    }
+    
     workers.value = response.data || []
     
     // Initialize available workers (all active workers)
     availableWorkers.value = workers.value.filter(worker => worker.status === 'active')
+    
+    console.log('Loaded workers:', workers.value.length, 'for organization:', organizationId.value)
+    console.log('Available workers:', availableWorkers.value.length)
+    console.log('Available workers data:', availableWorkers.value)
     
   } catch (error) {
     console.error('Failed to load workers:', error)
