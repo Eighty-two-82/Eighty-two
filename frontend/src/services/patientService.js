@@ -168,3 +168,27 @@ export async function getPatientsByFamilyMember(familyMemberId) {
         }
     }
 }
+
+// Get patient by Client ID
+export async function getPatientByClientId(clientId) {
+    try {
+        const response = await api.get(`/patients/client/${clientId}`);
+        const result = response.data;
+        
+        if (result.code === "0" && result.data) {
+            return {
+                data: result.data
+            };
+        } else {
+            throw new Error(result.msg || 'Failed to get patient by Client ID');
+        }
+    } catch (error) {
+        if (error.response?.data?.msg) {
+            throw new Error(error.response.data.msg);
+        } else if (error.message) {
+            throw error;
+        } else {
+            throw new Error('Failed to get patient by Client ID');
+        }
+    }
+}

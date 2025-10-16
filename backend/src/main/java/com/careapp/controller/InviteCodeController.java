@@ -48,18 +48,24 @@ public class InviteCodeController {
         String code = request.get("code");
         String usedBy = request.get("usedBy");
         
+        System.out.println("🔍 Backend - useInviteCode called with code: " + code + ", usedBy: " + usedBy);
+        
         if (code == null || usedBy == null) {
+            System.out.println("❌ Backend - Missing required parameters");
             return Result.<String>error("400", "Code and usedBy are required!");
         }
         
         if (!inviteCodeService.validateInviteCode(code)) {
+            System.out.println("❌ Backend - Invite code validation failed for code: " + code);
             return Result.<String>error("400", "Invalid or expired invite code!");
         }
         
         boolean success = inviteCodeService.useInviteCode(code, usedBy);
         if (success) {
+            System.out.println("✅ Backend - Invite code used successfully");
             return Result.<String>success("Access granted!", "Invite code used successfully!");
         } else {
+            System.out.println("❌ Backend - Failed to use invite code");
             return Result.<String>error("400", "Failed to use invite code!");
         }
     }

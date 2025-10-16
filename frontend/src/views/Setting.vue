@@ -8,11 +8,24 @@
             <div style="display: flex; align-items: center; gap: 8px;">
               <UserOutlined />
               <span>Client Information</span>
-              <a-tooltip title="Manage client basic information and special requirements" placement="top">
+              <a-tooltip 
+                :title="userRole === 'worker' ? 'View client information shared by your manager' : 'Manage client basic information and special requirements'" 
+                placement="top"
+              >
                 <QuestionCircleOutlined style="color: #999; cursor: help;" />
               </a-tooltip>
             </div>
           </template>
+          
+          <!-- Worker info alert -->
+          <a-alert 
+            v-if="userRole === 'worker' && clientInfo"
+            message="Client Information from Manager"
+            description="This client information is shared by your manager and synchronized from the main patient record."
+            type="info"
+            show-icon
+            style="margin-bottom: 16px;"
+          />
           
           <a-form
             :model="patientForm"
@@ -65,12 +78,116 @@
               />
             </a-form-item>
 
+            <!-- Display Client ID if generated -->
+            <a-form-item v-if="generatedClientId" label="Client ID">
+              <a-input 
+                :value="generatedClientId" 
+                readonly 
+                disabled
+                style="background-color: #f5f5f5; color: #999; font-family: monospace;"
+              />
+            </a-form-item>
+
+            <!-- Display Organization Name if bound -->
+            <a-form-item v-if="organizationName" label="Bound Organization">
+              <a-input 
+                :value="organizationName" 
+                readonly 
+                disabled
+                style="background-color: #f5f5f5; color: #999;"
+              />
+            </a-form-item>
+
+
             <a-form-item v-if="canEditPatient" :wrapper-col="{ offset: 4, span: 20 }">
               <a-button type="primary" html-type="submit" :loading="patientLoading">
-                Save Patient Information
+                Save Client Information & Generate Client ID
               </a-button>
             </a-form-item>
+
+            <!-- Manager: View Client Information -->
+            <template v-if="userRole === 'manager'">
+              <a-divider>Client Information</a-divider>
+              
+              <!-- Auto-loaded client info for bound managers -->
+              <div v-if="clientInfo" style="background: #f6ffed; border: 1px solid #b7eb8f; padding: 16px; border-radius: 6px; margin-top: 16px;">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                  <InfoCircleOutlined style="color: #52c41a;" />
+                  <h4 style="margin: 0; color: #52c41a;">Bound Client Information</h4>
+                </div>
+                <p><strong>Name:</strong> {{ clientInfo.firstName }} {{ clientInfo.lastName }}</p>
+                <p><strong>Age:</strong> {{ clientInfo.age }}</p>
+                <p><strong>Client ID:</strong> {{ clientInfo.clientId }}</p>
+                <p><strong>Medical Conditions:</strong> {{ clientInfo.medicalConditions || 'None specified' }}</p>
+                <p><strong>Special Requirements:</strong> {{ clientInfo.specialRequirements || 'None specified' }}</p>
+                <p><strong>Created By:</strong> {{ clientInfo.createdBy }}</p>
+                <p><strong>Created At:</strong> {{ clientInfo.createdAt }}</p>
+                <div style="margin-top: 12px; padding: 8px; background: #f0f9ff; border-radius: 4px; font-size: 12px; color: #1890ff;">
+                  <InfoCircleOutlined style="margin-right: 4px;" />
+                  This client information is automatically loaded through your invite token binding. You have access to manage this client's care team.
+                </div>
+              </div>
+              
+              <!-- Manual client lookup for unbound managers -->
+              <div v-else style="background: #fff7e6; border: 1px solid #ffd591; padding: 16px; border-radius: 6px; margin-top: 16px;">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                  <ExclamationCircleOutlined style="color: #faad14;" />
+                  <h4 style="margin: 0; color: #faad14;">No Client Bound</h4>
+                </div>
+                <p style="margin-bottom: 16px;">You are not currently bound to any client. To access client information, you need to use an invite token provided by a POA.</p>
+                
+                <a-form-item label="Client ID (Manual Lookup)">
+                  <a-input 
+                    v-model:value="clientIdInput" 
+                    placeholder="Enter Client ID to view client information"
+                    style="margin-bottom: 16px;"
+                  >
+                    <template #suffix>
+                      <a-button 
+                        type="primary" 
+                        @click="loadClientInfo"
+                        :loading="clientInfoLoading"
+                      >
+                        View Client
+                      </a-button>
+                    </template>
+                  </a-input>
+                </a-form-item>
+              </div>
+            </template>
           </a-form>
+
+          <!-- Display existing token if available -->
+          <div v-if="generatedToken && userRole === 'poa'" style="background: #f0f9ff; padding: 16px; border-radius: 6px; border: 1px solid #bae6fd; margin-top: 16px;">
+            <h4 style="color: #0369a1; margin-bottom: 12px;">Generated Token</h4>
+            <p style="margin-bottom: 8px;"><strong>Token:</strong></p>
+            <a-input-group compact>
+              <a-input 
+                :value="generatedToken" 
+                readonly 
+                style="background-color: #f5f5f5; color: #999; font-family: monospace;"
+              />
+              <a-button 
+                type="primary" 
+                @click="copyToken"
+                style="background-color: #1890ff; border-color: #1890ff;"
+              >
+                <template #icon>
+                  <CopyOutlined />
+                </template>
+                Copy
+              </a-button>
+            </a-input-group>
+            <p style="color: #666; font-size: 12px; margin-bottom: 8px; margin-top: 12px;">
+              <strong>Organization:</strong> {{ organizationName }}
+            </p>
+            <p style="color: #666; font-size: 12px; margin-bottom: 8px;">
+              <strong>Expires:</strong> {{ tokenExpiration }}
+            </p>
+            <p style="color: #666; font-size: 12px;">
+              <strong>Status:</strong> <span style="color: #52c41a;">Valid for 7 days</span>
+            </p>
+          </div>
         </a-card>
       </a-col>
 
@@ -192,6 +309,7 @@
         </a-card>
       </a-col>
     </a-row>
+
   </div>
 </template>
 
@@ -202,15 +320,38 @@ import {
   QuestionCircleOutlined, 
   UserOutlined, 
   SettingOutlined, 
-  BellOutlined 
+  BellOutlined,
+  CopyOutlined,
+  InfoCircleOutlined,
+  ExclamationCircleOutlined
 } from '@ant-design/icons-vue'
-import { getMe } from '@/services/userService'
-import { getPatientById, updatePatient } from '@/services/patientService'
+import { getMe, updateUserPatientId, updateUserProfile, updateUserNotificationSettings } from '@/services/userService'
+import { getPatientById, updatePatient, getPatientByClientId, createPatient } from '@/services/patientService'
 
 const userRole = ref('worker')
 const patientLoading = ref(false)
 const profileLoading = ref(false)
 const notificationLoading = ref(false)
+const generatedClientId = ref('')
+const organizationName = ref('')
+const clientIdInput = ref('')
+const clientInfoLoading = ref(false)
+const clientInfo = ref(null)
+
+// Token display variables
+const generatedToken = ref('')
+const tokenExpiration = ref('')
+
+// Copy token to clipboard
+const copyToken = async () => {
+  try {
+    await navigator.clipboard.writeText(generatedToken.value)
+    message.success('Token copied to clipboard!')
+  } catch (error) {
+    console.error('Failed to copy token:', error)
+    message.error('Failed to copy token')
+  }
+}
 
 // Patient Information Form
 const patientForm = reactive({
@@ -248,15 +389,15 @@ onMounted(async () => {
     profileForm.fullName = userInfo?.data?.name || 'Test User'
     profileForm.email = userInfo?.data?.email || 'test@example.com'
     
-    // Load patient information if user is POA
-    if (userRole.value === 'poa') {
+    // Load patient information if user is POA, Manager, or Worker
+    if (userRole.value === 'poa' || userRole.value === 'manager' || userRole.value === 'worker') {
       await loadPatientInfo()
     } else {
       // Load mock patient data for other roles
       loadPatientData()
     }
     
-    loadNotificationSettings()
+    await loadNotificationSettings()
   } catch (e) {
     console.error('Failed to get user info:', e)
   }
@@ -266,13 +407,63 @@ onMounted(async () => {
 const loadPatientInfo = async () => {
   try {
     const userInfo = await getMe()
+    console.log('🔍 Setting.vue - User info received:', userInfo)
+    console.log('🔍 Setting.vue - PatientId:', userInfo?.data?.patientId)
+    console.log('🔍 Setting.vue - User role:', userInfo?.data?.role)
+    
     if (userInfo?.data?.patientId) {
+      console.log('✅ Setting.vue - Found patientId, loading patient data')
       const response = await getPatientById(userInfo.data.patientId)
       if (response?.data) {
-        patientForm.name = response.data.name || ''
+        // Handle both old format (name) and new format (firstName + lastName)
+        if (response.data.name) {
+          patientForm.name = response.data.name
+        } else if (response.data.firstName || response.data.lastName) {
+          patientForm.name = `${response.data.firstName || ''} ${response.data.lastName || ''}`.trim()
+        }
+        
         patientForm.age = response.data.age || null
         patientForm.medicalConditions = response.data.medicalConditions || ''
         patientForm.specialRequirements = response.data.specialRequirements || ''
+        
+        // Load generated Client ID if it exists
+        if (response.data.clientId) {
+          generatedClientId.value = response.data.clientId
+        }
+        
+        // Load organization name if it exists
+        if (response.data.organizationName) {
+          organizationName.value = response.data.organizationName
+        }
+        
+        // Load token information if it exists (separate from Client ID)
+        if (response.data.inviteToken && response.data.tokenExpiration) {
+          generatedToken.value = response.data.inviteToken
+          tokenExpiration.value = new Date(response.data.tokenExpiration).toLocaleDateString()
+        }
+        
+        // For managers and workers, automatically load client info if bound to patient
+        if (userInfo?.data?.role === 'manager' || userInfo?.data?.role === 'worker') {
+          console.log(`✅ ${userInfo.data.role} is bound to patient, client info loaded automatically`)
+          console.log('🔍 Setting.vue - Client info data:', response.data)
+          clientInfo.value = response.data
+          console.log('🔍 Setting.vue - Client info set to:', clientInfo.value)
+          
+          // For workers, show additional message about client info source
+          if (userInfo?.data?.role === 'worker') {
+            console.log('📋 Worker accessing client info from manager via shared patient record')
+          }
+        }
+      }
+    } else {
+      // No patient ID found, start with empty form
+      console.log('No patient ID found, starting with empty form')
+      
+      // For managers and workers without patient binding, show message
+      if (userInfo?.data?.role === 'manager') {
+        console.log('Manager not bound to any patient yet')
+      } else if (userInfo?.data?.role === 'worker') {
+        console.log('Worker not bound to any patient yet - no client info available')
       }
     }
   } catch (error) {
@@ -289,12 +480,68 @@ const loadPatientData = () => {
 }
 
 // Mock function to load notification settings
-const loadNotificationSettings = () => {
-  // In real app, this would be an API call
-  notificationForm.taskReminders = true
-  notificationForm.approvalNotifications = userRole.value === 'poa' || userRole.value === 'manager'
-  notificationForm.budgetWarning = userRole.value === 'poa' || userRole.value === 'manager'
-  notificationForm.emailNotifications = true
+const loadNotificationSettings = async () => {
+  try {
+    const userInfo = await getMe()
+    if (userInfo?.data) {
+      // Load notification settings from user data
+      notificationForm.taskReminders = userInfo.data.taskReminders !== undefined ? userInfo.data.taskReminders : true
+      notificationForm.approvalNotifications = userInfo.data.approvalNotifications !== undefined ? userInfo.data.approvalNotifications : (userRole.value === 'poa' || userRole.value === 'manager')
+      notificationForm.budgetWarning = userInfo.data.budgetWarning !== undefined ? userInfo.data.budgetWarning : (userRole.value === 'poa' || userRole.value === 'manager')
+      notificationForm.emailNotifications = userInfo.data.emailNotifications !== undefined ? userInfo.data.emailNotifications : true
+    } else {
+      // Fallback to default values
+      notificationForm.taskReminders = true
+      notificationForm.approvalNotifications = userRole.value === 'poa' || userRole.value === 'manager'
+      notificationForm.budgetWarning = userRole.value === 'poa' || userRole.value === 'manager'
+      notificationForm.emailNotifications = true
+    }
+  } catch (error) {
+    console.error('Failed to load notification settings:', error)
+    // Fallback to default values
+    notificationForm.taskReminders = true
+    notificationForm.approvalNotifications = userRole.value === 'poa' || userRole.value === 'manager'
+    notificationForm.budgetWarning = userRole.value === 'poa' || userRole.value === 'manager'
+    notificationForm.emailNotifications = true
+  }
+}
+
+
+// Generate unique Client ID based on name and age
+const generateClientId = (name, age) => {
+  const timestamp = Date.now().toString(36)
+  const nameCode = name.replace(/\s+/g, '').toUpperCase().substring(0, 3)
+  const ageCode = age ? age.toString().padStart(2, '0') : '00'
+  const randomCode = Math.random().toString(36).substring(2, 6).toUpperCase()
+  
+  return `CLI-${nameCode}-${ageCode}-${randomCode}-${timestamp}`
+}
+
+
+// Load client information by Client ID (for Manager)
+const loadClientInfo = async () => {
+  if (!clientIdInput.value.trim()) {
+    message.warning('Please enter a Client ID')
+    return
+  }
+  
+  clientInfoLoading.value = true
+  try {
+    const response = await getPatientByClientId(clientIdInput.value.trim())
+    if (response?.data) {
+      clientInfo.value = response.data
+      message.success('Client information loaded successfully!')
+    } else {
+      message.error('Client not found with this Client ID')
+      clientInfo.value = null
+    }
+  } catch (error) {
+    console.error('Failed to load client info:', error)
+    message.error('Failed to load client information')
+    clientInfo.value = null
+  } finally {
+    clientInfoLoading.value = false
+  }
 }
 
 // Handle patient form submission
@@ -307,22 +554,51 @@ const onPatientFormFinish = async () => {
   patientLoading.value = true
   try {
     const userInfo = await getMe()
-    if (!userInfo?.data?.patientId) {
-      throw new Error('Patient ID not found')
-    }
+    
+    // Generate unique Client ID
+    const clientId = generateClientId(patientForm.name, patientForm.age)
     
     const patientData = {
-      name: patientForm.name,
+      firstName: patientForm.name.split(' ')[0] || patientForm.name,
+      lastName: patientForm.name.split(' ').slice(1).join(' ') || '',
       age: patientForm.age,
       medicalConditions: patientForm.medicalConditions,
-      specialRequirements: patientForm.specialRequirements
+      specialRequirements: patientForm.specialRequirements,
+      clientId: clientId,
+      createdBy: userInfo.data.id || 'poa',
+      createdAt: new Date().toISOString(),
+      poaId: userInfo.data.id || 'poa',
+      organizationName: userInfo.data.organizationName || 'Default Organization'
     }
     
-    await updatePatient(userInfo.data.patientId, patientData)
-    message.success('Client information updated successfully')
+    let savedPatient
+    if (userInfo?.data?.patientId) {
+      // Update existing patient
+      savedPatient = await updatePatient(userInfo.data.patientId, patientData)
+    } else {
+      // Create new patient
+      savedPatient = await createPatient(patientData)
+      
+      // Update user's patientId in backend database
+      if (savedPatient?.data?.id) {
+        try {
+          await updateUserPatientId(userInfo.data.id, savedPatient.data.id)
+          console.log('Updated user patientId in backend database:', savedPatient.data.id)
+        } catch (updateError) {
+          console.error('Failed to update user patientId in backend:', updateError)
+          // Don't fail the whole operation if backend update fails
+        }
+      }
+    }
+    
+    // Set generated values for display
+    generatedClientId.value = clientId
+    organizationName.value = patientData.organizationName
+    
+    message.success('Client information saved successfully! Client ID: ' + clientId)
   } catch (e) {
-    console.error('Failed to update patient info:', e)
-    message.error(e.message || 'Failed to update client information')
+    console.error('Failed to save patient info:', e)
+    message.error(e.message || 'Failed to save client information')
   } finally {
     patientLoading.value = false
   }
@@ -332,10 +608,20 @@ const onPatientFormFinish = async () => {
 const onProfileFormFinish = async () => {
   profileLoading.value = true
   try {
-    // Note: Backend doesn't have updateUserProfile API yet
-    // This is a placeholder implementation
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    message.success('Profile updated successfully (Note: Backend API not implemented yet)')
+    const userInfo = await getMe()
+    if (!userInfo?.data?.id) {
+      throw new Error('User not authenticated')
+    }
+    
+    const profileData = {
+      firstName: profileForm.fullName.split(' ')[0] || '',
+      middleName: '',
+      lastName: profileForm.fullName.split(' ').slice(1).join(' ') || '',
+      email: profileForm.email
+    }
+    
+    await updateUserProfile(userInfo.data.id, profileData)
+    message.success('Profile updated successfully!')
   } catch (e) {
     console.error('Failed to update profile:', e)
     message.error(e.message || 'Failed to update profile')
@@ -348,11 +634,23 @@ const onProfileFormFinish = async () => {
 const onNotificationFormFinish = async () => {
   notificationLoading.value = true
   try {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    message.success('Notification settings updated successfully')
+    const userInfo = await getMe()
+    if (!userInfo?.data?.id) {
+      throw new Error('User not authenticated')
+    }
+    
+    const notificationData = {
+      taskReminders: notificationForm.taskReminders,
+      approvalNotifications: notificationForm.approvalNotifications,
+      budgetWarning: notificationForm.budgetWarning,
+      emailNotifications: notificationForm.emailNotifications
+    }
+    
+    await updateUserNotificationSettings(userInfo.data.id, notificationData)
+    message.success('Notification settings updated successfully!')
   } catch (e) {
-    message.error('Failed to update notification settings')
+    console.error('Failed to update notification settings:', e)
+    message.error(e.message || 'Failed to update notification settings')
   } finally {
     notificationLoading.value = false
   }

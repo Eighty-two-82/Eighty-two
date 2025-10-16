@@ -113,16 +113,66 @@ public class UserController {
         return Result.<Boolean>error("400", "Invalid or expired token");
     }
 
-    // Get invite status - Mock implementation for frontend testing
+    // Update user patientId
+    @PutMapping("/user/{userId}/patient")
+    public Result<Boolean> updateUserPatientId(@PathVariable String userId, @RequestBody Map<String, String> body) {
+        String patientId = body.get("patientId");
+        boolean success = userService.updateUserPatientId(userId, patientId);
+        if (success) {
+            return Result.success(true, "User patientId updated successfully!");
+        } else {
+            return Result.<Boolean>error("400", "Failed to update user patientId!");
+        }
+    }
+
+    // Get invite status - Check if user has already used an invite code
     @GetMapping("/invite-status")
-    public Result<Map<String, Object>> getInviteStatus() {
-        // For now, return mock data
-        // TODO: Implement proper invite status logic
-        Map<String, Object> inviteStatus = Map.of(
-            "valid", false,
-            "reason", "missing"
-        );
-        return Result.success(inviteStatus, "Invite status retrieved!");
+    public Result<Map<String, Object>> getInviteStatus(@RequestParam(required = false) String userId) {
+        System.out.println("🔍 Backend - getInviteStatus called with userId: " + userId);
+        
+        if (userId == null || userId.trim().isEmpty()) {
+            System.out.println("❌ Backend - No userId provided");
+            return Result.error("400", "User ID is required!");
+        }
+        
+        try {
+            // Get user information
+            User user = userService.getUserById(userId);
+            if (user == null) {
+                System.out.println("❌ Backend - User not found: " + userId);
+                return Result.error("404", "User not found!");
+            }
+            
+            System.out.println("🔍 Backend - User hasUsedInviteCode: " + user.isHasUsedInviteCode());
+            
+            Map<String, Object> inviteStatus;
+            if (user.isHasUsedInviteCode()) {
+                // User has already used an invite code
+                System.out.println("✅ Backend - User has already used invite code, returning valid=true");
+                inviteStatus = Map.of(
+                    "valid", true,
+                    "reason", "already_used"
+                );
+            } else {
+                // User hasn't used any invite code yet
+                System.out.println("📝 Backend - User hasn't used any invite code yet, returning valid=false");
+                inviteStatus = Map.of(
+                    "valid", false,
+                    "reason", "missing"
+                );
+            }
+            
+            System.out.println("🔍 Backend - Returning invite status: " + inviteStatus);
+            return Result.success(inviteStatus, "Invite status retrieved!");
+        } catch (Exception e) {
+            System.err.println("❌ Backend - Error getting invite status: " + e.getMessage());
+            // Fallback to invalid status
+            Map<String, Object> inviteStatus = Map.of(
+                "valid", false,
+                "reason", "error"
+            );
+            return Result.success(inviteStatus, "Invite status retrieved with fallback!");
+        }
     }
 
     // Submit invite code - Mock implementation for frontend testing
@@ -158,17 +208,19 @@ public class UserController {
 
     // Get current user information (for frontend)
     @GetMapping("/me")
-    public Result<Map<String, Object>> getMe(@RequestParam(required = false) String token) {
-        // For now, return mock data based on frontend expectations
-        // In a real implementation, this would validate the token and return actual user data
-        // TODO: Implement proper token validation and user lookup
-        
-        Map<String, Object> userInfo = Map.of(
-            "role", "manager", // Change this to test different roles
-            "email", "test@example.com",
-            "name", "Test User"
-        );
-        return Result.success(userInfo, "User information retrieved successfully!");
+    public Result<User> getMe(@RequestParam(required = false) String userId) {
+        if (userId != null && !userId.trim().isEmpty()) {
+            // Get user by ID
+            User user = userService.getUserById(userId);
+            if (user != null) {
+                return Result.success(user, "User information retrieved successfully!");
+            } else {
+                return Result.error("404", "User not found!");
+            }
+        } else {
+            // Return error if no userId provided
+            return Result.error("400", "User ID is required!");
+        }
     }
 
     // Logout endpoint
@@ -188,6 +240,46 @@ public class UserController {
             return Result.success("Logout successful", "User logged out successfully!");
         } catch (Exception e) {
             return Result.error("500", "Logout failed: " + e.getMessage());
+        }
+    }
+
+    // Update user profile
+    @PutMapping("/profile/{userId}")
+    public Result<String> updateUserProfile(@PathVariable String userId, @RequestBody Map<String, String> profileData) {
+        try {
+            String firstName = profileData.get("firstName");
+            String middleName = profileData.get("middleName");
+            String lastName = profileData.get("lastName");
+            String email = profileData.get("email");
+            
+            boolean success = userService.updateUserProfile(userId, firstName, middleName, lastName, email);
+            if (success) {
+                return Result.success("Profile updated successfully", "User profile updated!");
+            } else {
+                return Result.error("400", "Failed to update profile!");
+            }
+        } catch (Exception e) {
+            return Result.error("500", "Profile update failed: " + e.getMessage());
+        }
+    }
+
+    // Update user notification settings
+    @PutMapping("/notifications/{userId}")
+    public Result<String> updateUserNotificationSettings(@PathVariable String userId, @RequestBody Map<String, Object> notificationData) {
+        try {
+            boolean taskReminders = (Boolean) notificationData.getOrDefault("taskReminders", true);
+            boolean approvalNotifications = (Boolean) notificationData.getOrDefault("approvalNotifications", true);
+            boolean budgetWarning = (Boolean) notificationData.getOrDefault("budgetWarning", true);
+            boolean emailNotifications = (Boolean) notificationData.getOrDefault("emailNotifications", true);
+            
+            boolean success = userService.updateUserNotificationSettings(userId, taskReminders, approvalNotifications, budgetWarning, emailNotifications);
+            if (success) {
+                return Result.success("Notification settings updated successfully", "Notification settings updated!");
+            } else {
+                return Result.error("400", "Failed to update notification settings!");
+            }
+        } catch (Exception e) {
+            return Result.error("500", "Notification settings update failed: " + e.getMessage());
         }
     }
 

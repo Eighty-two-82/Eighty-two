@@ -157,37 +157,175 @@
     <a-modal
       v-model:open="tokenModalVisible"
       title="Generate Invite Token"
+      width="700px"
       @ok="confirmGenerateToken"
       @cancel="tokenModalVisible = false"
     >
+      <!-- Usage Instructions -->
+      <div style="background: #f6ffed; border: 1px solid #b7eb8f; border-radius: 6px; padding: 16px; margin-bottom: 20px;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+          <InfoCircleOutlined style="color: #52c41a; font-size: 16px;" />
+          <span style="font-weight: 600; color: #52c41a; font-size: 14px;">How to Use Invite Tokens</span>
+        </div>
+        <div style="font-size: 13px; line-height: 1.6; color: #666;">
+          <div style="margin-bottom: 8px;">
+            <strong>Step 1:</strong> Fill out the form below to generate a unique invite token
+          </div>
+          <div style="margin-bottom: 8px;">
+            <strong>Step 2:</strong> Share the generated token with the organization or individual
+          </div>
+          <div style="margin-bottom: 8px;">
+            <strong>Step 3:</strong> They can use this token during registration to join your care team
+          </div>
+          <div style="margin-bottom: 8px;">
+            <strong>Step 4:</strong> The token will automatically expire after the specified number of days
+          </div>
+          <div style="color: #ff4d4f; font-weight: 500;">
+            <strong>Important:</strong> 
+            <span v-if="tokenForm.tokenType === 'manager'">Manager tokens allow organizations to register new manager accounts</span>
+            <span v-else-if="tokenForm.tokenType === 'worker'">Worker tokens allow organizations to register new worker accounts</span>
+            <span v-else>Keep tokens secure and only share with trusted parties</span>
+          </div>
+        </div>
+      </div>
+
       <a-form :model="tokenForm" layout="vertical">
-        <a-form-item label="Token Type">
-          <a-input
-            v-model:value="tokenForm.type"
-            value="Worker"
-            disabled
-            style="background-color: #f5f5f5;"
-          />
-          <div style="font-size: 12px; color: #666; margin-top: 4px;">
-            This token is specifically for inviting workers to join the team
+        <a-form-item label="Worker Name" required>
+          <a-input v-model:value="tokenForm.organizationName" placeholder="Enter worker name" />
+          <div style="font-size: 12px; color: #999; margin-top: 4px;">
+            The name of the worker who will receive this token
           </div>
         </a-form-item>
-        <a-form-item label="Expiration (days)">
-          <a-input-number
-            v-model:value="tokenForm.expirationDays"
-            :min="1"
-            :max="30"
-            style="width: 100%"
-          />
+        
+        <a-form-item label="Token Type" required>
+          <a-select v-model:value="tokenForm.tokenType" placeholder="Select token type" style="width: 100%;">
+            <a-select-option value="manager">Manager</a-select-option>
+            <a-select-option value="worker">Worker</a-select-option>
+          </a-select>
+          <div style="font-size: 12px; color: #999; margin-top: 4px;">
+            <span v-if="tokenForm.tokenType === 'manager'">Manager tokens allow organizations to register new manager accounts</span>
+            <span v-else-if="tokenForm.tokenType === 'worker'">Worker tokens allow organizations to register new worker accounts</span>
+            <span v-else>Select the type of account this token will create</span>
+          </div>
         </a-form-item>
-        <a-form-item label="Notes (optional)">
-          <a-textarea
-            v-model:value="tokenForm.notes"
-            placeholder="Add any notes for this invite token"
+        
+        <a-form-item label="Expiration Days" required>
+          <a-input-number 
+            v-model:value="tokenForm.expirationDays" 
+            :min="1" 
+            :max="30" 
+            style="width: 100%;"
+            placeholder="Enter expiration days (1-30)"
+          />
+          <div style="font-size: 12px; color: #999; margin-top: 4px;">
+            Token will be valid for this many days after generation
+          </div>
+        </a-form-item>
+        
+        <a-form-item label="Notes">
+          <a-textarea 
+            v-model:value="tokenForm.notes" 
+            placeholder="Enter any additional notes for the organization"
             :rows="3"
           />
+          <div style="font-size: 12px; color: #999; margin-top: 4px;">
+            Optional notes that will be included with the token (e.g., contact information, special instructions)
+          </div>
         </a-form-item>
       </a-form>
+    </a-modal>
+
+    <!-- Generated Token Display Modal -->
+    <a-modal
+      v-model:open="tokenDisplayModalVisible"
+      title="Existing Valid Token"
+      width="600px"
+      :footer="null"
+    >
+      <div style="text-align: center; padding: 20px;">
+        <div style="margin-bottom: 20px;">
+          <a-typography-title :level="4" style="color: #52c41a;">
+            Valid Token Found!
+          </a-typography-title>
+          <p style="color: #666; margin-top: 8px;">
+            You already have a valid invite token for {{ tokenForm.organizationName || 'this worker' }}.
+          </p>
+        </div>
+        
+        <div style="background: #f6ffed; border: 1px solid #b7eb8f; border-radius: 6px; padding: 16px; margin-bottom: 20px;">
+          <div style="font-weight: bold; margin-bottom: 8px;">Invite Token:</div>
+          <div style="font-family: monospace; font-size: 16px; color: #1890ff; word-break: break-all;">
+            {{ generatedToken }}
+          </div>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+          <a-button type="primary" @click="copyToken" style="margin-right: 8px;">
+            Copy Token
+          </a-button>
+          <a-button @click="downloadToken" style="margin-right: 8px;">
+            Download as Text
+          </a-button>
+          <a-button type="default" @click="forceGenerateNewToken">
+            <template #icon><ReloadOutlined /></template>
+            Generate New Token
+          </a-button>
+        </div>
+        
+        <!-- Detailed Usage Instructions -->
+        <div style="text-align: left; background: #fff7e6; border: 1px solid #ffd591; border-radius: 6px; padding: 16px; margin-bottom: 20px;">
+          <div style="font-weight: bold; margin-bottom: 12px; color: #d46b08;">
+            <InfoCircleOutlined style="margin-right: 6px;" />
+            Instructions for {{ tokenForm.organizationName || 'the Worker' }}:
+          </div>
+          <div style="font-size: 13px; line-height: 1.6; color: #666;">
+            <div style="margin-bottom: 8px;">
+              <strong>1. Registration Process:</strong><br/>
+              • Go to the registration page<br/>
+              • Enter the invite token when prompted<br/>
+              • Complete the registration form with your details
+            </div>
+            <div style="margin-bottom: 8px;">
+              <strong>2. Token Details:</strong><br/>
+              • Token Type: {{ tokenForm.tokenType === 'manager' ? 'Manager' : 'Worker' }}<br/>
+              • Expires in: {{ tokenForm.expirationDays }} days<br/>
+              • Generated: {{ new Date().toLocaleDateString() }}
+            </div>
+            <div style="margin-bottom: 8px;">
+              <strong>3. After Registration:</strong><br/>
+              <span v-if="tokenForm.tokenType === 'manager'">
+                • You'll be automatically added to the care team as a Manager<br/>
+                • You can start managing schedules and tasks<br/>
+                • You can generate invite tokens for Workers<br/>
+                • Contact the POA if you have any questions
+              </span>
+              <span v-else-if="tokenForm.tokenType === 'worker'">
+                • You'll be automatically added to the care team as a Worker<br/>
+                • You can view your assigned schedules and tasks<br/>
+                • You can update task status and add notes<br/>
+                • Contact your Manager if you have any questions
+              </span>
+              <span v-else>
+                • You'll be automatically added to the care team<br/>
+                • You can start managing schedules and tasks<br/>
+                • Contact the team lead if you have any questions
+              </span>
+            </div>
+            <div style="color: #ff4d4f; font-weight: 500;">
+              <strong>⚠️ Important:</strong> 
+              <span v-if="tokenForm.tokenType === 'manager'">This Manager token can be used multiple times within the expiration period and will expire automatically</span>
+              <span v-else-if="tokenForm.tokenType === 'worker'">This Worker token can be used multiple times within the expiration period and will expire automatically</span>
+              <span v-else>This token can only be used once and will expire automatically</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Contact Information -->
+        <div v-if="tokenForm.notes" style="text-align: left; background: #f0f9ff; border: 1px solid #91d5ff; border-radius: 6px; padding: 12px; margin-bottom: 20px;">
+          <div style="font-weight: bold; margin-bottom: 8px; color: #1890ff;">Additional Notes:</div>
+          <div style="font-size: 13px; line-height: 1.6; color: #666;">{{ tokenForm.notes }}</div>
+        </div>
+      </div>
     </a-modal>
 
     <!-- Daily Management Modal -->
@@ -683,7 +821,9 @@ import {
   InboxOutlined,
   UserOutlined,
   TeamOutlined,
-  CalendarOutlined
+  CalendarOutlined,
+  InfoCircleOutlined,
+  ReloadOutlined
 } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
 import { addRemovedWorker } from '@/services/userService'
@@ -708,6 +848,7 @@ const loading = ref(false)
 const generatingToken = ref(false)
 const generatedToken = ref(null)
 const tokenModalVisible = ref(false)
+const tokenDisplayModalVisible = ref(false)
 const uploadModalVisible = ref(false)
 const dailyManagementModalVisible = ref(false)
 const fileList = ref([])
@@ -725,7 +866,8 @@ const removeConfirmationChecked = ref(false)
 
 // Forms
 const tokenForm = ref({
-  type: 'Worker',
+  organizationName: '',
+  tokenType: 'worker',
   expirationDays: 7,
   notes: ''
 })
@@ -829,13 +971,52 @@ const workerColumns = [
 ]
 
 // Methods
-const generateInviteToken = () => {
+const generateInviteToken = async () => {
+  // Check if there's already a valid token stored
+  try {
+    const { getPatientById } = await import('@/services/patientService')
+    
+    if (currentUser.value?.patientId) {
+      const patientData = await getPatientById(currentUser.value.patientId)
+      
+      if (patientData?.data?.inviteToken && patientData?.data?.tokenExpiration) {
+        const expirationDate = new Date(patientData.data.tokenExpiration)
+        const now = new Date()
+        
+        if (expirationDate > now) {
+          // Token is still valid, show existing token
+          console.log('✅ Found existing valid token, displaying it')
+          generatedToken.value = patientData.data.inviteToken
+          tokenForm.value.organizationName = patientData.data.organizationName || 'Worker'
+          
+          // Show token display modal directly
+          tokenDisplayModalVisible.value = true
+          return
+        } else {
+          console.log('⚠️ Existing token has expired, generating new one')
+        }
+      }
+    }
+  } catch (error) {
+    console.log('No existing token found or error checking:', error)
+  }
+  
+  // Clear previous token and close display modal when opening form modal
+  generatedToken.value = null
+  tokenDisplayModalVisible.value = false
   tokenModalVisible.value = true
 }
 
 const confirmGenerateToken = async () => {
+  if (!tokenForm.value.organizationName) {
+    message.error('Please fill in worker name')
+    return
+  }
+
   generatingToken.value = true
   try {
+    message.loading('Generating invite token...', 0)
+    
     if (!currentUser.value) {
       throw new Error('User not authenticated')
     }
@@ -844,7 +1025,7 @@ const confirmGenerateToken = async () => {
     const inviteData = {
       createdBy: currentUser.value.id,
       createdByType: currentUser.value.role === 'manager' ? 'MANAGER' : 'POA',
-      targetType: tokenForm.value.type === 'Worker' ? 'WORKER' : 'MANAGER',
+      targetType: tokenForm.value.tokenType.toUpperCase(), // Convert 'manager' to 'MANAGER', 'worker' to 'WORKER'
       patientId: currentUser.value.patientId || 'default-patient',
       organizationId: organizationId.value || 'default-org'
     }
@@ -854,17 +1035,69 @@ const confirmGenerateToken = async () => {
     
     if (response.data) {
       generatedToken.value = response.data
+      
+      // Calculate token expiration (7 days from now)
+      const expirationDate = new Date()
+      expirationDate.setDate(expirationDate.getDate() + tokenForm.value.expirationDays)
+      
+      // Store token information in backend Patient record
+      try {
+        const { getPatientById, updatePatient, createPatient } = await import('@/services/patientService')
+        
+        // Prepare patient data with token information
+        const patientData = {
+          inviteToken: response.data,
+          organizationName: tokenForm.value.organizationName,
+          organizationId: currentUser.value.organizationId || 'default-org',
+          tokenExpiration: expirationDate.toISOString(),
+          createdBy: currentUser.value.id || 'manager',
+          createdAt: new Date().toISOString(),
+          poaId: currentUser.value.id || 'manager'
+        }
+        
+        console.log('📤 Storing token data to backend:', patientData)
+        
+        if (currentUser.value?.patientId) {
+          // Update existing patient
+          const updateResult = await updatePatient(currentUser.value.patientId, patientData)
+          console.log('📥 Token stored in existing patient record:', updateResult)
+        } else {
+          // Create new patient with basic info
+          const basicPatientData = {
+            firstName: 'Client',
+            lastName: 'Name',
+            age: 0,
+            medicalConditions: '',
+            specialRequirements: '',
+            ...patientData
+          }
+          const createResult = await createPatient(basicPatientData)
+          console.log('📥 Token stored in new patient record:', createResult)
+        }
+        
+        console.log('✅ Token information stored successfully in backend')
+      } catch (patientError) {
+        console.error('Failed to store token in backend:', patientError)
+        // Don't fail the whole operation if backend storage fails
+      }
+      
+      message.destroy()
       message.success('Invite token generated successfully!')
+      
+      // Close form modal and open token display modal
       tokenModalVisible.value = false
+      tokenDisplayModalVisible.value = true
       
       // Reset form
       tokenForm.value = {
-        type: 'Worker',
+        organizationName: '',
+        tokenType: 'worker',
         expirationDays: 7,
         notes: ''
       }
     }
   } catch (error) {
+    message.destroy()
     console.error('Failed to generate invite token:', error)
     message.error(error.message || 'Failed to generate invite token')
   } finally {
@@ -874,6 +1107,45 @@ const confirmGenerateToken = async () => {
 
 const showUploadModal = () => {
   uploadModalVisible.value = true
+}
+
+// Token management functions
+const copyToken = async () => {
+  try {
+    await navigator.clipboard.writeText(generatedToken.value)
+    message.success('Token copied to clipboard!')
+  } catch (error) {
+    message.error('Failed to copy token')
+  }
+}
+
+const forceGenerateNewToken = () => {
+  // Close token display modal and open form modal
+  tokenDisplayModalVisible.value = false
+  tokenModalVisible.value = true
+}
+
+const downloadToken = () => {
+  const tokenData = {
+    token: generatedToken.value,
+    organization: tokenForm.value.organizationName,
+    tokenType: tokenForm.value.tokenType,
+    expirationDays: tokenForm.value.expirationDays,
+    generatedDate: new Date().toISOString(),
+    notes: tokenForm.value.notes
+  }
+  
+  const blob = new Blob([JSON.stringify(tokenData, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `worker-invite-token-${tokenForm.value.organizationName.replace(/\s+/g, '-')}.json`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+  
+  message.success('Token data downloaded successfully!')
 }
 
 const showDailyManagementModal = () => {
@@ -1080,29 +1352,42 @@ const confirmEditStatus = async () => {
 
   try {
     message.loading('Updating worker status...', 0)
-    await new Promise(resolve => setTimeout(resolve, 1500))
-
-    // Update worker status in the workers array
-    const workerIndex = workers.value.findIndex(w => w.id === selectedWorkerDetail.value.id)
-    if (workerIndex !== -1) {
-      workers.value[workerIndex].status = editStatusForm.value.newStatus
+    
+    const workerData = {
+      id: selectedWorkerDetail.value.id,
+      status: editStatusForm.value.newStatus,
+      reason: editStatusForm.value.reason
     }
+    
+    const response = await updateWorker(workerData)
+    
+    if (response.data) {
+      // Update worker status in the workers array
+      const workerIndex = workers.value.findIndex(w => w.id === selectedWorkerDetail.value.id)
+      if (workerIndex !== -1) {
+        workers.value[workerIndex].status = editStatusForm.value.newStatus
+      }
 
-    // Update in dailyWorkers if present
-    const dailyWorkerIndex = dailyWorkers.value.findIndex(w => w.id === selectedWorkerDetail.value.id)
-    if (dailyWorkerIndex !== -1) {
-      dailyWorkers.value[dailyWorkerIndex].status = editStatusForm.value.newStatus
+      // Update in dailyWorkers if present
+      const dailyWorkerIndex = dailyWorkers.value.findIndex(w => w.id === selectedWorkerDetail.value.id)
+      if (dailyWorkerIndex !== -1) {
+        dailyWorkers.value[dailyWorkerIndex].status = editStatusForm.value.newStatus
+      }
+
+      // Update selectedWorkerDetail
+      selectedWorkerDetail.value.status = editStatusForm.value.newStatus
+
+      message.destroy()
+      message.success(`Successfully updated ${selectedWorkerDetail.value.name}'s status to ${editStatusForm.value.newStatus}`)
+      editStatusModalVisible.value = false
+    } else {
+      message.destroy()
+      message.error('Failed to update worker status')
     }
-
-    // Update selectedWorkerDetail
-    selectedWorkerDetail.value.status = editStatusForm.value.newStatus
-
-    message.destroy()
-    message.success(`Successfully updated ${selectedWorkerDetail.value.name}'s status to ${editStatusForm.value.newStatus}`)
-    editStatusModalVisible.value = false
   } catch (error) {
     message.destroy()
-    message.error('Failed to update worker status')
+    console.error('Failed to update worker status:', error)
+    message.error(error.message || 'Failed to update worker status')
   }
 }
 

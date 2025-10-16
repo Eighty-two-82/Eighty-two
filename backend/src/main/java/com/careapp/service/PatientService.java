@@ -58,6 +58,11 @@ public class PatientService {
         return patientRepository.findByMedicalRecordNumber(medicalRecordNumber);
     }
     
+    // Get patient by Client ID
+    public Optional<Patient> getPatientByClientId(String clientId) {
+        return patientRepository.findByClientId(clientId);
+    }
+    
     // Assign patient to family member
     public Patient assignFamilyMember(String patientId, String familyMemberId) {
         Optional<Patient> patientOpt = patientRepository.findById(patientId);

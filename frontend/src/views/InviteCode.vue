@@ -65,17 +65,29 @@
   onMounted(async () => {
     try {
       const me = await getMe()
+      console.log('🔍 InviteCode page - User info:', me)
+      
       if (!needsInvite(me?.data?.role)) {
+        console.log('✅ InviteCode page - User does not need invite code, redirecting back')
         goBack()
         return
       }
+      
       const status = await getInviteStatus()
-      if (status?.data?.valid) {
+      console.log('🔍 InviteCode page - Invite status:', status)
+      console.log('🔍 InviteCode page - User role:', me?.data?.role)
+      console.log('🔍 InviteCode page - User ID:', me?.data?.id)
+      
+      // If user has already used an invite code, redirect them back
+      if (status?.data?.valid || status?.data?.reason === 'already_used') {
+        console.log('✅ InviteCode page - User has already used invite code, redirecting back')
         goBack()
       } else {
+        console.log('📝 InviteCode page - User needs to submit invite code')
         reason.value = status?.data?.reason || 'missing'
       }
     } catch (e) {
+      console.error('❌ InviteCode page - Error checking invite status:', e)
     }
   })
   
@@ -98,8 +110,13 @@
       // Use the invite code via API
       await useInviteCode(form.inviteCode.trim(), userId)
       
-      // Also update the session storage for backward compatibility
+      // Mark invite code as submitted in sessionStorage for immediate effect
       sessionStorage.setItem('inviteSubmitted', 'true')
+      
+      // Clear router cache to ensure fresh invite status check
+      if (window.clearRouterCache) {
+        window.clearRouterCache()
+      }
       
       message.success('Invite code verified successfully')
       goBack(true)
@@ -122,8 +139,8 @@
   
   function goToLogin() {
     // Clear any stored tokens
-    localStorage.removeItem('token')
     sessionStorage.removeItem('token')
+    sessionStorage.removeItem('userId')
     // Navigate to login page
     router.replace('/login')
   }

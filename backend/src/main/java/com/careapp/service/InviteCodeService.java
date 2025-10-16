@@ -23,6 +23,9 @@ public interface InviteCodeService {
     // Get active invite codes for patient
     List<InviteCode> getActiveInviteCodesForPatient(String patientId);
     
+    // Get invite codes used by a specific user
+    List<InviteCode> getInviteCodesUsedByUser(String userId);
+    
     // Clean up expired invite codes
     void cleanupExpiredInviteCodes();
 }

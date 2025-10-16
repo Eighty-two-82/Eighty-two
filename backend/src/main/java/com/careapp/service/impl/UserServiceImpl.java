@@ -74,6 +74,16 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public boolean bindManagerToPatient(String managerId, String patientId) {
+        User manager = userRepository.findById(managerId).orElse(null);
+        if (manager == null) return false;
+        manager.setPatientId(patientId);
+        manager.setStatus("bound");
+        userRepository.save(manager);
+        return true;
+    }
+
+    @Override
     public String getWorkerPatient(String userId) {
         User worker = userRepository.findById(userId).orElse(null);
         if (worker == null) return null;
@@ -133,6 +143,94 @@ public class UserServiceImpl implements UserService {
         user.setPassword(newPassword);
         user.setPasswordResetToken(null);
         user.setPasswordResetExpires(null);
+        userRepository.save(user);
+        return true;
+    }
+
+    @Override
+    public boolean updateUserPatientId(String userId, String patientId) {
+        if (!StringUtils.hasText(userId) || !StringUtils.hasText(patientId)) {
+            return false;
+        }
+        User user = userRepository.findById(userId).orElse(null);
+        if (user == null) {
+            return false;
+        }
+        user.setPatientId(patientId);
+        userRepository.save(user);
+        return true;
+    }
+
+    @Override
+    public User getUserById(String userId) {
+        if (!StringUtils.hasText(userId)) {
+            return null;
+        }
+        User user = userRepository.findById(userId).orElse(null);
+        if (user != null) {
+            user.setPassword(null); // do not return password
+        }
+        return user;
+    }
+
+    @Override
+    public boolean markUserAsUsedInviteCode(String userId) {
+        if (!StringUtils.hasText(userId)) {
+            return false;
+        }
+        User user = userRepository.findById(userId).orElse(null);
+        if (user == null) {
+            return false;
+        }
+        user.setHasUsedInviteCode(true);
+        userRepository.save(user);
+        return true;
+    }
+
+    @Override
+    public boolean updateUserProfile(String userId, String firstName, String middleName, String lastName, String email) {
+        if (!StringUtils.hasText(userId)) {
+            return false;
+        }
+        User user = userRepository.findById(userId).orElse(null);
+        if (user == null) {
+            return false;
+        }
+        
+        // Update profile fields
+        if (StringUtils.hasText(firstName)) {
+            user.setFirstName(firstName);
+        }
+        if (StringUtils.hasText(middleName)) {
+            user.setMiddleName(middleName);
+        }
+        if (StringUtils.hasText(lastName)) {
+            user.setLastName(lastName);
+        }
+        if (StringUtils.hasText(email)) {
+            user.setEmail(email);
+        }
+        
+        userRepository.save(user);
+        return true;
+    }
+
+    @Override
+    public boolean updateUserNotificationSettings(String userId, boolean taskReminders, boolean approvalNotifications, boolean budgetWarning, boolean emailNotifications) {
+        if (!StringUtils.hasText(userId)) {
+            return false;
+        }
+        User user = userRepository.findById(userId).orElse(null);
+        if (user == null) {
+            return false;
+        }
+        
+        // Update notification settings
+        user.setTaskReminders(taskReminders);
+        user.setApprovalNotifications(approvalNotifications);
+        user.setBudgetWarning(budgetWarning);
+        user.setEmailNotifications(emailNotifications);
+        
         userRepository.save(user);
         return true;
     }

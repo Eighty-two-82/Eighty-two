@@ -18,8 +18,8 @@ const api = axios.create({
 // Request interceptor to add auth token
 api.interceptors.request.use(
     (config) => {
-        // Get token from localStorage or sessionStorage
-        const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+        // Get token from sessionStorage only
+        const token = sessionStorage.getItem('token');
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
@@ -39,8 +39,8 @@ api.interceptors.response.use(
         // Handle 401 unauthorized
         if (error.response?.status === 401) {
             // Clear tokens and redirect to login
-            localStorage.removeItem('token');
             sessionStorage.removeItem('token');
+            sessionStorage.removeItem('userId');
             sessionStorage.removeItem('inviteSubmitted');
             window.location.href = '/login';
         }

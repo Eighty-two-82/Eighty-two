@@ -282,12 +282,19 @@ const cancelCompose = () => {
 }
 
 // 查看消息
-const viewMessage = (record) => {
+const viewMessage = async (record) => {
   currentMessage.value = record
+  
   // 标记为已读
   if (record.status === 'unread') {
-    record.status = 'read'
+    try {
+      await markMessageAsRead(record.id)
+      record.status = 'read'
+    } catch (error) {
+      console.error('Failed to mark message as read:', error)
+    }
   }
+  
   isViewModalOpen.value = true
 }
 
