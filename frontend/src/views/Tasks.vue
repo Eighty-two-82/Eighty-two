@@ -1185,63 +1185,89 @@ const editTask = (task) => {
 const confirmEditTask = async () => {
   try {
     message.loading('Updating task...', 0)
-    await new Promise(resolve => setTimeout(resolve, 1000))
     
-    const taskIndex = todayTasks.value.findIndex(t => t.id === editTaskForm.value.id)
-    if (taskIndex !== -1) {
-      todayTasks.value[taskIndex] = {
-        ...todayTasks.value[taskIndex],
-        title: editTaskForm.value.title,
-        description: editTaskForm.value.description,
-        assignedTo: editTaskForm.value.assignedTo,
-        priority: editTaskForm.value.priority,
-        status: editTaskForm.value.status,
-        dueDate: editTaskForm.value.dueDate.format('YYYY-MM-DD')
-      }
+    const taskData = {
+      id: editTaskForm.value.id,
+      title: editTaskForm.value.title,
+      description: editTaskForm.value.description,
+      assignedTo: editTaskForm.value.assignedTo,
+      priority: editTaskForm.value.priority,
+      status: editTaskForm.value.status,
+      dueDate: editTaskForm.value.dueDate.format('YYYY-MM-DD')
     }
     
-    message.destroy()
-    message.success('Task updated successfully!')
-    editTaskModalVisible.value = false
+    const response = await updateTask(taskData)
+    
+    if (response.data) {
+      const taskIndex = todayTasks.value.findIndex(t => t.id === editTaskForm.value.id)
+      if (taskIndex !== -1) {
+        todayTasks.value[taskIndex] = {
+          ...todayTasks.value[taskIndex],
+          ...taskData
+        }
+      }
+      
+      message.destroy()
+      message.success('Task updated successfully!')
+      editTaskModalVisible.value = false
+    } else {
+      message.destroy()
+      message.error('Failed to update task')
+    }
   } catch (error) {
     message.destroy()
-    message.error('Failed to update task')
+    console.error('Failed to update task:', error)
+    message.error(error.message || 'Failed to update task')
   }
 }
 
 const handleCompleteTask = async (task) => {
   try {
     message.loading('Completing task...', 0)
-    await new Promise(resolve => setTimeout(resolve, 1000))
     
-    const taskIndex = todayTasks.value.findIndex(t => t.id === task.id)
-    if (taskIndex !== -1) {
-      todayTasks.value[taskIndex].status = 'Completed'
+    const response = await completeTaskAPI(task.id)
+    
+    if (response.data) {
+      const taskIndex = todayTasks.value.findIndex(t => t.id === task.id)
+      if (taskIndex !== -1) {
+        todayTasks.value[taskIndex].status = 'Completed'
+      }
+      
+      message.destroy()
+      message.success('Task completed successfully!')
+    } else {
+      message.destroy()
+      message.error('Failed to complete task')
     }
-    
-    message.destroy()
-    message.success('Task completed successfully!')
   } catch (error) {
     message.destroy()
-    message.error('Failed to complete task')
+    console.error('Failed to complete task:', error)
+    message.error(error.message || 'Failed to complete task')
   }
 }
 
 const handleDeleteTask = async (task) => {
   try {
     message.loading('Deleting task...', 0)
-    await new Promise(resolve => setTimeout(resolve, 1000))
     
-    const taskIndex = todayTasks.value.findIndex(t => t.id === task.id)
-    if (taskIndex !== -1) {
-      todayTasks.value.splice(taskIndex, 1)
+    const response = await deleteTaskAPI(task.id)
+    
+    if (response.data) {
+      const taskIndex = todayTasks.value.findIndex(t => t.id === task.id)
+      if (taskIndex !== -1) {
+        todayTasks.value.splice(taskIndex, 1)
+      }
+      
+      message.destroy()
+      message.success('Task deleted successfully!')
+    } else {
+      message.destroy()
+      message.error('Failed to delete task')
     }
-    
-    message.destroy()
-    message.success('Task deleted successfully!')
   } catch (error) {
     message.destroy()
-    message.error('Failed to delete task')
+    console.error('Failed to delete task:', error)
+    message.error(error.message || 'Failed to delete task')
   }
 }
 

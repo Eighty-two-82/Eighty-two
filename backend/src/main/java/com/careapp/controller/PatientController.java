@@ -59,8 +59,24 @@ public class PatientController {
         try {
             Optional<Patient> existingPatient = patientService.getPatientById(id);
             if (existingPatient.isPresent()) {
-                patient.setId(id);
-                Patient updatedPatient = patientService.updatePatient(patient);
+                Patient existing = existingPatient.get();
+                
+                // Merge fields - only update non-null fields from request
+                if (patient.getFirstName() != null) existing.setFirstName(patient.getFirstName());
+                if (patient.getLastName() != null) existing.setLastName(patient.getLastName());
+                if (patient.getAge() != null) existing.setAge(patient.getAge());
+                if (patient.getMedicalConditions() != null) existing.setMedicalConditions(patient.getMedicalConditions());
+                if (patient.getSpecialRequirements() != null) existing.setSpecialRequirements(patient.getSpecialRequirements());
+                if (patient.getClientId() != null) existing.setClientId(patient.getClientId());
+                if (patient.getCreatedBy() != null) existing.setCreatedBy(patient.getCreatedBy());
+                if (patient.getCreatedAt() != null) existing.setCreatedAt(patient.getCreatedAt());
+                if (patient.getOrganizationName() != null) existing.setOrganizationName(patient.getOrganizationName());
+                if (patient.getOrganizationId() != null) existing.setOrganizationId(patient.getOrganizationId());
+                if (patient.getTokenExpiration() != null) existing.setTokenExpiration(patient.getTokenExpiration());
+                if (patient.getInviteToken() != null) existing.setInviteToken(patient.getInviteToken());
+                if (patient.getPoaId() != null) existing.setPoaId(patient.getPoaId());
+                
+                Patient updatedPatient = patientService.updatePatient(existing);
                 return Result.success(updatedPatient, "Patient updated successfully!");
             } else {
                 return Result.error("404", "Patient not found!");
@@ -151,6 +167,21 @@ public class PatientController {
             }
         } catch (Exception e) {
             return Result.error("500", "Failed to assign POA: " + e.getMessage());
+        }
+    }
+    
+    // Get patient by Client ID
+    @GetMapping("/client/{clientId}")
+    public Result<Patient> getPatientByClientId(@PathVariable String clientId) {
+        try {
+            Optional<Patient> patient = patientService.getPatientByClientId(clientId);
+            if (patient.isPresent()) {
+                return Result.success(patient.get(), "Patient retrieved successfully!");
+            } else {
+                return Result.error("404", "Patient not found!");
+            }
+        } catch (Exception e) {
+            return Result.error("500", "Failed to retrieve patient: " + e.getMessage());
         }
     }
 }

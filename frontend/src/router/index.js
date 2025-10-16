@@ -8,7 +8,7 @@ import InviteCode from '../views/InviteCode.vue'
 
 // Simple authentication check function
 function isAuthed() {
-  return !!(localStorage.getItem('token') || sessionStorage.getItem('token'))
+  return !!sessionStorage.getItem('token')
 }
 
 // Now using real API from userService
@@ -87,11 +87,17 @@ router.beforeEach(async (to, from, next) => {
       }
 
       inviteCached = inviteCached || await getInviteStatus()
-      if (!inviteCached?.valid) {
+      console.log('Router guard - invite status:', inviteCached)
+      
+      // Only redirect to invite code if user hasn't used any invite code yet
+      if (!inviteCached?.valid && inviteCached?.reason === 'missing') {
+        console.log('Router guard - redirecting to invite code page')
         return next({
           path: '/invitecode',
           query: { redirect: to.fullPath }
         })
+      } else if (inviteCached?.valid || inviteCached?.reason === 'already_used') {
+        console.log('Router guard - user has used invite code, proceeding')
       }
 
       return next()

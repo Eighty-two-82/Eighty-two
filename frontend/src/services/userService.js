@@ -37,7 +37,7 @@ export async function login(credentials) {
             // Get invite status
             let inviteStatus = { valid: false, reason: "missing" };
             try {
-                const inviteResponse = await api.get('/auth/invite-status');
+                const inviteResponse = await api.get(`/auth/invite-status?userId=${user.id}`);
                 if (inviteResponse.data.code === "0") {
                     inviteStatus = inviteResponse.data.data;
                 }
@@ -59,8 +59,8 @@ export async function login(credentials) {
                 status: user.status
             };
             
-            // Store user info for later retrieval
-            localStorage.setItem('userInfo', JSON.stringify(userInfo));
+            // Store user ID in sessionStorage for API calls (not full user info)
+            sessionStorage.setItem('userId', user.id);
             
             return {
                 data: {
@@ -86,51 +86,80 @@ export async function login(credentials) {
 
 // Get current user information - Connect to real backend API
 export async function getMe() {
-    // Always prioritize localStorage user info since backend API returns hardcoded manager role
-    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-    if (token) {
-        // Try to get user info from localStorage (stored during login)
-        const storedUserInfo = localStorage.getItem('userInfo') || sessionStorage.getItem('userInfo');
-        if (storedUserInfo) {
-            try {
-                const userInfo = JSON.parse(storedUserInfo);
-                console.log('Using stored user info:', userInfo);
-                return {
-                    data: userInfo
-                };
-            } catch (e) {
-                console.warn('Failed to parse stored user info:', e);
+    // Get user ID from sessionStorage
+    const userId = sessionStorage.getItem('userId');
+    if (!userId) {
+        console.warn('No user ID found in sessionStorage');
+        return {
+            data: {
+                role: "guest",
+                email: "guest@example.com",
+                name: "Guest User"
             }
-        }
+        };
     }
     
-    // Fallback: try backend API (but it returns hardcoded manager role)
     try {
-        const response = await api.get('/auth/me');
+        const response = await api.get(`/auth/me?userId=${userId}`);
         const result = response.data;
         
         if (result.code === "0" && result.data) {
-            console.warn('Backend API returned hardcoded manager role, using fallback');
-            // Don't use backend response since it's hardcoded
+            const user = result.data;
+            console.log('🔍 userService.js - Raw user data from backend:', user);
+            console.log('🔍 userService.js - PatientId from backend:', user.patientId);
+            
+            const userInfo = {
+                id: user.id,
+                role: user.role || user.userType || 'worker',
+                email: user.email,
+                name: `${user.firstName || ''} ${user.middleName || ''} ${user.lastName || ''}`.trim() || user.email,
+                firstName: user.firstName,
+                middleName: user.middleName,
+                lastName: user.lastName,
+                userType: user.userType,
+                organizationId: user.organizationId,
+                patientId: user.patientId,
+                status: user.status
+            };
+            
+            console.log('Retrieved user info from backend:', userInfo);
+            console.log('🔍 userService.js - Final patientId:', userInfo.patientId);
+            return {
+                data: userInfo
+            };
+        } else {
+            throw new Error(result.msg || 'Failed to get user information');
         }
     } catch (error) {
-        console.warn('Backend API failed:', error);
+        console.error('Failed to get user info from backend:', error);
+        
+        // Fallback: return basic guest info
+        return {
+            data: {
+                role: "guest",
+                email: "guest@example.com",
+                name: "Guest User"
+            }
+        };
     }
-    
-    // Final fallback
-    return {
-        data: {
-            role: "poa", // Default to POA since that's what user registered as
-            email: "user@example.com",
-            name: "User"
-        }
-    };
 }
 
 // Get invite status - Connect to real backend API
 export async function getInviteStatus() {
     try {
-        const response = await api.get('/auth/invite-status');
+        // Get user ID from sessionStorage
+        const userId = sessionStorage.getItem('userId');
+        if (!userId) {
+            console.warn('No user ID found in sessionStorage for invite status check');
+            return {
+                data: {
+                    valid: false,
+                    reason: "missing"
+                }
+            };
+        }
+        
+        const response = await api.get(`/auth/invite-status?userId=${userId}`);
         const result = response.data;
         
         if (result.code === "0") {
@@ -141,13 +170,15 @@ export async function getInviteStatus() {
             throw new Error(result.msg || 'Failed to get invite status');
         }
     } catch (error) {
+        console.error('Failed to get invite status from backend:', error);
+        
         // Fallback to sessionStorage check
         const inviteSubmitted = sessionStorage.getItem('inviteSubmitted') === 'true';
         
         return {
             data: {
                 valid: inviteSubmitted,
-                reason: inviteSubmitted ? "valid" : "missing"
+                reason: inviteSubmitted ? "already_used" : "missing"
             }
         };
     }
@@ -291,6 +322,33 @@ export async function resetPassword(token, newPassword) {
     }
 }
 
+// Update user patientId - Connect to real backend API
+export async function updateUserPatientId(userId, patientId) {
+    try {
+        const response = await api.put(`/auth/user/${userId}/patient`, {
+            patientId: patientId
+        });
+        
+        const result = response.data;
+        
+        if (result.code === "0") {
+            return {
+                data: result.data
+            };
+        } else {
+            throw new Error(result.msg || 'Failed to update user patientId');
+        }
+    } catch (error) {
+        if (error.response?.data?.msg) {
+            throw new Error(error.response.data.msg);
+        } else if (error.message) {
+            throw error;
+        } else {
+            throw new Error('Failed to update user patientId');
+        }
+    }
+}
+
 // Logout function - clears user session and redirects to login
 export function logout() {
     try {
@@ -299,11 +357,8 @@ export function logout() {
         // Clear all session data
         sessionStorage.removeItem('token');
         sessionStorage.removeItem('user');
-        sessionStorage.removeItem('userInfo');
+        sessionStorage.removeItem('userId');
         sessionStorage.removeItem('inviteSubmitted');
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        localStorage.removeItem('userInfo');
         
         console.log('User session cleared successfully');
         
@@ -317,5 +372,55 @@ export function logout() {
         console.error('Error during logout:', error);
         // Still redirect to login page even if there's an error
         window.location.href = '/login';
+    }
+}
+
+// Update user profile
+export async function updateUserProfile(userId, profileData) {
+    try {
+        const response = await api.put(`/auth/profile/${userId}`, profileData);
+        const result = response.data;
+        
+        if (result.code === "0") {
+            return {
+                data: result.data,
+                success: true
+            };
+        } else {
+            throw new Error(result.msg || 'Failed to update profile');
+        }
+    } catch (error) {
+        if (error.response?.data?.msg) {
+            throw new Error(error.response.data.msg);
+        } else if (error.message) {
+            throw error;
+        } else {
+            throw new Error('Failed to update profile');
+        }
+    }
+}
+
+// Update user notification settings
+export async function updateUserNotificationSettings(userId, notificationData) {
+    try {
+        const response = await api.put(`/auth/notifications/${userId}`, notificationData);
+        const result = response.data;
+        
+        if (result.code === "0") {
+            return {
+                data: result.data,
+                success: true
+            };
+        } else {
+            throw new Error(result.msg || 'Failed to update notification settings');
+        }
+    } catch (error) {
+        if (error.response?.data?.msg) {
+            throw new Error(error.response.data.msg);
+        } else if (error.message) {
+            throw error;
+        } else {
+            throw new Error('Failed to update notification settings');
+        }
     }
 }

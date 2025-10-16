@@ -289,14 +289,19 @@ const budgetCategories = ref([])
 const totalBudget = computed(() => budgetCategories.value.reduce((s, c) => s + c.budget, 0))
 const totalUsed = computed(() => budgetCategories.value.reduce((s, c) => s + c.used, 0))
 const totalLeft = computed(() => totalBudget.value - totalUsed.value)
-const totalUsagePct = computed(() => Math.round((totalUsed.value / totalBudget.value) * 100))
+const totalUsagePct = computed(() => {
+  if (totalBudget.value === 0) {
+    return 0
+  }
+  return Math.round((totalUsed.value / totalBudget.value) * 100)
+})
 const budgetUsageColor = computed(() => totalUsagePct.value >= 100 ? 'red' : totalUsagePct.value >= 80 ? 'orange' : 'green')
 
 const topCategoryWarnings = computed(() => {
   const arr = budgetCategories.value
     .map(c => ({
       category: c.name,
-      pct: Math.round((c.used / c.budget) * 100),
+      pct: c.budget > 0 ? Math.round((c.used / c.budget) * 100) : 0,
       used: c.used,
       budget: c.budget
     }))

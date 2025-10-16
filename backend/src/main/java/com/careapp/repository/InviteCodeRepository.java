@@ -23,4 +23,7 @@ public interface InviteCodeRepository extends MongoRepository<InviteCode, String
     
     // Find active invite codes for a patient
     List<InviteCode> findByPatientIdAndIsUsedFalseAndExpiresAtAfter(String patientId, LocalDateTime now);
+    
+    // Find invite codes used by a specific user
+    List<InviteCode> findByUsedBy(String usedBy);
 }

@@ -304,17 +304,21 @@
   })
   
   // Check if this is the user's first visit
-  const checkFirstVisit = () => {
-    const hasVisited = localStorage.getItem('careApp_hasVisited')
-    if (!hasVisited) {
+  const checkFirstVisit = async () => {
+    try {
+      const userInfo = await getMe()
+      // For now, always show the modal (can be enhanced later with user preferences)
+      firstVisitModalVisible.value = true
+    } catch (error) {
+      console.error('Failed to check first visit:', error)
       firstVisitModalVisible.value = true
     }
   }
-  
+
   // Close first visit modal and mark as visited
   const closeFirstVisitModal = () => {
     firstVisitModalVisible.value = false
-    localStorage.setItem('careApp_hasVisited', 'true')
+    // In the future, this could save user preference to backend
   }
   
   // Show help modal

@@ -88,11 +88,8 @@ const onFinish = async () => {
 
     const token = res?.data?.token
     if (token) {
-      if (formState.remember) {
-        localStorage.setItem('token', token)
-      } else {
-        sessionStorage.setItem('token', token)
-      }
+      // Always use sessionStorage for security (no persistent storage)
+      sessionStorage.setItem('token', token)
     }
     message.success('Signed in')
 
@@ -108,9 +105,19 @@ const onFinish = async () => {
       
       if (role === 'worker' || role === 'manager') {
         const inviteStatus = res?.data?.inviteStatus || { valid: false }
-        if (!inviteStatus.valid) {
+        console.log('🔍 Login - User role:', role)
+        console.log('🔍 Login - Invite status:', inviteStatus)
+        console.log('🔍 Login - User ID:', userInfo.id)
+        
+        // Only redirect to invite code page if user hasn't used any invite code yet
+        if (!inviteStatus.valid && inviteStatus.reason === 'missing') {
+          console.log('🔄 Login - User needs to submit invite code, redirecting...')
           router.replace('/invitecode')
           return
+        } else if (inviteStatus.valid || inviteStatus.reason === 'already_used') {
+          console.log('✅ Login - User has already used invite code, proceeding to app...')
+        } else {
+          console.log('⚠️ Login - Unknown invite status, proceeding to app...')
         }
       }
       
@@ -118,6 +125,7 @@ const onFinish = async () => {
       const redirect = route.query.redirect || '/app/menu'
       router.replace(String(redirect))
     } catch (e) {
+      console.error('❌ Login - Error checking invite status:', e)
       // if getting user info fails, redirect to default page
       const redirect = route.query.redirect || '/app/menu'
       router.replace(String(redirect))

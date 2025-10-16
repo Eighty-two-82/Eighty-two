@@ -467,10 +467,11 @@
             </div>
             <div><strong>New Usage Rate:</strong> 
               <span :style="{ 
-                color: Math.round((monthlyInputForm.monthlyData.reduce((sum, amount) => sum + (amount || 0), 0) / currentSubElement.subElementBudget) * 100) > 80 ? 
-                  (Math.round((monthlyInputForm.monthlyData.reduce((sum, amount) => sum + (amount || 0), 0) / currentSubElement.subElementBudget) * 100) >= 100 ? 'red' : 'orange') : 'green' 
+                color: currentSubElement.subElementBudget > 0 ? 
+                  (Math.round((monthlyInputForm.monthlyData.reduce((sum, amount) => sum + (amount || 0), 0) / currentSubElement.subElementBudget) * 100) > 80 ? 
+                    (Math.round((monthlyInputForm.monthlyData.reduce((sum, amount) => sum + (amount || 0), 0) / currentSubElement.subElementBudget) * 100) >= 100 ? 'red' : 'orange') : 'green') : 'green'
               }">
-                {{ Math.round((monthlyInputForm.monthlyData.reduce((sum, amount) => sum + (amount || 0), 0) / currentSubElement.subElementBudget) * 100) }}%
+                {{ currentSubElement.subElementBudget > 0 ? Math.round((monthlyInputForm.monthlyData.reduce((sum, amount) => sum + (amount || 0), 0) / currentSubElement.subElementBudget) * 100) : 0 }}%
               </span>
             </div>
           </div>
@@ -601,7 +602,7 @@ const budgetAdjustForm = ref({
 // Add category form
 const addCategoryForm = ref({
   name: '',
-  budget: null,
+  budget: 0,
   description: ''
 })
 
@@ -609,7 +610,7 @@ const addCategoryForm = ref({
 const addSubElementForm = ref({
   categoryId: null,
   name: '',
-  budget: null,
+  budget: 0,
   description: ''
 })
 
@@ -682,9 +683,13 @@ const loadBudgetData = async () => {
 }
 
 // Check if this is the user's first visit to budget page
-const checkFirstVisit = () => {
-  const hasVisitedBudget = localStorage.getItem('budgetPage_hasVisited')
-  if (!hasVisitedBudget) {
+const checkFirstVisit = async () => {
+  try {
+    const userInfo = await getMe()
+    // For now, always show the modal (can be enhanced later with user preferences)
+    firstVisitModalVisible.value = true
+  } catch (error) {
+    console.error('Failed to check first visit:', error)
     firstVisitModalVisible.value = true
   }
 }
@@ -692,7 +697,7 @@ const checkFirstVisit = () => {
 // Close first visit modal and mark as visited
 const closeFirstVisitModal = () => {
   firstVisitModalVisible.value = false
-  localStorage.setItem('budgetPage_hasVisited', 'true')
+  // In the future, this could save user preference to backend
 }
 
 const getPageTooltip = () => {
@@ -720,6 +725,9 @@ const budgetData = ref({
 
 // Calculate warning level
 const calculateWarningLevel = (utilised, budget) => {
+  if (budget === 0) {
+    return 'normal'
+  }
   const percentage = (utilised / budget) * 100
   if (percentage >= 100) return 'critical'
   if (percentage >= 80) return 'warning'
@@ -745,7 +753,7 @@ const getWarningInfo = () => {
   const warnings = []
   budgetData.value.categories.forEach(category => {
     category.subElements.forEach(subElement => {
-      const percentage = (subElement.totalUtilised / subElement.subElementBudget) * 100
+      const percentage = subElement.subElementBudget > 0 ? (subElement.totalUtilised / subElement.subElementBudget) * 100 : 0
       if (percentage >= 80) {
         // Dynamically calculate warning level
         let level = 'warning'
@@ -784,6 +792,9 @@ const getTotalBalance = () => {
 
 // Calculate total usage percentage
 const getTotalUsagePercentage = () => {
+  if (budgetData.value.totalBudget === 0) {
+    return 0
+  }
   return Math.round((getTotalUsed() / budgetData.value.totalBudget) * 100)
 }
 
@@ -812,51 +823,117 @@ const cancelBudgetAdjust = () => {
 }
 
 // Handle budget adjustment
-const handleBudgetAdjust = () => {
-  if (adjustTab.value === 'total') {
-    // Adjust total budget
-    if (budgetAdjustForm.value.newTotalBudget && budgetAdjustForm.value.newTotalBudget > 0) {
-      budgetData.value.totalBudget = budgetAdjustForm.value.newTotalBudget
-      console.log('Total budget adjusted to:', budgetAdjustForm.value.newTotalBudget)
-      console.log('Adjustment reason:', budgetAdjustForm.value.totalAdjustReason)
+const handleBudgetAdjust = async () => {
+  try {
+    const userInfo = await getMe()
+    if (!userInfo?.data?.patientId) {
+      message.error('Patient ID not found')
+      return
     }
-  } else if (adjustTab.value === 'category') {
-    // Inter-category adjustment
-    if (budgetAdjustForm.value.fromCategory && budgetAdjustForm.value.toCategory && 
-        budgetAdjustForm.value.categoryAdjustAmount && budgetAdjustForm.value.categoryAdjustAmount > 0) {
-      
-      const fromCategory = budgetData.value.categories.find(c => c.id === budgetAdjustForm.value.fromCategory)
-      const toCategory = budgetData.value.categories.find(c => c.id === budgetAdjustForm.value.toCategory)
-      
-      if (fromCategory && toCategory) {
-        fromCategory.categoryBudget -= budgetAdjustForm.value.categoryAdjustAmount
-        toCategory.categoryBudget += budgetAdjustForm.value.categoryAdjustAmount
-        console.log('Inter-category budget adjustment completed')
-        console.log('Adjustment reason:', budgetAdjustForm.value.categoryAdjustReason)
-      }
-    }
-  } else if (adjustTab.value === 'subelement') {
-    // Inter-sub-element adjustment
-    if (budgetAdjustForm.value.selectedCategory && budgetAdjustForm.value.fromSubElement && 
-        budgetAdjustForm.value.toSubElement && budgetAdjustForm.value.subElementAdjustAmount && 
-        budgetAdjustForm.value.subElementAdjustAmount > 0) {
-      
-      const category = budgetData.value.categories.find(c => c.id === budgetAdjustForm.value.selectedCategory)
-      if (category) {
-        const fromSubElement = category.subElements.find(s => s.id === budgetAdjustForm.value.fromSubElement)
-        const toSubElement = category.subElements.find(s => s.id === budgetAdjustForm.value.toSubElement)
+
+    if (adjustTab.value === 'total') {
+      // Adjust total budget
+      if (budgetAdjustForm.value.newTotalBudget && budgetAdjustForm.value.newTotalBudget > 0) {
+        // Call backend API to update total budget
+        const budgetUpdateData = {
+          totalBudget: budgetAdjustForm.value.newTotalBudget,
+          patientId: userInfo.data.patientId
+        }
         
-        if (fromSubElement && toSubElement) {
-          fromSubElement.subElementBudget -= budgetAdjustForm.value.subElementAdjustAmount
-          toSubElement.subElementBudget += budgetAdjustForm.value.subElementAdjustAmount
-          console.log('Inter-sub-element budget adjustment completed')
-          console.log('Adjustment reason:', budgetAdjustForm.value.subElementAdjustReason)
+        const response = await updateBudget(budgetUpdateData)
+        if (response?.data) {
+          budgetData.value.totalBudget = budgetAdjustForm.value.newTotalBudget
+          console.log('Total budget adjusted to:', budgetAdjustForm.value.newTotalBudget)
+          console.log('Adjustment reason:', budgetAdjustForm.value.totalAdjustReason)
+          message.success('Total budget updated successfully!')
+        } else {
+          message.error('Failed to update total budget')
+          return
+        }
+      }
+    } else if (adjustTab.value === 'category') {
+      // Inter-category adjustment
+      if (budgetAdjustForm.value.fromCategory && budgetAdjustForm.value.toCategory && 
+          budgetAdjustForm.value.categoryAdjustAmount && budgetAdjustForm.value.categoryAdjustAmount > 0) {
+        
+        const fromCategory = budgetData.value.categories.find(c => c.id === budgetAdjustForm.value.fromCategory)
+        const toCategory = budgetData.value.categories.find(c => c.id === budgetAdjustForm.value.toCategory)
+        
+        if (fromCategory && toCategory) {
+          // Call backend API to update categories
+          const fromCategoryData = {
+            id: fromCategory.id,
+            budget: fromCategory.categoryBudget - budgetAdjustForm.value.categoryAdjustAmount,
+            patientId: userInfo.data.patientId
+          }
+          const toCategoryData = {
+            id: toCategory.id,
+            budget: toCategory.categoryBudget + budgetAdjustForm.value.categoryAdjustAmount,
+            patientId: userInfo.data.patientId
+          }
+          
+          const fromResponse = await updateBudgetCategory(fromCategoryData)
+          const toResponse = await updateBudgetCategory(toCategoryData)
+          
+          if (fromResponse?.data && toResponse?.data) {
+            fromCategory.categoryBudget -= budgetAdjustForm.value.categoryAdjustAmount
+            toCategory.categoryBudget += budgetAdjustForm.value.categoryAdjustAmount
+            console.log('Inter-category budget adjustment completed')
+            console.log('Adjustment reason:', budgetAdjustForm.value.categoryAdjustReason)
+            message.success('Category budget adjustment completed!')
+          } else {
+            message.error('Failed to update category budgets')
+            return
+          }
+        }
+      }
+    } else if (adjustTab.value === 'subelement') {
+      // Inter-sub-element adjustment
+      if (budgetAdjustForm.value.selectedCategory && budgetAdjustForm.value.fromSubElement && 
+          budgetAdjustForm.value.toSubElement && budgetAdjustForm.value.subElementAdjustAmount && 
+          budgetAdjustForm.value.subElementAdjustAmount > 0) {
+        
+        const category = budgetData.value.categories.find(c => c.id === budgetAdjustForm.value.selectedCategory)
+        if (category) {
+          const fromSubElement = category.subElements.find(s => s.id === budgetAdjustForm.value.fromSubElement)
+          const toSubElement = category.subElements.find(s => s.id === budgetAdjustForm.value.toSubElement)
+          
+          if (fromSubElement && toSubElement) {
+            // Call backend API to update sub-elements
+            const fromSubElementData = {
+              id: fromSubElement.id,
+              budget: fromSubElement.subElementBudget - budgetAdjustForm.value.subElementAdjustAmount,
+              patientId: userInfo.data.patientId
+            }
+            const toSubElementData = {
+              id: toSubElement.id,
+              budget: toSubElement.subElementBudget + budgetAdjustForm.value.subElementAdjustAmount,
+              patientId: userInfo.data.patientId
+            }
+            
+            const fromResponse = await updateBudgetSubElement(fromSubElementData)
+            const toResponse = await updateBudgetSubElement(toSubElementData)
+            
+            if (fromResponse?.data && toResponse?.data) {
+              fromSubElement.subElementBudget -= budgetAdjustForm.value.subElementAdjustAmount
+              toSubElement.subElementBudget += budgetAdjustForm.value.subElementAdjustAmount
+              console.log('Inter-sub-element budget adjustment completed')
+              console.log('Adjustment reason:', budgetAdjustForm.value.subElementAdjustReason)
+              message.success('Sub-element budget adjustment completed!')
+            } else {
+              message.error('Failed to update sub-element budgets')
+              return
+            }
+          }
         }
       }
     }
+    
+    budgetAdjustModalVisible.value = false
+  } catch (error) {
+    console.error('Failed to adjust budget:', error)
+    message.error('Failed to adjust budget. Please try again.')
   }
-  
-  budgetAdjustModalVisible.value = false
 }
 
 // Category selection change
@@ -877,7 +954,7 @@ const showAddCategoryModal = () => {
   addCategoryModalVisible.value = true
   addCategoryForm.value = {
     name: '',
-    budget: null,
+    budget: 0,
     description: ''
   }
 }
@@ -888,25 +965,51 @@ const showAddSubElementModal = () => {
   addSubElementForm.value = {
     categoryId: null,
     name: '',
-    budget: null,
+    budget: 0,
     description: ''
   }
 }
 
 // Handle add category
-const handleAddCategory = () => {
+const handleAddCategory = async () => {
   if (addCategoryForm.value.name && addCategoryForm.value.budget && addCategoryForm.value.budget > 0) {
-    const newCategory = {
-      id: Math.max(...budgetData.value.categories.map(c => c.id)) + 1,
-      name: addCategoryForm.value.name,
-      categoryBudget: addCategoryForm.value.budget,
-      subElements: []
+    try {
+      const userInfo = await getMe()
+      if (!userInfo?.data?.patientId) {
+        message.error('Patient ID not found')
+        return
+      }
+
+      // Call backend API to create category
+      const categoryData = {
+        name: addCategoryForm.value.name,
+        budget: addCategoryForm.value.budget,
+        description: addCategoryForm.value.description,
+        patientId: userInfo.data.patientId
+      }
+      
+      const response = await createBudgetCategory(categoryData)
+      if (response?.data) {
+        // Add the new category to local data
+        const newCategory = {
+          id: response.data.id || Math.max(...budgetData.value.categories.map(c => c.id)) + 1,
+          name: addCategoryForm.value.name,
+          categoryBudget: addCategoryForm.value.budget,
+          subElements: []
+        }
+        
+        budgetData.value.categories.push(newCategory)
+        console.log('New category added:', newCategory)
+        
+        addCategoryModalVisible.value = false
+        message.success('Category added successfully!')
+      } else {
+        message.error('Failed to create category')
+      }
+    } catch (error) {
+      console.error('Failed to create category:', error)
+      message.error('Failed to create category. Please try again.')
     }
-    
-    budgetData.value.categories.push(newCategory)
-    console.log('New category added:', newCategory)
-    
-    addCategoryModalVisible.value = false
   }
 }
 
@@ -916,27 +1019,54 @@ const cancelAddCategory = () => {
 }
 
 // Handle add sub-element
-const handleAddSubElement = () => {
+const handleAddSubElement = async () => {
   if (addSubElementForm.value.categoryId && addSubElementForm.value.name && 
       addSubElementForm.value.budget && addSubElementForm.value.budget > 0) {
     
-    const category = budgetData.value.categories.find(c => c.id === addSubElementForm.value.categoryId)
-    if (category) {
-      const newSubElement = {
-        id: Math.max(...budgetData.value.categories.flatMap(c => c.subElements).map(s => s.id)) + 1,
-        name: addSubElementForm.value.name,
-        subElementBudget: addSubElementForm.value.budget,
-        monthlyUsage: new Array(12).fill(0),
-        totalUtilised: 0,
-        balance: addSubElementForm.value.budget,
-        comments: addSubElementForm.value.description || 'Newly added sub-element',
-        warningLevel: 'normal'
+    try {
+      const userInfo = await getMe()
+      if (!userInfo?.data?.patientId) {
+        message.error('Patient ID not found')
+        return
       }
-      
-      category.subElements.push(newSubElement)
-      console.log('New sub-element added:', newSubElement)
-      
-      addSubElementModalVisible.value = false
+
+      const category = budgetData.value.categories.find(c => c.id === addSubElementForm.value.categoryId)
+      if (category) {
+        // Call backend API to create sub-element
+        const subElementData = {
+          categoryId: addSubElementForm.value.categoryId,
+          name: addSubElementForm.value.name,
+          budget: addSubElementForm.value.budget,
+          description: addSubElementForm.value.description,
+          patientId: userInfo.data.patientId
+        }
+        
+        const response = await createBudgetSubElement(subElementData)
+        if (response?.data) {
+          // Add the new sub-element to local data
+          const newSubElement = {
+            id: response.data.id || Math.max(...budgetData.value.categories.flatMap(c => c.subElements).map(s => s.id)) + 1,
+            name: addSubElementForm.value.name,
+            subElementBudget: addSubElementForm.value.budget,
+            monthlyUsage: new Array(12).fill(0),
+            totalUtilised: 0,
+            balance: addSubElementForm.value.budget,
+            comments: addSubElementForm.value.description || 'Newly added sub-element',
+            warningLevel: 'normal'
+          }
+          
+          category.subElements.push(newSubElement)
+          console.log('New sub-element added:', newSubElement)
+          
+          addSubElementModalVisible.value = false
+          message.success('Sub-element added successfully!')
+        } else {
+          message.error('Failed to create sub-element')
+        }
+      }
+    } catch (error) {
+      console.error('Failed to create sub-element:', error)
+      message.error('Failed to create sub-element. Please try again.')
     }
   }
 }
@@ -979,55 +1109,80 @@ const cancelMonthlyInput = () => {
 }
 
 // Handle monthly input
-const handleMonthlyInput = () => {
+const handleMonthlyInput = async () => {
   if (!currentSubElement.value) return
   
-  // Update the sub-element's monthly usage data
-  currentSubElement.value.monthlyUsage = [...monthlyInputForm.value.monthlyData]
-  
-  // Calculate total utilised amount
-  const totalUsed = monthlyInputForm.value.monthlyData.reduce((sum, amount) => sum + (amount || 0), 0)
-  currentSubElement.value.totalUtilised = totalUsed
-  
-  // Calculate balance
-  currentSubElement.value.balance = currentSubElement.value.subElementBudget - totalUsed
-  
-  // Update warning level
-  const percentage = (totalUsed / currentSubElement.value.subElementBudget) * 100
-  if (percentage >= 100) {
-    currentSubElement.value.warningLevel = 'critical'
-  } else if (percentage >= 80) {
-    currentSubElement.value.warningLevel = 'warning'
-  } else {
-    currentSubElement.value.warningLevel = 'normal'
+  try {
+    const userInfo = await getMe()
+    if (!userInfo?.data?.patientId) {
+      message.error('Patient ID not found')
+      return
+    }
+
+    // Calculate total utilised amount
+    const totalUsed = monthlyInputForm.value.monthlyData.reduce((sum, amount) => sum + (amount || 0), 0)
+    
+    // Call backend API to update sub-element
+    const subElementData = {
+      id: currentSubElement.value.id,
+      monthlyUsage: monthlyInputForm.value.monthlyData,
+      totalUtilised: totalUsed,
+      balance: currentSubElement.value.subElementBudget - totalUsed,
+      patientId: userInfo.data.patientId
+    }
+    
+    const response = await updateBudgetSubElement(subElementData)
+    if (response?.data) {
+      // Update the sub-element's monthly usage data
+      currentSubElement.value.monthlyUsage = [...monthlyInputForm.value.monthlyData]
+      currentSubElement.value.totalUtilised = totalUsed
+      
+      // Calculate balance
+      currentSubElement.value.balance = currentSubElement.value.subElementBudget - totalUsed
+      
+      // Update warning level
+      const percentage = currentSubElement.value.subElementBudget > 0 ? (totalUsed / currentSubElement.value.subElementBudget) * 100 : 0
+      if (percentage >= 100) {
+        currentSubElement.value.warningLevel = 'critical'
+      } else if (percentage >= 80) {
+        currentSubElement.value.warningLevel = 'warning'
+      } else {
+        currentSubElement.value.warningLevel = 'normal'
+      }
+      
+      // Update comments
+      if (percentage >= 100) {
+        currentSubElement.value.comments = 'Budget exhausted'
+      } else if (percentage >= 80) {
+        currentSubElement.value.comments = 'High usage - approaching budget limit'
+      } else if (totalUsed > currentSubElement.value.subElementBudget) {
+        currentSubElement.value.comments = 'Critical overspending - budget exceeded'
+      } else {
+        currentSubElement.value.comments = 'Normal usage'
+      }
+      
+      console.log('Monthly data updated for:', currentSubElement.value.name, {
+        monthlyData: monthlyInputForm.value.monthlyData,
+        totalUsed,
+        balance: currentSubElement.value.balance,
+        percentage: Math.round(percentage)
+      })
+      
+      monthlyInputModalVisible.value = false
+      currentSubElement.value = null
+      
+      message.success('Monthly data updated successfully!')
+    } else {
+      message.error('Failed to update monthly data')
+    }
+  } catch (error) {
+    console.error('Failed to update monthly data:', error)
+    message.error('Failed to update monthly data. Please try again.')
   }
-  
-  // Update comments
-  if (percentage >= 100) {
-    currentSubElement.value.comments = 'Budget exhausted'
-  } else if (percentage >= 80) {
-    currentSubElement.value.comments = 'High usage - approaching budget limit'
-  } else if (totalUsed > currentSubElement.value.subElementBudget) {
-    currentSubElement.value.comments = 'Critical overspending - budget exceeded'
-  } else {
-    currentSubElement.value.comments = 'Normal usage'
-  }
-  
-  console.log('Monthly data updated for:', currentSubElement.value.name, {
-    monthlyData: monthlyInputForm.value.monthlyData,
-    totalUsed,
-    balance: currentSubElement.value.balance,
-    percentage: Math.round(percentage)
-  })
-  
-  monthlyInputModalVisible.value = false
-  currentSubElement.value = null
-  
-  message.success('Monthly data updated successfully!')
 }
 
 // Handle refund
-const handleRefund = () => {
+const handleRefund = async () => {
   if (!refundForm.value.amount || refundForm.value.amount <= 0) {
     return
   }
@@ -1040,17 +1195,31 @@ const handleRefund = () => {
     return
   }
   
-  // Update the sub-element data
-  const refundAmount = refundForm.value.amount
-  const oldUsed = currentRefundItem.value.totalUtilised
-  const oldBalance = currentRefundItem.value.balance
-  
-  // Update used amount and balance
-  currentRefundItem.value.totalUtilised -= refundAmount
-  currentRefundItem.value.balance += refundAmount
+  try {
+    const userInfo = await getMe()
+    if (!userInfo?.data?.patientId) {
+      message.error('Patient ID not found')
+      return
+    }
+
+    const refundAmount = refundForm.value.amount
+    
+    // Call backend API to update sub-element
+    const subElementData = {
+      id: currentRefundItem.value.id,
+      totalUtilised: currentRefundItem.value.totalUtilised - refundAmount,
+      balance: currentRefundItem.value.balance + refundAmount,
+      patientId: userInfo.data.patientId
+    }
+    
+    const response = await updateBudgetSubElement(subElementData)
+    if (response?.data) {
+      // Update used amount and balance
+      currentRefundItem.value.totalUtilised -= refundAmount
+      currentRefundItem.value.balance += refundAmount
   
   // Update warning level
-  const newPercentage = (currentRefundItem.value.totalUtilised / currentRefundItem.value.subElementBudget) * 100
+  const newPercentage = currentRefundItem.value.subElementBudget > 0 ? (currentRefundItem.value.totalUtilised / currentRefundItem.value.subElementBudget) * 100 : 0
   if (newPercentage >= 100) {
     currentRefundItem.value.warningLevel = 'critical'
   } else if (newPercentage >= 80) {
@@ -1094,8 +1263,15 @@ const handleRefund = () => {
   refundModalVisible.value = false
   currentRefundItem.value = null
   
-  // Show success message and ask about uploading receipt
-  message.success(`Refund of $${refundAmount.toLocaleString()} processed successfully!`)
+      // Show success message and ask about uploading receipt
+      message.success(`Refund of $${refundAmount.toLocaleString()} processed successfully!`)
+    } else {
+      message.error('Failed to process refund')
+    }
+  } catch (error) {
+    console.error('Failed to process refund:', error)
+    message.error('Failed to process refund. Please try again.')
+  }
   
   // Ask if user wants to upload refund receipt
   Modal.confirm({

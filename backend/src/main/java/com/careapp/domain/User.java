@@ -28,6 +28,15 @@ public class User {
     // Password reset fields
     private String passwordResetToken;   // reset token
     private Long passwordResetExpires;   // epoch millis when token expires
+    
+    // Invite code fields
+    private boolean hasUsedInviteCode = false;  // whether user has used an invite code
+    
+    // Notification settings
+    private boolean taskReminders = true;
+    private boolean approvalNotifications = true;
+    private boolean budgetWarning = true;
+    private boolean emailNotifications = true;
 
     // getters & setters
     public String getId() { return id; }
@@ -74,5 +83,18 @@ public class User {
     public Long getPasswordResetExpires() { return passwordResetExpires; }
     public void setPasswordResetExpires(Long passwordResetExpires) { this.passwordResetExpires = passwordResetExpires; }
 
+    public boolean isHasUsedInviteCode() { return hasUsedInviteCode; }
+    public void setHasUsedInviteCode(boolean hasUsedInviteCode) { this.hasUsedInviteCode = hasUsedInviteCode; }
 
-}
+    // Notification settings getters & setters
+    public boolean isTaskReminders() { return taskReminders; }
+    public void setTaskReminders(boolean taskReminders) { this.taskReminders = taskReminders; }
+
+    public boolean isApprovalNotifications() { return approvalNotifications; }
+    public void setApprovalNotifications(boolean approvalNotifications) { this.approvalNotifications = approvalNotifications; }
+
+    public boolean isBudgetWarning() { return budgetWarning; }
+    public void setBudgetWarning(boolean budgetWarning) { this.budgetWarning = budgetWarning; }
+
+    public boolean isEmailNotifications() { return emailNotifications; }
+    public void setEmailNotifications(boolean emailNotifications) { this.emailNotifications = emailNotifications; }
