@@ -40,5 +40,8 @@ public interface UserService {
     
     // Update user notification settings
     boolean updateUserNotificationSettings(String userId, boolean taskReminders, boolean approvalNotifications, boolean budgetWarning, boolean emailNotifications);
+    
+    // Update manager shift time settings
+    boolean updateShiftTimeSettings(String userId, String morningStart, String morningEnd, String afternoonStart, String afternoonEnd, String eveningStart, String eveningEnd);
 
 }

@@ -4,6 +4,7 @@ import com.careapp.domain.Authorization;
 import com.careapp.repository.AuthorizationRepository;
 import com.careapp.service.AuthorizationService;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
@@ -163,6 +164,30 @@ public class AuthorizationServiceImpl implements AuthorizationService {
         // Check if they're in the same organization
         return workerAuth.getOrganizationId().equals(managerAuth.getOrganizationId());
     }
+
+    @Override
+    public boolean revokeAllAccessForOrganization(String organizationId) {
+        if (!StringUtils.hasText(organizationId)) {
+            return false;
+        }
+        
+        // Find all authorizations for users in this organization
+        List<Authorization> organizationAuthorizations = authorizationRepository.findAll()
+                .stream()
+                .filter(auth -> auth.isActive())
+                .filter(auth -> organizationId.equals(auth.getOrganizationId()))
+                .toList();
+        
+        // Revoke all authorizations for this organization
+        for (Authorization auth : organizationAuthorizations) {
+            auth.setActive(false);
+            auth.setRevokedAt(LocalDateTime.now());
+            authorizationRepository.save(auth);
+        }
+        
+        return true;
+    }
+    
     public List<String> getAccessibleOrganizations(String familyId) {
         List<Authorization> authorizations = authorizationRepository.findByAuthorizedTo(familyId);
         return authorizations.stream()

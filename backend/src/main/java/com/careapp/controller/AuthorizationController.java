@@ -105,6 +105,18 @@ public class AuthorizationController {
             return Result.<String>error("400", "Failed to revoke all access!");
         }
     }
+
+    // Revoke all access for organization (Carer Team functionality)
+    @PostMapping("/revoke-organization/{organizationId}")
+    public Result<String> revokeAllAccessForOrganization(@PathVariable String organizationId) {
+        boolean success = authorizationService.revokeAllAccessForOrganization(organizationId);
+        if (success) {
+            return Result.<String>success("Organization access revoked!", "All organization access revoked successfully!");
+        } else {
+            return Result.<String>error("400", "Failed to revoke organization access!");
+        }
+    }
+    
     // Get organizations accessible by Family/POA
     @GetMapping("/accessible-orgs/{familyId}")
     public Result<List<String>> getAccessibleOrganizations(@PathVariable String familyId) {
