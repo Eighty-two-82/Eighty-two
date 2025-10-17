@@ -856,8 +856,12 @@ const handleBudgetAdjust = async () => {
       if (budgetAdjustForm.value.newTotalBudget && budgetAdjustForm.value.newTotalBudget > 0) {
         // Call backend API to update total budget
         const budgetUpdateData = {
+          id: budgetData.value.id, // Include budget ID for update
           totalBudget: budgetAdjustForm.value.newTotalBudget,
-          patientId: userInfo.data.patientId
+          patientId: userInfo.data.patientId,
+          organizationId: budgetData.value.organizationId,
+          createdBy: budgetData.value.createdBy,
+          categories: budgetData.value.categories
         }
         
         const response = await updateBudget(budgetUpdateData)
@@ -882,18 +886,14 @@ const handleBudgetAdjust = async () => {
         if (fromCategory && toCategory) {
           // Call backend API to update categories
           const fromCategoryData = {
-            id: fromCategory.id,
-            budget: fromCategory.categoryBudget - budgetAdjustForm.value.categoryAdjustAmount,
-            patientId: userInfo.data.patientId
+            categoryBudget: fromCategory.categoryBudget - budgetAdjustForm.value.categoryAdjustAmount
           }
           const toCategoryData = {
-            id: toCategory.id,
-            budget: toCategory.categoryBudget + budgetAdjustForm.value.categoryAdjustAmount,
-            patientId: userInfo.data.patientId
+            categoryBudget: toCategory.categoryBudget + budgetAdjustForm.value.categoryAdjustAmount
           }
           
-          const fromResponse = await updateBudgetCategory(fromCategoryData)
-          const toResponse = await updateBudgetCategory(toCategoryData)
+          const fromResponse = await updateBudgetCategory(userInfo.data.patientId, fromCategory.id, fromCategoryData)
+          const toResponse = await updateBudgetCategory(userInfo.data.patientId, toCategory.id, toCategoryData)
           
           if (fromResponse?.data && toResponse?.data) {
             fromCategory.categoryBudget -= budgetAdjustForm.value.categoryAdjustAmount
@@ -921,18 +921,14 @@ const handleBudgetAdjust = async () => {
           if (fromSubElement && toSubElement) {
             // Call backend API to update sub-elements
             const fromSubElementData = {
-              id: fromSubElement.id,
-              budget: fromSubElement.subElementBudget - budgetAdjustForm.value.subElementAdjustAmount,
-              patientId: userInfo.data.patientId
+              subElementBudget: fromSubElement.subElementBudget - budgetAdjustForm.value.subElementAdjustAmount
             }
             const toSubElementData = {
-              id: toSubElement.id,
-              budget: toSubElement.subElementBudget + budgetAdjustForm.value.subElementAdjustAmount,
-              patientId: userInfo.data.patientId
+              subElementBudget: toSubElement.subElementBudget + budgetAdjustForm.value.subElementAdjustAmount
             }
             
-            const fromResponse = await updateBudgetSubElement(fromSubElementData)
-            const toResponse = await updateBudgetSubElement(toSubElementData)
+            const fromResponse = await updateBudgetSubElement(userInfo.data.patientId, budgetAdjustForm.value.selectedCategory, fromSubElement.id, fromSubElementData)
+            const toResponse = await updateBudgetSubElement(userInfo.data.patientId, budgetAdjustForm.value.selectedCategory, toSubElement.id, toSubElementData)
             
             if (fromResponse?.data && toResponse?.data) {
               fromSubElement.subElementBudget -= budgetAdjustForm.value.subElementAdjustAmount
