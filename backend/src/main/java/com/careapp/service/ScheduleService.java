@@ -1,9 +1,11 @@
 package com.careapp.service;
 
 import com.careapp.domain.Schedule;
+import com.careapp.domain.User;
 import com.careapp.domain.Worker;
 import com.careapp.dto.DailyScheduleRequest;
 import com.careapp.repository.ScheduleRepository;
+import com.careapp.repository.UserRepository;
 import com.careapp.repository.WorkerRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -23,6 +25,9 @@ public class ScheduleService {
     
     @Autowired
     private WorkerRepository workerRepository;
+    
+    @Autowired
+    private UserRepository userRepository;
 
     /**
      * Create a new schedule
@@ -275,7 +280,13 @@ public class ScheduleService {
         List<Schedule> createdSchedules = new ArrayList<>();
         LocalDate scheduleDate = LocalDate.parse(request.getScheduleDate(), DateTimeFormatter.ISO_DATE);
         
-        // Create morning shift schedules (8:00-16:00)
+        // Get manager's shift time settings
+        User manager = userRepository.findById(managerId).orElse(null);
+        if (manager == null) {
+            throw new IllegalArgumentException("Manager not found with ID: " + managerId);
+        }
+        
+        // Create morning shift schedules using configured times
         if (request.getMorningShiftWorkerIds() != null && !request.getMorningShiftWorkerIds().isEmpty()) {
             for (String workerId : request.getMorningShiftWorkerIds()) {
                 Optional<Worker> workerOpt = workerRepository.findById(workerId);
@@ -286,8 +297,8 @@ public class ScheduleService {
                     schedule.setWorkerName(worker.getName());
                     schedule.setScheduleDate(scheduleDate);
                     schedule.setShiftType("morning");
-                    schedule.setShiftStartTime("08:00");
-                    schedule.setShiftEndTime("16:00");
+                    schedule.setShiftStartTime(manager.getMorningShiftStart());
+                    schedule.setShiftEndTime(manager.getMorningShiftEnd());
                     schedule.setOrganizationId(organizationId);
                     schedule.setManagerId(managerId);
                     schedule.setStatus("scheduled");
@@ -298,7 +309,30 @@ public class ScheduleService {
             }
         }
         
-        // Create evening shift schedules (16:00-24:00)
+        // Create afternoon shift schedules using configured times
+        if (request.getAfternoonShiftWorkerIds() != null && !request.getAfternoonShiftWorkerIds().isEmpty()) {
+            for (String workerId : request.getAfternoonShiftWorkerIds()) {
+                Optional<Worker> workerOpt = workerRepository.findById(workerId);
+                if (workerOpt.isPresent()) {
+                    Worker worker = workerOpt.get();
+                    Schedule schedule = new Schedule();
+                    schedule.setWorkerId(workerId);
+                    schedule.setWorkerName(worker.getName());
+                    schedule.setScheduleDate(scheduleDate);
+                    schedule.setShiftType("afternoon");
+                    schedule.setShiftStartTime(manager.getAfternoonShiftStart());
+                    schedule.setShiftEndTime(manager.getAfternoonShiftEnd());
+                    schedule.setOrganizationId(organizationId);
+                    schedule.setManagerId(managerId);
+                    schedule.setStatus("scheduled");
+                    schedule.setNotes(request.getScheduleNotes());
+                    schedule.setWorkerPhotoUrl(worker.getPhotoUrl());
+                    createdSchedules.add(scheduleRepository.save(schedule));
+                }
+            }
+        }
+        
+        // Create evening shift schedules using configured times
         if (request.getEveningShiftWorkerIds() != null && !request.getEveningShiftWorkerIds().isEmpty()) {
             for (String workerId : request.getEveningShiftWorkerIds()) {
                 Optional<Worker> workerOpt = workerRepository.findById(workerId);
@@ -309,8 +343,8 @@ public class ScheduleService {
                     schedule.setWorkerName(worker.getName());
                     schedule.setScheduleDate(scheduleDate);
                     schedule.setShiftType("evening");
-                    schedule.setShiftStartTime("16:00");
-                    schedule.setShiftEndTime("24:00");
+                    schedule.setShiftStartTime(manager.getEveningShiftStart());
+                    schedule.setShiftEndTime(manager.getEveningShiftEnd());
                     schedule.setOrganizationId(organizationId);
                     schedule.setManagerId(managerId);
                     schedule.setStatus("scheduled");

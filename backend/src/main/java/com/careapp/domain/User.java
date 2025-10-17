@@ -37,6 +37,14 @@ public class User {
     private boolean approvalNotifications = true;
     private boolean budgetWarning = true;
     private boolean emailNotifications = true;
+    
+    // Shift time settings (for managers)
+    private String morningShiftStart = "08:00";
+    private String morningShiftEnd = "16:00";
+    private String afternoonShiftStart = "12:00";
+    private String afternoonShiftEnd = "20:00";
+    private String eveningShiftStart = "16:00";
+    private String eveningShiftEnd = "24:00";
 
     // getters & setters
     public String getId() { return id; }
@@ -98,4 +106,23 @@ public class User {
 
     public boolean isEmailNotifications() { return emailNotifications; }
     public void setEmailNotifications(boolean emailNotifications) { this.emailNotifications = emailNotifications; }
+
+    // Shift time settings getters & setters
+    public String getMorningShiftStart() { return morningShiftStart; }
+    public void setMorningShiftStart(String morningShiftStart) { this.morningShiftStart = morningShiftStart; }
+
+    public String getMorningShiftEnd() { return morningShiftEnd; }
+    public void setMorningShiftEnd(String morningShiftEnd) { this.morningShiftEnd = morningShiftEnd; }
+
+    public String getAfternoonShiftStart() { return afternoonShiftStart; }
+    public void setAfternoonShiftStart(String afternoonShiftStart) { this.afternoonShiftStart = afternoonShiftStart; }
+
+    public String getAfternoonShiftEnd() { return afternoonShiftEnd; }
+    public void setAfternoonShiftEnd(String afternoonShiftEnd) { this.afternoonShiftEnd = afternoonShiftEnd; }
+
+    public String getEveningShiftStart() { return eveningShiftStart; }
+    public void setEveningShiftStart(String eveningShiftStart) { this.eveningShiftStart = eveningShiftStart; }
+
+    public String getEveningShiftEnd() { return eveningShiftEnd; }
+    public void setEveningShiftEnd(String eveningShiftEnd) { this.eveningShiftEnd = eveningShiftEnd; }
 }

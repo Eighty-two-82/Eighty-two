@@ -283,4 +283,26 @@ public class UserController {
         }
     }
 
+    // Update manager shift time settings
+    @PutMapping("/shift-times/{userId}")
+    public Result<String> updateShiftTimeSettings(@PathVariable String userId, @RequestBody Map<String, String> shiftTimeData) {
+        try {
+            String morningStart = shiftTimeData.get("morningShiftStart");
+            String morningEnd = shiftTimeData.get("morningShiftEnd");
+            String afternoonStart = shiftTimeData.get("afternoonShiftStart");
+            String afternoonEnd = shiftTimeData.get("afternoonShiftEnd");
+            String eveningStart = shiftTimeData.get("eveningShiftStart");
+            String eveningEnd = shiftTimeData.get("eveningShiftEnd");
+            
+            boolean success = userService.updateShiftTimeSettings(userId, morningStart, morningEnd, afternoonStart, afternoonEnd, eveningStart, eveningEnd);
+            if (success) {
+                return Result.success("Shift time settings updated successfully", "Shift time settings updated!");
+            } else {
+                return Result.error("400", "Failed to update shift time settings! User not found or invalid data.");
+            }
+        } catch (Exception e) {
+            return Result.error("500", "Shift time settings update failed: " + e.getMessage());
+        }
+    }
+
 }

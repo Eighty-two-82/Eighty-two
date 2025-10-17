@@ -235,6 +235,40 @@ public class UserServiceImpl implements UserService {
         return true;
     }
 
+    @Override
+    public boolean updateShiftTimeSettings(String userId, String morningStart, String morningEnd, String afternoonStart, String afternoonEnd, String eveningStart, String eveningEnd) {
+        if (!StringUtils.hasText(userId)) {
+            return false;
+        }
+        User user = userRepository.findById(userId).orElse(null);
+        if (user == null) {
+            return false;
+        }
+        
+        // Update shift time settings (only if provided)
+        if (StringUtils.hasText(morningStart)) {
+            user.setMorningShiftStart(morningStart);
+        }
+        if (StringUtils.hasText(morningEnd)) {
+            user.setMorningShiftEnd(morningEnd);
+        }
+        if (StringUtils.hasText(afternoonStart)) {
+            user.setAfternoonShiftStart(afternoonStart);
+        }
+        if (StringUtils.hasText(afternoonEnd)) {
+            user.setAfternoonShiftEnd(afternoonEnd);
+        }
+        if (StringUtils.hasText(eveningStart)) {
+            user.setEveningShiftStart(eveningStart);
+        }
+        if (StringUtils.hasText(eveningEnd)) {
+            user.setEveningShiftEnd(eveningEnd);
+        }
+        
+        userRepository.save(user);
+        return true;
+    }
+
     private String generateToken() {
         byte[] bytes = new byte[24];
         new SecureRandom().nextBytes(bytes);
