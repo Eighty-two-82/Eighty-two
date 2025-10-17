@@ -119,7 +119,12 @@ export async function getMe() {
                 userType: user.userType,
                 organizationId: user.organizationId,
                 patientId: user.patientId,
-                status: user.status
+                status: user.status,
+                // Notification settings
+                taskReminders: user.taskReminders,
+                approvalNotifications: user.approvalNotifications,
+                budgetWarning: user.budgetWarning,
+                emailNotifications: user.emailNotifications
             };
             
             console.log('Retrieved user info from backend:', userInfo);

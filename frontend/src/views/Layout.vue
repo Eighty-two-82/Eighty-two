@@ -237,18 +237,18 @@
                     {{ notification.title }}
                   </span>
                   <a-tag :color="getNotificationTagColor(notification.type)" size="small">
-                    {{ notification.type.toUpperCase() }}
+                    {{ notification.type?.toUpperCase() || 'NOTIFICATION' }}
                   </a-tag>
                 </div>
                 <p style="margin: 0; color: #666; font-size: 13px; line-height: 1.4;">
                   {{ notification.message }}
                 </p>
                 <div style="margin-top: 8px; font-size: 12px; color: #999;">
-                  {{ formatNotificationTime(notification.timestamp) }}
+                  {{ formatNotificationTime(notification.createdAt) }}
                 </div>
               </div>
               <a-button 
-                v-if="!notification.read" 
+                v-if="!notification.isRead" 
                 type="text" 
                 size="small" 
                 @click="markAsRead(notification.id)"
@@ -272,12 +272,15 @@
   <script setup>
   import { ref, onMounted, watchEffect, computed } from 'vue'
   import { useRouter, useRoute } from 'vue-router'
+  import { message } from 'ant-design-vue'
   import {
     HomeOutlined, CheckSquareOutlined, BarChartOutlined,
     SettingOutlined, MessageOutlined, AppstoreOutlined, UserOutlined,
     QuestionCircleOutlined, BellOutlined, LogoutOutlined
   } from '@ant-design/icons-vue'
   import { getMe, logout } from '@/services/userService'
+  import { getMyNotifications, markNotificationAsRead, markAllNotificationsAsRead } from '@/services/notificationService'
+  import { getBudgetByPatient } from '@/services/budgetService'
   
   const selectedKeys = ref(['home'])
   const userRole = ref('worker')
@@ -286,6 +289,17 @@
   const firstVisitModalVisible = ref(false)
   const notificationModalVisible = ref(false)
   
+  // User notification settings
+  const userNotificationSettings = ref({
+    taskReminders: true,
+    approvalNotifications: true,
+    budgetWarning: true,
+    emailNotifications: true
+  })
+  
+  // Real notification data from backend
+  const allNotifications = ref([])
+  
   onMounted(async () => {
     try {
       console.log('Layout component mounted, fetching user info...')
@@ -293,8 +307,23 @@
       console.log('User info received:', userInfo)
       userRole.value = userInfo?.data?.role || 'worker'
       userName.value = userInfo?.data?.name || 'Test User'
+      
+      // Load user notification settings
+      if (userInfo?.data) {
+        userNotificationSettings.value = {
+          taskReminders: userInfo.data.taskReminders !== undefined ? userInfo.data.taskReminders : true,
+          approvalNotifications: userInfo.data.approvalNotifications !== undefined ? userInfo.data.approvalNotifications : true,
+          budgetWarning: userInfo.data.budgetWarning !== undefined ? userInfo.data.budgetWarning : true,
+          emailNotifications: userInfo.data.emailNotifications !== undefined ? userInfo.data.emailNotifications : true
+        }
+        console.log('Loaded notification settings:', userNotificationSettings.value)
+      }
+      
       console.log('Set userRole to:', userRole.value)
       console.log('Set userName to:', userName.value)
+      
+      // Load notifications from backend
+      await loadNotifications()
       
       // Check if this is the first visit
       checkFirstVisit()
@@ -302,6 +331,20 @@
       console.error('Failed to get user info:', e)
     }
   })
+  
+  // Load notifications from backend
+  const loadNotifications = async () => {
+    try {
+      console.log('Loading notifications from backend...')
+      const result = await getMyNotifications()
+      allNotifications.value = result.data || []
+      console.log('Loaded notifications:', allNotifications.value)
+    } catch (error) {
+      console.error('Failed to load notifications:', error)
+      allNotifications.value = []
+    }
+  }
+  
   
   // Check if this is the user's first visit
   const checkFirstVisit = async () => {
@@ -325,385 +368,307 @@
   }
 
   // Close first visit modal and mark as visited
-  const closeFirstVisitModal = async () => {
+  const closeFirstVisitModal = () => {
     firstVisitModalVisible.value = false
-    
     try {
-      const userInfo = await getMe()
+      const userInfo = getMe()
       const userId = userInfo?.data?.id || 'anonymous'
       const appFirstVisitKey = `app_first_visit_${userId}`
-      
-      // Mark that user has visited the app
       localStorage.setItem(appFirstVisitKey, 'true')
-      console.log('App first visit marked as completed for user:', userId)
     } catch (error) {
       console.error('Failed to save first visit status:', error)
     }
   }
-  
+
   // Show help modal
   const showHelpModal = () => {
     helpModalVisible.value = true
   }
-  
-  // Handle logout
-  const handleLogout = () => {
-    console.log('Logout button clicked');
-    logout()
-  }
-  
-  // Get role display name
-  const getRoleDisplayName = () => {
-    switch (userRole.value) {
-      case 'poa':
-        return 'Power of Attorney / Family Member'
-      case 'manager':
-        return 'Manager'
-      case 'worker':
-        return 'Worker'
-      default:
-        return userRole.value
-    }
-  }
-  
-  // Get role color for tag
-  const getRoleColor = () => {
-    switch (userRole.value) {
-      case 'poa':
-        return 'purple'
-      case 'manager':
-        return 'blue'
-      case 'worker':
-        return 'green'
-      default:
-        return 'default'
-    }
-  }
-  
-  // Get dynamic tooltips based on user role
-  const getTasksTooltip = () => {
-    switch (userRole.value) {
-      case 'manager':
-        return 'Task management: Assign tasks to care staff, monitor task execution'
-      case 'worker':
-        return 'Task management: View assigned tasks and execute them'
-      case 'poa':
-        return 'Task management: View all task execution status, approve important tasks'
-      default:
-        return 'Task management page'
-    }
-  }
-  
-  const getSettingTooltip = () => {
-    switch (userRole.value) {
-      case 'poa':
-        return 'Settings page: Fill in patient information and special requirements, manage personal basic information and preferences'
-      case 'worker':
-      case 'manager':
-        return 'Settings page: View patient information and special requirements, manage personal basic information and preferences'
-      default:
-        return 'Settings page: Manage personal basic information and preferences'
-    }
-  }
-  
-  const getCommunicationTooltip = () => {
-    switch (userRole.value) {
-      case 'manager':
-        return 'Communication with patient agents/family members, send messages and notifications'
-      case 'poa':
-        return 'Communication with managers, receive messages and notifications'
-      default:
-        return 'Communication page'
-    }
-  }
-  
-  const getBudgetTooltip = () => {
-    switch (userRole.value) {
-      case 'manager':
-        return 'View and manage budget information, including expense statistics and financial reports'
-      case 'poa':
-        return 'Power of Attorney/Family Members can modify and manage budgets'
-      default:
-        return 'Budget management page'
-    }
-  }
-  
-  const router = useRouter()
-  const route = useRoute()
-  
-  // Route mapping
-  const keyToPath = {
-    home: '/app/menu',
-    tasks: '/app/tasks',
-    'carer-team': '/app/carer-team',
-    budget: '/app/budget',
-    upload: '/app/upload',
-    setting: '/app/setting',
-    logout: '/app/logout',
-    'worker-management': '/app/worker-management',
-    communication: '/app/communication',
-  }
-  
-  // Auto highlight when route changes
-  watchEffect(() => {
-    const pathToKey = Object.fromEntries(Object.entries(keyToPath).map(([k, v]) => [v, k]))
-    const k = pathToKey[route.path] || 'home'
-    selectedKeys.value = [k]
-  })
-  
-  const onMenuClick = ({ key }) => {
-    const path = keyToPath[key]
-    if (path) router.push(path)
+
+  // Show notification modal
+  const showNotificationModal = () => {
+    notificationModalVisible.value = true
   }
 
-  // Role-based notification data - Make it reactive
-  const allNotifications = ref({
-    manager: [
-      {
-        id: 1,
-        type: 'warning',
-        title: 'Budget Alert',
-        message: 'Hygiene Products category has exceeded 80% of budget. Current usage: 93%',
-        timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
-        read: false
-      },
-      {
-        id: 2,
-        type: 'error',
-        title: 'Task Overdue',
-        message: 'Morning Medication task assigned to Worker A is overdue by 2 hours',
-        timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000),
-        read: false
-      },
-      {
-        id: 3,
-        type: 'info',
-        title: 'New Request',
-        message: 'POA has submitted a new task request: "Add Physical Therapy Session"',
-        timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000),
-        read: true
-      },
-      {
-        id: 4,
-        type: 'success',
-        title: 'Task Completed',
-        message: 'Evening Care task has been completed by Worker C and approved by POA',
-        timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000),
-        read: true
-      },
-      {
-        id: 5,
-        type: 'warning',
-        title: 'System Maintenance',
-        message: 'Scheduled system maintenance will occur tonight from 2:00 AM to 4:00 AM',
-        timestamp: new Date(Date.now() - 8 * 60 * 60 * 1000),
-        read: false
-      },
-      {
-        id: 6,
-        type: 'error',
-        title: 'Critical Alert',
-        message: 'Toothpaste sub-element budget has been exceeded by $100',
-        timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000),
-        read: false
-      }
-    ],
-    poa: [
-      {
-        id: 1,
-        type: 'info',
-        title: 'Request Status Update',
-        message: 'Your request for "Add Physical Therapy Session" has been approved by Manager',
-        timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000),
-        read: false
-      },
-      {
-        id: 2,
-        type: 'warning',
-        title: 'Task Review Required',
-        message: 'Worker A has completed "Morning Medication" task. Please review and approve.',
-        timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
-        read: false
-      },
-      {
-        id: 3,
-        type: 'success',
-        title: 'Task Approved',
-        message: 'Your approval for "Evening Care" task has been recorded',
-        timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000),
-        read: true
-      },
-      {
-        id: 4,
-        type: 'info',
-        title: 'Budget Overview',
-        message: 'Monthly budget report is available. Current usage: 67% of total budget',
-        timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000),
-        read: true
-      },
-      {
-        id: 5,
-        type: 'warning',
-        title: 'System Maintenance',
-        message: 'Scheduled system maintenance will occur tonight from 2:00 AM to 4:00 AM',
-        timestamp: new Date(Date.now() - 8 * 60 * 60 * 1000),
-        read: false
-      }
-    ],
-    worker: [
-      {
-        id: 1,
-        type: 'info',
-        title: 'New Task Assigned',
-        message: 'You have been assigned a new task: "Physical Therapy Session" due today at 2:00 PM',
-        timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000),
-        read: false
-      },
-      {
-        id: 2,
-        type: 'warning',
-        title: 'Task Reminder',
-        message: 'Your "Morning Medication" task is due in 30 minutes',
-        timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
-        read: false
-      },
-      {
-        id: 3,
-        type: 'success',
-        title: 'Task Approved',
-        message: 'Your completion of "Evening Care" task has been approved by POA',
-        timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000),
-        read: true
-      },
-      {
-        id: 4,
-        type: 'error',
-        title: 'Task Rejected',
-        message: 'Your completion of "Morning Medication" was rejected. Please redo the task.',
-        timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000),
-        read: false
-      },
-      {
-        id: 5,
-        type: 'warning',
-        title: 'System Maintenance',
-        message: 'Scheduled system maintenance will occur tonight from 2:00 AM to 4:00 AM',
-        timestamp: new Date(Date.now() - 8 * 60 * 60 * 1000),
-        read: false
-      }
-    ]
-  })
-
-  // Get notifications based on user role
+  // Get notifications based on user role and notification settings
   const notifications = computed(() => {
-    return allNotifications.value[userRole.value] || []
+    // Filter notifications based on user settings
+    return allNotifications.value.filter(notification => {
+      const category = notification.category
+      
+      // Map notification categories to user settings
+      switch (category) {
+        case 'task':
+          return userNotificationSettings.value.taskReminders
+        case 'approval':
+          return userNotificationSettings.value.approvalNotifications
+        case 'budget':
+          return userNotificationSettings.value.budgetWarning
+        case 'system':
+          // System notifications are always shown (important for maintenance, etc.)
+          return true
+        default:
+          // Default to showing notification if category is not recognized
+          return true
+      }
+    })
   })
 
   // Computed property for unread notifications count
   const unreadNotificationsCount = computed(() => {
-    const count = notifications.value.filter(n => !n.read).length
+    const count = notifications.value.filter(n => !n.isRead).length
     console.log('Unread notifications count:', count)
     return count
   })
 
   // Notification functions
-  const showNotificationModal = () => {
-    notificationModalVisible.value = true
-  }
-
-  const markAsRead = (notificationId) => {
-    const roleNotifications = allNotifications.value[userRole.value]
-    if (roleNotifications) {
-      const notification = roleNotifications.find(n => n.id === notificationId)
+  const markAsRead = async (notificationId) => {
+    try {
+      await markNotificationAsRead(notificationId)
+      
+      // Update local state
+      const notification = allNotifications.value.find(n => n.id === notificationId)
       if (notification) {
-        notification.read = true
+        notification.isRead = true
         console.log('Marked notification as read:', notificationId)
         console.log('Unread count after mark as read:', unreadNotificationsCount.value)
         
         // Show success message
         message.success('Notification marked as read')
       }
+    } catch (error) {
+      console.error('Failed to mark notification as read:', error)
+      message.error('Failed to mark notification as read')
     }
   }
 
-  const markAllAsRead = () => {
-    const roleNotifications = allNotifications.value[userRole.value]
-    if (roleNotifications) {
-      let markedCount = 0
-      roleNotifications.forEach(notification => {
-        if (!notification.read) {
-          notification.read = true
-          markedCount++
-        }
+  const markAllAsRead = async () => {
+    try {
+      // Mark all backend notifications as read
+      const result = await markAllNotificationsAsRead()
+      
+      // Mark all local notifications as read
+      allNotifications.value.forEach(notification => {
+        notification.isRead = true
       })
       
-      console.log('Marked all notifications as read, count:', markedCount)
+      console.log('Marked all notifications as read')
       console.log('Unread count after mark all as read:', unreadNotificationsCount.value)
       
       // Show success message
-      if (markedCount > 0) {
-        message.success(`All ${markedCount} notifications marked as read`)
-      } else {
-        message.info('No unread notifications to mark')
-      }
+      message.success('All notifications marked as read')
+    } catch (error) {
+      console.error('Failed to mark all notifications as read:', error)
+      message.error('Failed to mark all notifications as read')
     }
   }
 
+  // Format notification time
+  const formatNotificationTime = (timestamp) => {
+    const now = new Date()
+    const time = new Date(timestamp)
+    const diffMs = now - time
+    const diffMins = Math.floor(diffMs / (1000 * 60))
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+    if (diffMins < 1) return 'Just now'
+    if (diffMins < 60) return `${diffMins} minutes ago`
+    if (diffHours < 24) return `${diffHours} hours ago`
+    if (diffDays < 7) return `${diffDays} days ago`
+    return time.toLocaleDateString()
+  }
+
+  // Get notification color based on type
   const getNotificationColor = (type) => {
     switch (type) {
       case 'error': return '#ff4d4f'
-      case 'warning': return '#fa8c16'
-      case 'info': return '#1890ff'
+      case 'warning': return '#faad14'
       case 'success': return '#52c41a'
-      default: return '#666'
+      case 'info': 
+      default: return '#1890ff'
     }
   }
 
+  // Get notification background color
   const getNotificationBgColor = (type) => {
     switch (type) {
       case 'error': return '#fff2f0'
-      case 'warning': return '#fff7e6'
-      case 'info': return '#e6f7ff'
+      case 'warning': return '#fffbe6'
       case 'success': return '#f6ffed'
-      default: return '#fafafa'
+      case 'info': 
+      default: return '#f0f9ff'
     }
   }
 
+  // Get notification tag color
   const getNotificationTagColor = (type) => {
     switch (type) {
       case 'error': return 'red'
       case 'warning': return 'orange'
-      case 'info': return 'blue'
       case 'success': return 'green'
+      case 'info': 
+      default: return 'blue'
+    }
+  }
+
+  // Get notification icon
+  const getNotificationIcon = (type) => {
+    switch (type) {
+      case 'error': return '❌'
+      case 'warning': return '⚠️'
+      case 'success': return '✅'
+      case 'info': 
+      default: return 'ℹ️'
+    }
+  }
+
+  // Role display functions
+  const getRoleDisplayName = () => {
+    switch (userRole.value) {
+      case 'manager': return 'Manager'
+      case 'poa': return 'Power of Attorney'
+      case 'worker': return 'Worker'
+      default: return 'User'
+    }
+  }
+
+  const getRoleColor = () => {
+    switch (userRole.value) {
+      case 'manager': return 'blue'
+      case 'poa': return 'green'
+      case 'worker': return 'orange'
       default: return 'default'
     }
   }
 
-  const getNotificationIcon = (type) => {
-    switch (type) {
-      case 'error': return '🚨'
-      case 'warning': return '⚠️'
-      case 'info': return 'ℹ️'
-      case 'success': return '✅'
-      default: return '📢'
+  // Tooltip functions
+  const getBudgetTooltip = () => {
+    if (userRole.value === 'manager') {
+      return 'Manage and monitor budget allocations, track expenses and financial reports'
+    } else if (userRole.value === 'poa') {
+      return 'View budget information and financial reports for care services'
+    }
+    return ''
+  }
+
+  const getTasksTooltip = () => {
+    switch (userRole.value) {
+      case 'manager': return 'Create, assign and manage care tasks, monitor completion status'
+      case 'poa': return 'View task progress, approve completed tasks and provide feedback'
+      case 'worker': return 'View assigned tasks, update completion status and submit for approval'
+      default: return 'Manage and track care-related tasks'
     }
   }
 
-  const formatNotificationTime = (timestamp) => {
-    const now = new Date()
-    const diff = now - timestamp
-    const hours = Math.floor(diff / (1000 * 60 * 60))
-    const minutes = Math.floor(diff / (1000 * 60))
+  const getCommunicationTooltip = () => {
+    if (userRole.value === 'manager') {
+      return 'Communicate with care team members, send announcements and coordinate care activities'
+    } else if (userRole.value === 'poa') {
+      return 'Communicate with care team, receive updates and provide feedback on care services'
+    }
+    return ''
+  }
+
+  const getSettingTooltip = () => {
+    switch (userRole.value) {
+      case 'manager': return 'Configure system settings, manage user permissions and system preferences'
+      case 'poa': return 'Update personal information, notification preferences and account settings'
+      case 'worker': return 'Update personal profile, notification settings and account preferences'
+      default: return 'Manage account settings and preferences'
+    }
+  }
+
+  // Menu click handler
+  const onMenuClick = ({ key }) => {
+    console.log('Menu clicked:', key)
+    selectedKeys.value = [key]
     
-    if (hours > 24) {
-      return `${Math.floor(hours / 24)} days ago`
-    } else if (hours > 0) {
-      return `${hours} hours ago`
-    } else if (minutes > 0) {
-      return `${minutes} minutes ago`
-    } else {
-      return 'Just now'
+    if (key === 'logout') {
+      handleLogout()
+      return
+    }
+    
+    const path = getPathByKey(key)
+    if (path) router.push(path)
+  }
+
+  // Get path by menu key
+  const getPathByKey = (key) => {
+    const pathMap = {
+      'home': '/',
+      'worker-management': '/worker-management',
+      'budget': '/budget',
+      'tasks': '/tasks',
+      'upload': '/upload',
+      'communication': '/communication',
+      'carer-team': '/carer-team',
+      'setting': '/setting'
+    }
+    return pathMap[key]
+  }
+
+  // Router and route
+  const router = useRouter()
+  const route = useRoute()
+
+  // Get menu key by path
+  const getKeyByPath = (path) => {
+    const keyMap = {
+      '/': 'home',
+      '/worker-management': 'worker-management',
+      '/budget': 'budget',
+      '/tasks': 'tasks',
+      '/upload': 'upload',
+      '/communication': 'communication',
+      '/carer-team': 'carer-team',
+      '/setting': 'setting'
+    }
+    return keyMap[path]
+  }
+
+  // Watch route changes to update selected keys
+  watchEffect(() => {
+    const currentPath = route.path
+    const key = getKeyByPath(currentPath)
+    if (key) {
+      selectedKeys.value = [key]
+    }
+  })
+
+  // Logout handler
+  const handleLogout = async () => {
+    try {
+      await logout()
+      router.push('/login')
+    } catch (error) {
+      console.error('Logout failed:', error)
+      // Still redirect to login even if logout fails
+      router.push('/login')
     }
   }
   </script>
+
+  <style scoped>
+  .ant-layout-sider {
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+  }
   
+  .ant-menu-item {
+    margin: 0 !important;
+    border-radius: 6px !important;
+  }
+  
+  .ant-menu-item:hover {
+    background-color: #f0f9ff !important;
+  }
+  
+  .ant-menu-item-selected {
+    background-color: #e6f7ff !important;
+    color: #1890ff !important;
+  }
+  
+  .ant-menu-item-selected .anticon {
+    color: #1890ff !important;
+  }
+  </style>

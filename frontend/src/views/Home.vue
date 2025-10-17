@@ -344,7 +344,11 @@ const loadHomeData = async () => {
       try {
         const budgetResponse = await getBudgetByPatient(userInfo.data.patientId)
         if (budgetResponse?.data) {
-          budgetCategories.value = budgetResponse.data.categories || []
+          // Process categories to include calculated usage data
+          budgetCategories.value = (budgetResponse.data.categories || []).map(category => ({
+            ...category,
+            totalUtilised: (category.subElements || []).reduce((sum, subElement) => sum + (subElement.totalUtilised || 0), 0)
+          }))
         }
       } catch (error) {
         console.error('Failed to load budget data:', error)
@@ -409,8 +413,8 @@ const roleDisplay = computed(() => {
 // --- Budget Preview - loaded from API ---
 const budgetCategories = ref([])
 
-const totalBudget = computed(() => budgetCategories.value.reduce((s, c) => s + c.budget, 0))
-const totalUsed = computed(() => budgetCategories.value.reduce((s, c) => s + c.used, 0))
+const totalBudget = computed(() => budgetCategories.value.reduce((s, c) => s + (c.categoryBudget || 0), 0))
+const totalUsed = computed(() => budgetCategories.value.reduce((s, c) => s + (c.totalUtilised || 0), 0))
 const totalLeft = computed(() => totalBudget.value - totalUsed.value)
 const totalUsagePct = computed(() => {
   if (totalBudget.value === 0) {
@@ -424,9 +428,9 @@ const topCategoryWarnings = computed(() => {
   const arr = budgetCategories.value
     .map(c => ({
       category: c.name,
-      pct: c.budget > 0 ? Math.round((c.used / c.budget) * 100) : 0,
-      used: c.used,
-      budget: c.budget
+      pct: (c.categoryBudget || 0) > 0 ? Math.round(((c.totalUtilised || 0) / c.categoryBudget) * 100) : 0,
+      used: c.totalUtilised || 0,
+      budget: c.categoryBudget || 0
     }))
     .sort((a, b) => b.pct - a.pct)
     .slice(0, 3)
