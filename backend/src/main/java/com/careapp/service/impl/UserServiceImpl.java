@@ -3,7 +3,6 @@ package com.careapp.service.impl;
 import com.careapp.domain.User;
 import com.careapp.repository.UserRepository;
 import com.careapp.service.UserService;
-import com.careapp.service.impl.EmailService;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -16,9 +15,6 @@ public class UserServiceImpl implements UserService {
 
     @Resource
     private UserRepository userRepository;
-    
-    @Resource
-    private EmailService emailService;
 
     @Override
     public User loginService(String uname, String password) {
@@ -132,54 +128,6 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public boolean createPasswordResetTokenAndSendEmail(String identifier) {
-        if (!StringUtils.hasText(identifier)) {
-            return false;
-        }
-        
-        // Find user by email or username
-        User user = userRepository.findByEmail(identifier);
-        if (user == null) {
-            user = userRepository.findByUname(identifier);
-        }
-        if (user == null) {
-            return false;
-        }
-        
-        // Generate token and set expiry
-        String token = generateToken();
-        long expires = System.currentTimeMillis() + 15 * 60 * 1000; // 15 minutes
-        user.setPasswordResetToken(token);
-        user.setPasswordResetExpires(expires);
-        userRepository.save(user);
-        
-        // Send email with reset token
-        try {
-            String subject = "CareTrack - Password Reset Request";
-            String emailContent = String.format(
-                "Hello %s,\n\n" +
-                "You have requested to reset your password for CareTrack.\n\n" +
-                "Your password reset token is: %s\n\n" +
-                "Please use this token to reset your password. This token will expire in 15 minutes.\n\n" +
-                "If you did not request this password reset, please ignore this email.\n\n" +
-                "Best regards,\n" +
-                "CareTrack Team",
-                user.getFirstName() != null ? user.getFirstName() : "User",
-                token
-            );
-            
-            emailService.sendText(user.getEmail(), subject, emailContent);
-            return true;
-        } catch (Exception e) {
-            // Log error but don't fail the token generation for testing
-            System.err.println("Failed to send password reset email: " + e.getMessage());
-            System.err.println("Token generated for testing: " + token);
-            // For testing purposes, return true even if email fails
-            return true;
-        }
-    }
-
-    @Override
     public boolean resetPasswordByToken(String token, String newPassword) {
         if (!StringUtils.hasText(token) || !StringUtils.hasText(newPassword)) {
             return false;
@@ -223,14 +171,6 @@ public class UserServiceImpl implements UserService {
             user.setPassword(null); // do not return password
         }
         return user;
-    }
-
-    @Override
-    public User findUserByEmail(String email) {
-        if (!StringUtils.hasText(email)) {
-            return null;
-        }
-        return userRepository.findByEmail(email);
     }
 
     @Override

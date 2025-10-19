@@ -90,15 +90,15 @@ public class UserController {
         return Result.<Boolean>error("400", "Invalid credentials or parameters");
     }
 
-    // Forgot password: generate token and send email
+    // Forgot password: generate token
     @PostMapping("/forgot-password")
     public Result<String> forgotPassword(@RequestBody Map<String, String> body) {
         String identifier = body.get("identifier"); // email or uname
-        boolean success = userService.createPasswordResetTokenAndSendEmail(identifier);
-        if (success) {
-            return Result.success("Email sent", "Password reset email sent successfully!");
+        String token = userService.createPasswordResetToken(identifier);
+        if (token != null) {
+            return Result.success(token, "Reset token generated!");
         }
-        return Result.<String>error("404", "User not found or email sending failed");
+        return Result.<String>error("404", "User not found");
     }
 
     // Reset password by token
@@ -111,16 +111,6 @@ public class UserController {
             return Result.success(true, "Password reset successfully!");
         }
         return Result.<Boolean>error("400", "Invalid or expired token");
-    }
-
-    // Get password reset token for testing (temporary endpoint)
-    @GetMapping("/test-token/{email}")
-    public Result<String> getTestToken(@PathVariable String email) {
-        User user = userService.getUserById(userService.findUserByEmail(email).getId());
-        if (user != null && user.getPasswordResetToken() != null) {
-            return Result.success(user.getPasswordResetToken(), "Token retrieved for testing");
-        }
-        return Result.<String>error("404", "No reset token found for user");
     }
 
     // Update user patientId
