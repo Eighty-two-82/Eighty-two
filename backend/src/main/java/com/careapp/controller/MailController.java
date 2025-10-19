@@ -13,8 +13,12 @@ public class MailController {
     public MailController(EmailService emailService) { this.emailService = emailService; }
 
     @PostMapping("/test")
-    public ResponseEntity<?> test(@RequestParam String to) throws Exception {
-        emailService.sendText(to, "CareTrack Test", "Hello from CareTrack via SendGrid!");
-        return ResponseEntity.ok(Map.of("status","sent"));
+    public ResponseEntity<?> test(@RequestParam String to) {
+        try {
+            emailService.sendText(to, "CareTrack Test", "Hello from CareTrack via SendGrid!");
+            return ResponseEntity.ok(Map.of("status","sent"));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+        }
     }
 }
