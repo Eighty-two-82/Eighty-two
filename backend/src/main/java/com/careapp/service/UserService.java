@@ -22,6 +22,9 @@ public interface UserService {
 
     // Forgot password: generate token and set expiry, return token
     String createPasswordResetToken(String identifier);
+    
+    // Forgot password: generate token, send email, return success status
+    boolean createPasswordResetTokenAndSendEmail(String identifier);
 
     // Reset password by token
     boolean resetPasswordByToken(String token, String newPassword);
@@ -31,6 +34,9 @@ public interface UserService {
 
     // Get user by ID
     User getUserById(String userId);
+    
+    // Find user by email
+    User findUserByEmail(String email);
     
     // Mark user as having used invite code
     boolean markUserAsUsedInviteCode(String userId);
