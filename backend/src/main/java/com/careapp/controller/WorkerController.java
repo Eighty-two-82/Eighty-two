@@ -290,10 +290,10 @@ public class WorkerController {
     }
     
     /**
-     * Upload worker photo FILE (真正的文件上传 - Swagger会显示Choose File按钮)
+     * Upload worker file (actual file upload - Swagger will show Choose File button)
      * POST /api/workers/{id}/photo-file
      * @param id Worker ID
-     * @param file Photo file
+     * @param file File (supports images, PDF, Excel, Word documents)
      * @return Updated worker
      */
     @PostMapping(value = "/{id}/photo-file", consumes = "multipart/form-data")
@@ -305,20 +305,32 @@ public class WorkerController {
                 return Result.error("400", "Please select a file to upload!");
             }
             
-            // 验证文件类型
+            // Validate file type - supports images, PDF, Excel, Word document
             String contentType = file.getContentType();
-            if (contentType == null || !contentType.startsWith("image/")) {
-                return Result.error("400", "Only image files are allowed!");
+            if (contentType == null) {
+                return Result.error("400", "File type cannot be determined!");
             }
             
-            // 创建上传目录
-            String uploadDir = "uploads/worker-photos/";
+            // Allowed file types
+            boolean isAllowed = contentType.startsWith("image/") ||  // Image files
+                               contentType.equals("application/pdf") ||  // PDF files
+                               contentType.equals("application/vnd.ms-excel") ||  // Excel (.xls)
+                               contentType.equals("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") ||  // Excel (.xlsx)
+                               contentType.equals("application/msword") ||  // Word (.doc)
+                               contentType.equals("application/vnd.openxmlformats-officedocument.wordprocessingml.document");  // Word (.docx)
+            
+            if (!isAllowed) {
+                return Result.error("400", "Only image, PDF, Excel, and Word files are allowed!");
+            }
+            
+            // Create upload directory
+            String uploadDir = "uploads/worker-files/";
             File directory = new File(uploadDir);
             if (!directory.exists()) {
                 directory.mkdirs();
             }
             
-            // 生成唯一文件名
+            // Generate unique filename
             String originalFilename = file.getOriginalFilename();
             String fileExtension = "";
             if (originalFilename != null && originalFilename.contains(".")) {
@@ -326,17 +338,17 @@ public class WorkerController {
             }
             String newFilename = id + "_" + UUID.randomUUID().toString() + fileExtension;
             
-            // 保存文件
+            // Save file
             Path filePath = Paths.get(uploadDir + newFilename);
             Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
             
-            // 生成访问URL（这里简化为相对路径，实际应该是完整的URL）
-            String photoUrl = "/uploads/worker-photos/" + newFilename;
+            // Generate access URL (simplified as relative path, should be complete URL in production)
+            String fileUrl = "/uploads/worker-files/" + newFilename;
             
-            // 更新数据库
-            Worker worker = workerService.uploadWorkerPhotoSimple(id, photoUrl);
+            // Update database
+            Worker worker = workerService.uploadWorkerPhotoSimple(id, fileUrl);
             if (worker != null) {
-                return Result.success(worker, "Worker photo uploaded successfully! URL: " + photoUrl);
+                return Result.success(worker, "Worker file uploaded successfully! URL: " + fileUrl);
             } else {
                 return Result.error("404", "Worker not found!");
             }
@@ -348,7 +360,8 @@ public class WorkerController {
     }
     
     /**
-     * Upload worker photo URL (通过URL上传 - 接收JSON)
+     * Upload worker photo URL 
+     * 
      * POST /api/workers/{id}/photo-url
      * @param id Worker ID
      * @param body Map containing photoUrl
