@@ -1077,6 +1077,25 @@ onMounted(async () => {
     const userInfo = await getMe()
     const organizationId = userInfo?.data?.organizationId || 'default-org'
     
+    console.log('👤 CarerTeam - Current user info:', userInfo?.data)
+    console.log('🔍 CarerTeam - User organizationId:', userInfo?.data?.organizationId)
+    console.log('🔍 CarerTeam - User patientId:', userInfo?.data?.patientId)
+    console.log('🔍 CarerTeam - User role:', userInfo?.data?.role)
+    
+    // Debug: Check if POA has required data
+    if (userInfo?.data?.role === 'poa') {
+      console.log('🔍 CarerTeam - POA Debug Info:')
+      console.log('  - Has patientId:', !!userInfo.data.patientId)
+      console.log('  - Has organizationId:', !!userInfo.data.organizationId)
+      console.log('  - PatientId value:', userInfo.data.patientId)
+      console.log('  - OrganizationId value:', userInfo.data.organizationId)
+      
+      if (!userInfo.data.organizationId) {
+        console.error('❌ CarerTeam - POA user missing organizationId - this will cause schedules not to display')
+        message.warning('Your account is not properly linked to an organization. Please contact the manager.')
+      }
+    }
+    
     // Load current organization info
     await loadCurrentOrganization()
     
@@ -1224,9 +1243,22 @@ const loadWorkers = async () => {
 const loadDailySchedule = async (organizationId, dateStr) => {
   try {
     console.log('🔍 CarerTeam - Loading daily schedule for:', dateStr, 'organizationId:', organizationId)
+    console.log('🔍 CarerTeam - API URL will be:', `/workers/organization/${organizationId}/daily-schedule/${dateStr}`)
+    
+    // Get current user info for debugging
+    try {
+      const userInfo = await getMe()
+      console.log('🔍 CarerTeam - Current user role:', userInfo?.data?.role)
+      console.log('🔍 CarerTeam - Current user patientId:', userInfo?.data?.patientId)
+      console.log('🔍 CarerTeam - Current user organizationId:', userInfo?.data?.organizationId)
+    } catch (error) {
+      console.error('❌ CarerTeam - Failed to get user info:', error)
+    }
     
     const response = await getDailySchedule(organizationId, dateStr)
     console.log('📅 CarerTeam - Raw schedule data from API:', response?.data)
+    console.log('📅 CarerTeam - Response status:', response?.status)
+    console.log('📅 CarerTeam - Response code:', response?.code)
     
     if (response?.data && response.data.length > 0) {
       // Convert Schedule objects to worker-like objects for display

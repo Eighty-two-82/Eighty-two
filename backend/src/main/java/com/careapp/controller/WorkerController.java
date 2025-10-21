@@ -8,6 +8,7 @@ import com.careapp.service.FileService;
 import com.careapp.dto.WorkerPhotoUploadRequest;
 import com.careapp.service.WorkerService;
 import com.careapp.service.ScheduleService;
+import com.careapp.service.UserService;
 import com.careapp.utils.Result;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -36,6 +37,9 @@ public class WorkerController {
 
     @Autowired
     private FileService fileService;
+    
+    @Autowired
+    private UserService userService;
 
     // Create a new worker (for management to create worker records)
     @PostMapping
@@ -251,7 +255,7 @@ public class WorkerController {
             }
             
             // Get organization ID from manager
-            String organizationId = "default-org"; // TODO: Get from manager's data
+            String organizationId = getOrganizationIdFromManager(managerId);
             System.out.println("🏢 Backend - Using organizationId: " + organizationId);
             
             List<Schedule> createdSchedules = scheduleService.batchCreateDailySchedules(scheduleRequest, organizationId, managerId);
@@ -507,6 +511,26 @@ public class WorkerController {
         } catch (Exception e) {
             return Result.error("500", "Failed to retrieve workers without photos: " + e.getMessage());
         }
+    }
+    
+    /**
+     * Get organization ID from manager ID
+     * @param managerId The manager ID
+     * @return The organization ID
+     */
+    private String getOrganizationIdFromManager(String managerId) {
+        try {
+            com.careapp.domain.User manager = userService.getUserById(managerId);
+            if (manager != null && manager.getOrganizationId() != null && !manager.getOrganizationId().isEmpty()) {
+                return manager.getOrganizationId();
+            }
+        } catch (Exception e) {
+            System.out.println("❌ Failed to get organization ID from manager: " + e.getMessage());
+        }
+        
+        // Fallback to default organization ID
+        System.out.println("⚠️ Using default organization ID for manager: " + managerId);
+        return "default-org";
     }
 
 }

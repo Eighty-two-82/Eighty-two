@@ -2116,13 +2116,16 @@ const loadWorkers = async () => {
 // Load daily schedule for a specific date
 const loadDailySchedule = async (dateStr) => {
   try {
-    console.log('🔍 Loading daily schedule for:', dateStr, 'organizationId:', organizationId.value)
+    console.log('🔍 WorkerManagement - Loading daily schedule for:', dateStr, 'organizationId:', organizationId.value)
+    console.log('🔍 WorkerManagement - API URL will be:', `/workers/organization/${organizationId.value}/daily-schedule/${dateStr}`)
     
     if (organizationId.value) {
       const response = await getDailySchedule(organizationId.value, dateStr)
       const schedules = response.data || []
       
-      console.log('📅 Raw schedule data from API:', schedules)
+      console.log('📅 WorkerManagement - Raw schedule data from API:', schedules)
+      console.log('📅 WorkerManagement - Response status:', response?.status)
+      console.log('📅 WorkerManagement - Response code:', response?.code)
       
       // Convert Schedule objects to worker-like objects for display
       const scheduledWorkers = schedules.map(schedule => {

@@ -129,6 +129,12 @@
                   size="small" 
         >
           <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'title'">
+              <span v-if="record.isTemporary" style="color: #1890ff; font-style: italic;">
+                {{ record.title }} (Temporary)
+              </span>
+              <span v-else>{{ record.title }}</span>
+            </template>
             <template v-if="column.key === 'assignedTo'">
               <span v-if="record.assignedTo">{{ getCleanAssignedToDisplay(record.assignedTo) }}</span>
               <a-tag v-else color="orange">Unassigned</a-tag>
@@ -145,21 +151,33 @@
             </template>
             <template v-if="column.key === 'actions'">
               <a-space>
-                <a-button size="small" @click="editTask(record)">
-                  Edit
-                </a-button>
-                <a-button 
-                  size="small" 
-                  type="primary" 
-                  @click="handleCompleteTask(record)"
-                  :disabled="record.status === 'Completed'"
-                  style="background-color: #52c41a; border-color: #52c41a;"
-                >
-                  Complete
-                </a-button>
-                <a-button size="small" danger @click="handleDeleteTask(record)">
-                  Delete
-                </a-button>
+                <!-- For temporary tasks, show save button instead of edit -->
+                <template v-if="record.isTemporary">
+                  <a-button size="small" type="primary" @click="saveTemporaryTask(record)">
+                    Save
+                  </a-button>
+                  <a-button size="small" danger @click="handleDeleteTask(record)">
+                    Remove
+                  </a-button>
+                </template>
+                <!-- For regular tasks, show normal actions -->
+                <template v-else>
+                  <a-button size="small" @click="editTask(record)">
+                    Edit
+                  </a-button>
+                  <a-button 
+                    size="small" 
+                    type="primary" 
+                    @click="handleCompleteTask(record)"
+                    :disabled="record.status === 'Completed'"
+                    style="background-color: #52c41a; border-color: #52c41a;"
+                  >
+                    Complete
+                  </a-button>
+                  <a-button size="small" danger @click="handleDeleteTask(record)">
+                    Delete
+                  </a-button>
+                </template>
               </a-space>
             </template>
           </template>
@@ -854,7 +872,6 @@ import {
   createTask, 
   updateTask, 
   deleteTask as deleteTaskAPI,
-  assignTask,
   completeTask as completeTaskAPI,
   approveTask,
   rejectTask,
@@ -1137,11 +1154,15 @@ const confirmCreateTask = async () => {
     const response = await createTask(taskData)
     
     if (response.data) {
-      // Add to local tasks array
+      // Add to local tasks array - use the ID returned from backend
       const newTask = {
-        ...response.data,
-        id: response.data.id || Date.now()
+        ...response.data
       }
+      
+      console.log('✅ Task created successfully:', newTask)
+      console.log('🆔 Created task ID:', newTask.id)
+      console.log('🔍 Created task ID type:', typeof newTask.id)
+      
       todayTasks.value.push(newTask)
       
       message.destroy()
@@ -1165,6 +1186,33 @@ const confirmCreateTask = async () => {
 }
 
 const editTask = (task) => {
+  // Validate task data with detailed logging
+  console.log('🔍 editTask called with:', task)
+  console.log('🔍 task exists:', !!task)
+  console.log('🔍 task.id exists:', !!task?.id)
+  console.log('🔍 task.id value:', task?.id)
+  console.log('🔍 task.id type:', typeof task?.id)
+  
+  if (!task) {
+    message.error('Task object is missing. Cannot edit task.')
+    return
+  }
+  
+  if (!task.id) {
+    message.error('Task ID is missing. Cannot edit task.')
+    console.error('Task without ID:', task)
+    return
+  }
+  
+  // Check if this is a temporary task that needs to be saved first
+  if (task.isTemporary) {
+    message.warning('This is a temporary task. Please save it to the database first before editing.')
+    return
+  }
+  
+  console.log('✏️ Editing task:', task)
+  console.log('🆔 Task ID:', task.id)
+  
   // Find the worker ID from the assignedTo name or use assignedToId
   let assignedToId = task.assignedToId
   if (!assignedToId && task.assignedTo) {
@@ -1191,6 +1239,13 @@ const confirmEditTask = async () => {
   try {
     message.loading('Updating task...', 0)
     
+    // Validate task ID
+    if (!editTaskForm.value.id) {
+      message.destroy()
+      message.error('Task ID is missing. Cannot update task.')
+      return
+    }
+    
     // Find the selected worker to get both name and ID
     const selectedWorker = editTaskForm.value.assignedTo ? 
       availableWorkers.value.find(w => w.id === editTaskForm.value.assignedTo) : null
@@ -1208,6 +1263,8 @@ const confirmEditTask = async () => {
     
     console.log('✏️ Updating task with data:', taskData)
     console.log('🆔 Task ID:', editTaskForm.value.id)
+    console.log('🔍 Task ID type:', typeof editTaskForm.value.id)
+    console.log('🔍 Task ID length:', editTaskForm.value.id?.length)
     
     const response = await updateTask(editTaskForm.value.id, taskData)
     
@@ -1230,11 +1287,25 @@ const confirmEditTask = async () => {
   } catch (error) {
     message.destroy()
     console.error('Failed to update task:', error)
-    message.error(error.message || 'Failed to update task')
+    
+    // Provide more specific error messages
+    if (error.message.includes('Task not found')) {
+      message.error('Task not found. The task may have been deleted or the ID is invalid.')
+    } else if (error.message.includes('Failed to update task')) {
+      message.error('Failed to update task. Please check your network connection and try again.')
+    } else {
+      message.error(error.message || 'Failed to update task')
+    }
   }
 }
 
 const handleCompleteTask = async (task) => {
+  // Check if this is a temporary task
+  if (task.isTemporary) {
+    message.warning('This is a temporary task. Please save it to the database first before completing.')
+    return
+  }
+  
   try {
     message.loading('Completing task...', 0)
     
@@ -1259,7 +1330,61 @@ const handleCompleteTask = async (task) => {
   }
 }
 
+const saveTemporaryTask = async (task) => {
+  try {
+    message.loading('Saving task...', 0)
+    
+    // Prepare task data for saving (remove temporary fields)
+    const taskData = {
+      title: task.title,
+      description: task.description,
+      assignedTo: task.assignedTo || '',
+      assignedToId: task.assignedToId || null,
+      priority: task.priority,
+      dueDate: task.dueDate,
+      status: task.status,
+      patientId: currentUser.value?.patientId || null,
+      createdBy: currentUser.value?.id || null,
+      isRecurring: task.isRecurring || false,
+      recurringTemplateId: task.recurringTemplateId || null
+    }
+    
+    console.log('💾 Saving temporary task:', taskData)
+    
+    const response = await createTask(taskData)
+    
+    if (response.data) {
+      // Replace temporary task with saved task
+      const taskIndex = todayTasks.value.findIndex(t => t.id === task.id)
+      if (taskIndex !== -1) {
+        todayTasks.value[taskIndex] = {
+          ...response.data,
+          isTemporary: false // Mark as no longer temporary
+        }
+      }
+      
+      message.destroy()
+      message.success('Task saved successfully!')
+    }
+  } catch (error) {
+    message.destroy()
+    console.error('Failed to save task:', error)
+    message.error(error.message || 'Failed to save task')
+  }
+}
+
 const handleDeleteTask = async (task) => {
+  // Check if this is a temporary task
+  if (task.isTemporary) {
+    // For temporary tasks, just remove from local array
+    const taskIndex = todayTasks.value.findIndex(t => t.id === task.id)
+    if (taskIndex !== -1) {
+      todayTasks.value.splice(taskIndex, 1)
+      message.success('Temporary task removed successfully!')
+    }
+    return
+  }
+  
   try {
     message.loading('Deleting task...', 0)
     
@@ -1774,7 +1899,7 @@ const generateTasksFromTemplates = (date) => {
       
       if (!existingTask) {
         const newTask = {
-          id: Date.now() + Math.random(),
+          id: `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // Generate temporary ID
           title: template.title,
           description: template.description,
           assignedTo: template.assignedTo || null,
@@ -1782,7 +1907,8 @@ const generateTasksFromTemplates = (date) => {
           dueDate: dateStr,
           status: 'Pending',
           isRecurring: true,
-          recurringTemplateId: template.id
+          recurringTemplateId: template.id,
+          isTemporary: true // Mark as temporary task
         }
         
         todayTasks.value.push(newTask)
@@ -1892,6 +2018,30 @@ onMounted(async () => {
     const response = await getMe()
     currentUser.value = response.data
     
+    console.log('👤 Current user info:', currentUser.value)
+    console.log('🔍 User organizationId:', currentUser.value.organizationId)
+    console.log('🔍 User patientId:', currentUser.value.patientId)
+    console.log('🔍 User role:', currentUser.value.role)
+    
+    // Debug: Check if POA has required data
+    if (currentUser.value.role === 'poa') {
+      console.log('🔍 POA Debug Info:')
+      console.log('  - Has patientId:', !!currentUser.value.patientId)
+      console.log('  - Has organizationId:', !!currentUser.value.organizationId)
+      console.log('  - PatientId value:', currentUser.value.patientId)
+      console.log('  - OrganizationId value:', currentUser.value.organizationId)
+      
+      if (!currentUser.value.patientId) {
+        console.error('❌ POA user missing patientId - this will cause tasks not to display')
+        message.warning('Your account is not properly linked to a patient. Please contact the manager.')
+      }
+      
+      if (!currentUser.value.organizationId) {
+        console.error('❌ POA user missing organizationId - this will cause schedules not to display')
+        message.warning('Your account is not properly linked to an organization. Please contact the manager.')
+      }
+    }
+    
     // Load tasks based on user role
     await loadTasks()
     
@@ -1923,7 +2073,18 @@ const loadTasks = async () => {
       response = await getTasksByWorker(currentUser.value.id)
     } else if (currentUser.value.role === 'poa') {
       // Load tasks for patient(s) this POA manages
+      console.log('🔍 POA - Loading tasks for patientId:', currentUser.value.patientId)
+      console.log('🔍 POA - Current user:', currentUser.value)
+      
+      if (!currentUser.value.patientId) {
+        console.error('❌ POA - No patientId found for POA user')
+        message.warning('No patient associated with your account. Please contact the manager.')
+        return
+      }
+      
       response = await getTasksByPatient(currentUser.value.patientId)
+      console.log('📋 POA - Tasks response:', response)
+      
       // Load POA's task requests
       await loadPOARequests()
     } else if (currentUser.value.role === 'manager') {
@@ -1936,6 +2097,10 @@ const loadTasks = async () => {
     if (response && response.data) {
       // Update tasks with real data
       todayTasks.value = response.data
+      
+      console.log('📋 Loaded tasks:', response.data)
+      console.log('🔍 First task ID:', response.data[0]?.id)
+      console.log('🔍 First task ID type:', typeof response.data[0]?.id)
     }
     
     // Load recurring tasks

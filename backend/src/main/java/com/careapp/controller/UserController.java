@@ -6,6 +6,7 @@ import com.careapp.utils.Result;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -52,6 +53,45 @@ public class UserController {
     public Result<String> getWorkerStatus(@PathVariable String userId) {
         String status = userService.getWorkerStatus(userId);
         return Result.success(status, "Worker status retrieved!");
+    }
+    
+    /**
+     * Debug endpoint to check user data and relationships
+     * GET /api/auth/debug/user/{userId}
+     */
+    @GetMapping("/debug/user/{userId}")
+    public Result<Map<String, Object>> debugUserData(@PathVariable String userId) {
+        try {
+            User user = userService.getUserById(userId);
+            if (user == null) {
+                return Result.error("404", "User not found!");
+            }
+            
+            Map<String, Object> debugInfo = new HashMap<>();
+            debugInfo.put("user", user);
+            debugInfo.put("userId", user.getId());
+            debugInfo.put("role", user.getRole());
+            debugInfo.put("organizationId", user.getOrganizationId());
+            debugInfo.put("patientId", user.getPatientId());
+            debugInfo.put("status", user.getStatus());
+            
+            // If user is POA, get associated patient info
+            if ("poa".equalsIgnoreCase(user.getRole()) && user.getPatientId() != null) {
+                try {
+                    // This would need PatientService injection, but for now just return the patientId
+                    debugInfo.put("hasPatientId", true);
+                    debugInfo.put("patientIdValue", user.getPatientId());
+                } catch (Exception e) {
+                    debugInfo.put("patientLookupError", e.getMessage());
+                }
+            } else {
+                debugInfo.put("hasPatientId", false);
+            }
+            
+            return Result.success(debugInfo, "User debug info retrieved successfully!");
+        } catch (Exception e) {
+            return Result.error("500", "Failed to get user debug info: " + e.getMessage());
+        }
     }
 
     // Worker bind patient
