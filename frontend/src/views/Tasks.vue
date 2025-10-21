@@ -297,7 +297,7 @@
           <a-form-item label="Assign To">
             <a-select v-model:value="createRecurringTaskForm.assignedTo" placeholder="Select worker (optional)" style="width: 100%;" allowClear>
               <a-select-option v-for="worker in availableWorkers" :key="worker.id" :value="worker.id">
-                {{ worker.name }} ({{ worker.workerId }})
+                {{ getWorkerDisplayName(worker) }}
               </a-select-option>
             </a-select>
           </a-form-item>
@@ -411,7 +411,7 @@
           <a-form-item label="Assign To">
             <a-select v-model:value="editRecurringTaskForm.assignedTo" placeholder="Select worker (optional)" style="width: 100%;" allowClear>
               <a-select-option v-for="worker in availableWorkers" :key="worker.id" :value="worker.id">
-                {{ worker.name }} ({{ worker.workerId }})
+                {{ getWorkerDisplayName(worker) }}
               </a-select-option>
             </a-select>
           </a-form-item>
@@ -528,7 +528,7 @@
           <a-form-item label="Assign To">
             <a-select v-model:value="createTaskForm.assignedTo" placeholder="Select worker (optional)" style="width: 100%;" allowClear>
               <a-select-option v-for="worker in availableWorkers" :key="worker.id" :value="worker.id">
-                {{ worker.name }} ({{ worker.workerId }})
+                {{ getWorkerDisplayName(worker) }}
               </a-select-option>
             </a-select>
           </a-form-item>
@@ -569,7 +569,7 @@
           <a-form-item label="Assign To">
             <a-select v-model:value="editTaskForm.assignedTo" placeholder="Select worker (optional)" style="width: 100%;" allowClear>
               <a-select-option v-for="worker in availableWorkers" :key="worker.id" :value="worker.id">
-                {{ worker.name }} ({{ worker.workerId }})
+                {{ getWorkerDisplayName(worker) }}
               </a-select-option>
             </a-select>
           </a-form-item>
@@ -846,7 +846,7 @@ import { ref, onMounted, computed } from 'vue'
 import { message } from 'ant-design-vue'
 import dayjs from 'dayjs'
 import { CheckSquareOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons-vue'
-import { getMe } from '../services/userService'
+import { getMe, getUsersByRole } from '../services/userService'
 import { 
   getAllTasks, 
   getTasksByPatient, 
@@ -870,6 +870,11 @@ import {
   approveTaskRequest,
   rejectTaskRequest
 } from '../services/taskRequestService'
+import { 
+  getAllWorkers,
+  getWorkersByOrganization, 
+  getWorkersByPatientId
+} from '../services/workerService'
 
 // Reactive data
 const selectedDate = ref(null)
@@ -969,6 +974,24 @@ const editRecurringTaskForm = ref({
 
 // Available workers - loaded from API
 const availableWorkers = ref([])
+
+// Helper function to get worker display name
+const getWorkerDisplayName = (worker) => {
+  if (!worker) return 'Unknown Worker'
+  
+  const name = worker.name || `${worker.firstName || ''} ${worker.lastName || ''}`.trim()
+  const workerId = worker.workerId || worker.id
+  
+  if (name && workerId) {
+    return `${name} (${workerId})`
+  } else if (name) {
+    return name
+  } else if (workerId) {
+    return `Worker ${workerId}`
+  } else {
+    return 'Unknown Worker'
+  }
+}
 
 // Today's tasks - loaded from API
 const todayTasks = ref([])
@@ -1089,16 +1112,23 @@ const confirmCreateTask = async () => {
   try {
     message.loading('Creating task...', 0)
     
+    // Find the selected worker to get both name and ID
+    const selectedWorker = createTaskForm.value.assignedTo ? 
+      availableWorkers.value.find(w => w.id === createTaskForm.value.assignedTo) : null
+    
     const taskData = {
       title: createTaskForm.value.title,
       description: createTaskForm.value.description,
-      assignedTo: createTaskForm.value.assignedTo || null,
+      assignedTo: selectedWorker ? getWorkerDisplayName(selectedWorker) : '',
+      assignedToId: createTaskForm.value.assignedTo || null,
       priority: createTaskForm.value.priority,
       dueDate: createTaskForm.value.dueDate.format('YYYY-MM-DD'),
       status: 'Pending',
       patientId: currentUser.value?.patientId || null,
       createdBy: currentUser.value?.id || null
     }
+    
+    console.log('📝 Creating task with data:', taskData)
     
     const response = await createTask(taskData)
     
@@ -1131,11 +1161,21 @@ const confirmCreateTask = async () => {
 }
 
 const editTask = (task) => {
+  // Find the worker ID from the assignedTo name or use assignedToId
+  let assignedToId = task.assignedToId
+  if (!assignedToId && task.assignedTo) {
+    // Try to find worker by name
+    const worker = availableWorkers.value.find(w => 
+      getWorkerDisplayName(w) === task.assignedTo || w.name === task.assignedTo
+    )
+    assignedToId = worker ? worker.id : null
+  }
+  
   editTaskForm.value = {
     id: task.id,
     title: task.title,
     description: task.description,
-    assignedTo: task.assignedTo,
+    assignedTo: assignedToId,
     priority: task.priority,
     status: task.status,
     dueDate: dayjs(task.dueDate)
@@ -1147,17 +1187,25 @@ const confirmEditTask = async () => {
   try {
     message.loading('Updating task...', 0)
     
+    // Find the selected worker to get both name and ID
+    const selectedWorker = editTaskForm.value.assignedTo ? 
+      availableWorkers.value.find(w => w.id === editTaskForm.value.assignedTo) : null
+    
     const taskData = {
       id: editTaskForm.value.id,
       title: editTaskForm.value.title,
       description: editTaskForm.value.description,
-      assignedTo: editTaskForm.value.assignedTo,
+      assignedTo: selectedWorker ? getWorkerDisplayName(selectedWorker) : '',
+      assignedToId: editTaskForm.value.assignedTo || null,
       priority: editTaskForm.value.priority,
       status: editTaskForm.value.status,
       dueDate: editTaskForm.value.dueDate.format('YYYY-MM-DD')
     }
     
-    const response = await updateTask(taskData)
+    console.log('✏️ Updating task with data:', taskData)
+    console.log('🆔 Task ID:', editTaskForm.value.id)
+    
+    const response = await updateTask(editTaskForm.value.id, taskData)
     
     if (response.data) {
       const taskIndex = todayTasks.value.findIndex(t => t.id === editTaskForm.value.id)
@@ -1234,9 +1282,23 @@ const handleDeleteTask = async (task) => {
 
 
 const getMyTasks = () => {
-  // For POA/Worker, show tasks assigned to them
-  // In a real app, this would be based on the current user's ID
-  // For now, we'll show all tasks for demonstration
+  if (!currentUser.value) return []
+  
+  if (currentUser.value.role === 'worker') {
+    // For workers, show only tasks assigned to them
+    return todayTasks.value.filter(task => 
+      task.assignedToId === currentUser.value.id || 
+      task.assignedTo === currentUser.value.name ||
+      task.assignedTo === `${currentUser.value.firstName} ${currentUser.value.lastName}`
+    )
+  } else if (currentUser.value.role === 'poa') {
+    // For POA, show tasks for their patient
+    return todayTasks.value.filter(task => 
+      task.patientId === currentUser.value.patientId
+    )
+  }
+  
+  // Fallback: show all tasks
   return todayTasks.value
 }
 
@@ -1846,6 +1908,11 @@ const loadTasks = async () => {
     console.log('🔍 Current user info:', currentUser.value)
     console.log('🔍 User organizationId:', currentUser.value.organizationId)
     
+    // Load available workers for task assignment (for managers)
+    if (currentUser.value.role === 'manager') {
+      await loadAvailableWorkers()
+    }
+    
     let response
     if (currentUser.value.role === 'worker') {
       // Load tasks assigned to this worker
@@ -1882,6 +1949,67 @@ const loadTasks = async () => {
     // Show empty state if API fails
     todayTasks.value = []
     recurringTasks.value = []
+  }
+}
+
+// Load available workers for task assignment
+const loadAvailableWorkers = async () => {
+  try {
+    if (!currentUser.value) return
+    
+    console.log('👥 Loading available workers for task assignment...')
+    
+    let response
+    // Priority 1: Load workers by patientId if available
+    if (currentUser.value.patientId) {
+      try {
+        response = await getWorkersByPatientId(currentUser.value.patientId)
+      } catch (error) {
+        response = await getUsersByRole('worker')
+      }
+    }
+    // Priority 2: Use organization-specific API if organizationId is available
+    else if (currentUser.value.organizationId && currentUser.value.organizationId !== 'default-org') {
+      try {
+        response = await getWorkersByOrganization(currentUser.value.organizationId)
+      } catch (error) {
+        response = await getUsersByRole('worker')
+      }
+    } 
+    // Priority 3: Try all workers API
+    else {
+      try {
+        response = await getAllWorkers()
+        // If getAllWorkers returns empty data, fallback to role-based loading
+        if (!response.data || response.data.length === 0) {
+          response = await getUsersByRole('worker')
+        }
+      } catch (error) {
+        response = await getUsersByRole('worker')
+      }
+    }
+    
+    if (response?.data) {
+      // Filter only active workers for task assignment
+      availableWorkers.value = response.data.filter(worker => 
+        worker.status === 'active' || worker.status === 'bound' || worker.status === 'ACTIVE' || worker.status === 'BOUND'
+      )
+      console.log('✅ Available workers loaded:', availableWorkers.value.length)
+      console.log('👥 Worker data sample:', availableWorkers.value.slice(0, 2))
+      
+      // Log any workers with missing data
+      availableWorkers.value.forEach((worker, index) => {
+        if (!worker.name && !worker.firstName && !worker.lastName) {
+          console.warn(`⚠️ Worker ${index} missing name data:`, worker)
+        }
+        if (!worker.workerId && !worker.id) {
+          console.warn(`⚠️ Worker ${index} missing ID data:`, worker)
+        }
+      })
+    }
+  } catch (error) {
+    console.error('❌ Failed to load available workers:', error)
+    availableWorkers.value = []
   }
 }
 

@@ -2,12 +2,15 @@ package com.careapp.controller;
 
 import com.careapp.domain.Task;
 import com.careapp.domain.RecurringTask;
+import com.careapp.domain.Worker;
 import com.careapp.dto.CreateTaskRequest;
 import com.careapp.dto.CreateRecurringTaskRequest;
 import com.careapp.service.TaskService;
 import com.careapp.service.RecurringTaskService;
+import com.careapp.service.WorkerService;
 import com.careapp.utils.Result;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.CrossOrigin;
 
 import javax.annotation.Resource;
 import java.time.LocalDate;
@@ -18,6 +21,7 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/tasks")
+@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:5174", "http://127.0.0.1:5174", "http://localhost:3001"}, allowCredentials = "true")
 public class TaskController {
     
     @Resource
@@ -25,6 +29,9 @@ public class TaskController {
     
     @Resource
     private RecurringTaskService recurringTaskService;
+    
+    @Resource
+    private WorkerService workerService;
     
     // Create a new task
     @PostMapping
@@ -456,18 +463,22 @@ public class TaskController {
     
     // Helper method: Map worker name to worker ID
     private String mapWorkerNameToId(String workerName) {
-        if (workerName == null) return "W000";
+        if (workerName == null || workerName.isEmpty()) return null;
         
-        switch (workerName) {
-            case "A": return "W001";
-            case "B": return "W002";
-            case "C": return "W003";
-            case "D": return "W004";
-            case "E": return "W005";
-            case "F": return "W006";
-            case "G": return "W007";
-            case "H": return "W008";
-            default: return "W000"; // Unknown worker
+        try {
+            // Try to find worker by name in database
+            List<Worker> workers = workerService.getAllWorkers();
+            for (Worker worker : workers) {
+                if (worker.getName() != null && worker.getName().equals(workerName)) {
+                    return worker.getId();
+                }
+            }
+            
+            // If not found, return null (unassigned task)
+            return null;
+        } catch (Exception e) {
+            // If database lookup fails, return null
+            return null;
         }
     }
     
