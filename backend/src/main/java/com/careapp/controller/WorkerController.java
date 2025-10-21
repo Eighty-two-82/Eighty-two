@@ -243,16 +243,26 @@ public class WorkerController {
     public Result<List<Schedule>> createDailySchedule(@RequestBody DailyScheduleRequest scheduleRequest, 
                                                      @RequestHeader("X-Manager-Id") String managerId) {
         try {
+            System.out.println("🔍 Backend - createDailySchedule called with managerId: " + managerId);
+            System.out.println("📅 Backend - Schedule request: " + scheduleRequest);
+            
             if (scheduleRequest.getScheduleDate() == null || scheduleRequest.getScheduleDate().isEmpty()) {
                 return Result.error("400", "Schedule date is required!");
             }
             
             // Get organization ID from manager
             String organizationId = "default-org"; // TODO: Get from manager's data
+            System.out.println("🏢 Backend - Using organizationId: " + organizationId);
             
             List<Schedule> createdSchedules = scheduleService.batchCreateDailySchedules(scheduleRequest, organizationId, managerId);
+            System.out.println("✅ Backend - Created " + createdSchedules.size() + " schedules");
+            for (Schedule schedule : createdSchedules) {
+                System.out.println("   - Created Schedule: " + schedule.getWorkerId() + " (" + schedule.getWorkerName() + ") - " + schedule.getShiftType());
+            }
             return Result.success(createdSchedules, "Daily schedule created successfully!");
         } catch (Exception e) {
+            System.out.println("❌ Backend - Error creating daily schedule: " + e.getMessage());
+            e.printStackTrace();
             return Result.error("500", "Failed to create daily schedule: " + e.getMessage());
         }
     }
@@ -261,10 +271,17 @@ public class WorkerController {
     @GetMapping("/organization/{organizationId}/daily-schedule/{date}")
     public Result<List<Schedule>> getDailySchedule(@PathVariable String organizationId, @PathVariable String date) {
         try {
+            System.out.println("🔍 Backend - getDailySchedule called with organizationId: " + organizationId + ", date: " + date);
             java.time.LocalDate scheduleDate = java.time.LocalDate.parse(date);
             List<Schedule> schedules = scheduleService.getSchedulesByOrganizationIdAndDate(organizationId, scheduleDate);
+            System.out.println("📅 Backend - Found " + schedules.size() + " schedules for " + organizationId + " on " + date);
+            for (Schedule schedule : schedules) {
+                System.out.println("   - Schedule: " + schedule.getWorkerId() + " (" + schedule.getWorkerName() + ") - " + schedule.getShiftType());
+            }
             return Result.success(schedules, "Daily schedule retrieved successfully!");
         } catch (Exception e) {
+            System.out.println("❌ Backend - Error retrieving daily schedule: " + e.getMessage());
+            e.printStackTrace();
             return Result.error("500", "Failed to retrieve daily schedule: " + e.getMessage());
         }
     }

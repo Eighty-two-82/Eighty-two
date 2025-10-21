@@ -1724,8 +1724,12 @@ const confirmDailyManagement = async () => {
         scheduleNotes: scheduleForm.value.notes || ''
       }
       
+      console.log('💾 Saving schedule to backend:', scheduleData)
+      console.log('👤 Manager ID:', currentUser.value.id)
+      console.log('🏢 Organization ID:', organizationId.value)
+      
       await createDailySchedule(scheduleData, currentUser.value.id)
-      console.log('Daily schedule saved to backend for', dateStr)
+      console.log('✅ Daily schedule saved to backend for', dateStr)
     } catch (error) {
       console.error('Failed to save daily schedule to backend:', error)
       message.warning('Schedule updated locally but failed to save to server')
@@ -1735,6 +1739,10 @@ const confirmDailyManagement = async () => {
     if (dateStr === selectedDate.value?.format('YYYY-MM-DD')) {
       updateDailyWorkers(dateStr)
     }
+    
+    // Force reload the daily schedule to ensure it displays correctly
+    console.log('🔄 Force reloading daily schedule after creation...')
+    await loadDailySchedule(dateStr)
     
     // Handle photo upload if there are files (persist to backend)
     if (fileList.value.length > 0 && selectedWorkerForPhoto.value) {
@@ -2003,6 +2011,10 @@ onMounted(async () => {
     organizationId.value = userInfo.data?.organizationId || 'default-org'
     patientId.value = userInfo.data?.patientId || null
     
+    console.log('👤 Current user info:', userInfo.data)
+    console.log('🏢 Organization ID set to:', organizationId.value)
+    console.log('🏥 Patient ID:', patientId.value)
+    
     // Load workers from API
     await loadWorkers()
     // Clear any stale caches to avoid id mismatches
@@ -2104,14 +2116,32 @@ const loadWorkers = async () => {
 // Load daily schedule for a specific date
 const loadDailySchedule = async (dateStr) => {
   try {
+    console.log('🔍 Loading daily schedule for:', dateStr, 'organizationId:', organizationId.value)
+    
     if (organizationId.value) {
       const response = await getDailySchedule(organizationId.value, dateStr)
       const schedules = response.data || []
       
+      console.log('📅 Raw schedule data from API:', schedules)
+      
       // Convert Schedule objects to worker-like objects for display
       const scheduledWorkers = schedules.map(schedule => {
+        console.log('🔄 Processing schedule:', schedule)
+        
         // Find the complete worker data from workers array
-        const completeWorker = workers.value.find(w => w.id === schedule.workerId)
+        // Try multiple matching strategies
+        let completeWorker = workers.value.find(w => w.id === schedule.workerId)
+        if (!completeWorker) {
+          // Try matching by workerId field
+          completeWorker = workers.value.find(w => w.workerId === schedule.workerId)
+        }
+        if (!completeWorker) {
+          // Try matching by name
+          completeWorker = workers.value.find(w => w.name === schedule.workerName)
+        }
+        
+        console.log('👤 Found complete worker:', completeWorker)
+        
         const shiftType = schedule.shiftType || 'morning'
         
         // Use shift time settings from manager instead of schedule data
@@ -2161,17 +2191,23 @@ const loadDailySchedule = async (dateStr) => {
       // Update daily workers with scheduled workers
       dailyWorkers.value = scheduledWorkers
       
+      console.log('📋 Updated dailyWorkers.value:', dailyWorkers.value)
+      console.log('📋 Available workers for matching:', workers.value.length)
+      
       // Also update dailySchedules to maintain consistency
       if (scheduledWorkers.length > 0) {
         dailySchedules.value[dateStr] = scheduledWorkers.map(worker => worker.id)
+        console.log('✅ Updated dailySchedules for', dateStr, ':', dailySchedules.value[dateStr])
       } else {
         // Remove from dailySchedules if no workers scheduled
         delete dailySchedules.value[dateStr]
+        console.log('❌ No workers scheduled for', dateStr, '- removed from dailySchedules')
       }
       
       // Do not cache schedule/workers in localStorage to prevent stale ids
       
-      console.log(`Loaded daily schedule for ${dateStr}:`, scheduledWorkers.length, 'workers')
+      console.log(`✅ Loaded daily schedule for ${dateStr}:`, scheduledWorkers.length, 'workers')
+      console.log('📊 Final dailyWorkers array:', dailyWorkers.value)
     }
   } catch (error) {
     console.error('Failed to load daily schedule:', error)

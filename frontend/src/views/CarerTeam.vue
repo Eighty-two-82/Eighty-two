@@ -572,11 +572,24 @@ const selectWorker = (worker) => {
   workerDetailModalVisible.value = true
 }
 
-const onDateChange = (date) => {
+const onDateChange = async (date) => {
   if (date) {
     const dateStr = date.format('YYYY-MM-DD')
-    updateDailyWorkers(dateStr)
-    updateFilteredWorkers()
+    console.log('📅 CarerTeam - Date changed to:', dateStr)
+    
+    // Get current user info to get organizationId
+    try {
+      const userInfo = await getMe()
+      const organizationId = userInfo?.data?.organizationId || 'default-org'
+      
+      // Load actual schedule data from API instead of using mock data
+      await loadDailySchedule(organizationId, dateStr)
+      updateFilteredWorkers()
+    } catch (error) {
+      console.error('❌ CarerTeam - Failed to load schedule for new date:', error)
+      dailyWorkers.value = []
+      updateFilteredWorkers()
+    }
   }
 }
 
@@ -585,9 +598,10 @@ const onShiftChange = () => {
 }
 
 const updateDailyWorkers = (dateStr) => {
-  // For now, show all active team members for the selected date
-  // In a real implementation, this would filter based on actual schedule data
-  dailyWorkers.value = workers.value.filter(worker => worker.status === 'Active')
+  // This function is no longer needed since we load actual schedule data from API
+  // The dailyWorkers are now populated by loadDailySchedule function
+  console.log('🔄 CarerTeam - updateDailyWorkers called for:', dateStr)
+  console.log('📊 CarerTeam - Current dailyWorkers count:', dailyWorkers.value.length)
 }
 
 const updateFilteredWorkers = () => {
@@ -1069,36 +1083,7 @@ onMounted(async () => {
     // Load workers from API
     await loadWorkers()
     
-    // Add Manager and POA to workers list with shift assignments
-    const managerAndPOA = [
-      {
-        id: 99,
-        workerId: 'M001',
-        name: 'Manager Smith',
-        photo: null,
-        position: 'Care Manager',
-        status: 'Active',
-        joinDate: '2022-01-01',
-        email: 'manager@careapp.com',
-        role: 'Manager',
-        shift: 'morning' // Manager typically works morning shift
-      },
-      {
-        id: 100,
-        workerId: 'P001',
-        name: 'Family Member',
-        photo: null,
-        position: 'Power of Attorney',
-        status: 'Active',
-        joinDate: '2022-01-01',
-        email: 'family@careapp.com',
-        role: 'POA',
-        shift: 'morning' // POA typically available during morning shift
-      }
-    ]
-    
-    // Combine all team members
-    workers.value = [...workers.value, ...managerAndPOA]
+    // No need to add mock Manager and POA data - they should come from the API
     
     // Set today as default date
     selectedDate.value = dayjs()
@@ -1142,11 +1127,10 @@ onMounted(async () => {
     console.error('Failed to load carer team data:', error)
     message.error('Failed to load carer team data')
     
-    // Fallback to mock data
+    // No fallback mock data - show empty state
     selectedDate.value = dayjs()
-    const todayStr = selectedDate.value.format('YYYY-MM-DD')
-    updateDailyWorkers(todayStr)
-    updateFilteredWorkers()
+    dailyWorkers.value = []
+    filteredWorkers.value = []
   } finally {
     loading.value = false
   }
@@ -1229,111 +1213,40 @@ const loadWorkers = async () => {
     }
   } catch (error) {
     console.error('Failed to load workers:', error)
-    // Keep using mock data with shift information
-    workers.value = [
-      {
-        id: 1,
-        workerId: 'W001',
-        name: 'Alice Johnson',
-        photo: null,
-        position: 'Senior Care Worker',
-        status: 'Active',
-        joinDate: '2022-01-15',
-        email: 'alice@careapp.com',
-        role: 'Worker',
-        shift: 'morning'
-      },
-      {
-        id: 2,
-        workerId: 'W002',
-        name: 'Bob Smith',
-        photo: null,
-        position: 'Care Worker',
-        status: 'Active',
-        joinDate: '2022-03-20',
-        email: 'bob@careapp.com',
-        role: 'Worker',
-        shift: 'afternoon'
-      },
-      {
-        id: 3,
-        workerId: 'W003',
-        name: 'Carol Davis',
-        photo: null,
-        position: 'Night Care Worker',
-        status: 'Active',
-        joinDate: '2022-05-10',
-        email: 'carol@careapp.com',
-        role: 'Worker',
-        shift: 'night'
-      },
-      {
-        id: 4,
-        workerId: 'W004',
-        name: 'David Wilson',
-        photo: null,
-        position: 'Care Worker',
-        status: 'Active',
-        joinDate: '2022-07-05',
-        email: 'david@careapp.com',
-        role: 'Worker',
-        shift: 'morning'
-      },
-      {
-        id: 5,
-        workerId: 'W005',
-        name: 'Eva Brown',
-        photo: null,
-        position: 'Senior Care Worker',
-        status: 'Active',
-        joinDate: '2022-09-12',
-        email: 'eva@careapp.com',
-        role: 'Worker',
-        shift: 'afternoon'
-      },
-      {
-        id: 6,
-        workerId: 'W006',
-        name: 'Frank Miller',
-        photo: null,
-        position: 'Care Worker',
-        status: 'Active',
-        joinDate: '2022-11-08',
-        email: 'frank@careapp.com',
-        role: 'Worker',
-        shift: 'night'
-      },
-      {
-        id: 7,
-        workerId: 'W007',
-        name: 'Grace Lee',
-        photo: null,
-        position: 'Senior Care Worker',
-        status: 'Active',
-        joinDate: '2023-01-15',
-        email: 'grace@careapp.com',
-        role: 'Worker',
-        shift: 'morning'
-      }
-    ]
+    // No fallback mock data - show empty state
+    workers.value = []
   }
 }
 
-// Helper function to assign random shifts for demo
-const getRandomShift = () => {
-  const shifts = ['morning', 'afternoon', 'night']
-  return shifts[Math.floor(Math.random() * shifts.length)]
-}
+// No longer needed - shifts come from actual schedule data
 
-// Load daily schedule from API
+// Load daily schedule from API - connects to Manager's schedule data
 const loadDailySchedule = async (organizationId, dateStr) => {
   try {
+    console.log('🔍 CarerTeam - Loading daily schedule for:', dateStr, 'organizationId:', organizationId)
+    
     const response = await getDailySchedule(organizationId, dateStr)
+    console.log('📅 CarerTeam - Raw schedule data from API:', response?.data)
+    
     if (response?.data && response.data.length > 0) {
       // Convert Schedule objects to worker-like objects for display
       const scheduledWorkers = response.data.map(schedule => {
+        console.log('🔄 CarerTeam - Processing schedule:', schedule)
+        
         // Find the complete worker data from workers array
-        const completeWorker = workers.value.find(w => w.id === schedule.workerId)
+        // Try multiple matching strategies like in WorkerManagement
+        let completeWorker = workers.value.find(w => w.id === schedule.workerId)
+        if (!completeWorker) {
+          // Try matching by workerId field
+          completeWorker = workers.value.find(w => w.workerId === schedule.workerId)
+        }
+        if (!completeWorker) {
+          // Try matching by name
+          completeWorker = workers.value.find(w => w.name === schedule.workerName)
+        }
+        
+        console.log('👤 CarerTeam - Found complete worker:', completeWorker)
+        
         const shiftType = schedule.shiftType || 'morning'
         
         // Use shift time settings from manager instead of schedule data
@@ -1354,8 +1267,8 @@ const loadDailySchedule = async (organizationId, dateStr) => {
         }
         
         return {
-          id: schedule.workerId,
-          workerId: schedule.workerId,
+          id: completeWorker?.id || schedule.workerId, // use DB id if available
+          workerId: schedule.workerId, // keep business workerId separately
           name: schedule.workerName,
           firstName: schedule.workerName.split(' ')[0] || '',
           lastName: schedule.workerName.split(' ').slice(1).join(' ') || '',
@@ -1370,15 +1283,17 @@ const loadDailySchedule = async (organizationId, dateStr) => {
       })
       
       dailyWorkers.value = scheduledWorkers
-      console.log(`Loaded daily schedule for ${dateStr}:`, scheduledWorkers.length, 'workers')
+      console.log('✅ CarerTeam - Loaded daily schedule for', dateStr, ':', scheduledWorkers.length, 'workers')
+      console.log('📊 CarerTeam - Final dailyWorkers array:', dailyWorkers.value)
     } else {
-      // If no schedule exists, show all active workers
-      dailyWorkers.value = workers.value.filter(worker => worker.status === 'Active')
+      // If no schedule exists, show empty state
+      dailyWorkers.value = []
+      console.log('❌ CarerTeam - No schedule exists for', dateStr, '- showing empty state')
     }
   } catch (error) {
-    console.error('Failed to load daily schedule:', error)
-    // Fallback to mock data
-    updateDailyWorkers(dateStr)
+    console.error('❌ CarerTeam - Failed to load daily schedule:', error)
+    // No fallback mock data - show empty state
+    dailyWorkers.value = []
   }
 }
 </script>
