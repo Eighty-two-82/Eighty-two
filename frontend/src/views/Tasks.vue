@@ -130,7 +130,7 @@
         >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'assignedTo'">
-              <span v-if="record.assignedTo">{{ record.assignedTo }}</span>
+              <span v-if="record.assignedTo">{{ getCleanAssignedToDisplay(record.assignedTo) }}</span>
               <a-tag v-else color="orange">Unassigned</a-tag>
             </template>
             <template v-if="column.key === 'priority'">
@@ -193,7 +193,7 @@
         >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'assignedTo'">
-              <span v-if="record.assignedTo">{{ record.assignedTo }}</span>
+              <span v-if="record.assignedTo">{{ getCleanAssignedToDisplay(record.assignedTo) }}</span>
               <a-tag v-else color="orange">Unassigned</a-tag>
             </template>
             <template v-if="column.key === 'frequency'">
@@ -980,17 +980,21 @@ const getWorkerDisplayName = (worker) => {
   if (!worker) return 'Unknown Worker'
   
   const name = worker.name || `${worker.firstName || ''} ${worker.lastName || ''}`.trim()
-  const workerId = worker.workerId || worker.id
   
-  if (name && workerId) {
-    return `${name} (${workerId})`
-  } else if (name) {
+  if (name) {
     return name
-  } else if (workerId) {
-    return `Worker ${workerId}`
   } else {
     return 'Unknown Worker'
   }
+}
+
+// Helper function to clean assignedTo display (remove any ID info)
+const getCleanAssignedToDisplay = (assignedTo) => {
+  if (!assignedTo) return ''
+  
+  // If it contains parentheses with ID, remove them
+  const cleanName = assignedTo.replace(/\s*\([^)]*\)\s*$/, '').trim()
+  return cleanName || assignedTo
 }
 
 // Today's tasks - loaded from API

@@ -555,6 +555,7 @@ import { Button } from 'ant-design-vue'
 import { useRouter } from 'vue-router'
 import { Modal, message } from 'ant-design-vue'
 import { getMe } from '@/services/userService'
+import api from '@/services/api'
 import { 
   getBudgetByPatient,
   createBudget,
@@ -658,29 +659,59 @@ const loadBudgetData = async () => {
       return
     }
     
-    // Load budget by patient
+    console.log('🔄 Loading budget data for patient:', userInfo.data.patientId)
+    
+    // Load budget by patient - this should contain all the data we need
     const budgetResponse = await getBudgetByPatient(userInfo.data.patientId)
+    console.log('📊 Budget response:', budgetResponse)
+    
     if (budgetResponse?.data) {
       budgetData.value = budgetResponse.data
-    }
-    
-    // Load budget categories
-    const categoriesResponse = await getBudgetCategories(userInfo.data.patientId)
-    if (categoriesResponse?.data) {
-      budgetData.value.categories = categoriesResponse.data
-    }
-    
-    // Load budget calculations
-    const calculationsResponse = await getBudgetCalculations(userInfo.data.patientId)
-    if (calculationsResponse?.data) {
+      console.log('✅ Budget data loaded:', budgetData.value)
+      console.log('📁 Categories in budget:', budgetData.value.categories)
+      
+      // Log sub-elements for debugging
+      if (budgetData.value.categories) {
+        budgetData.value.categories.forEach((category, index) => {
+          console.log(`📂 Category ${index}: ${category.name}`, {
+            id: category.id,
+            budget: category.categoryBudget,
+            subElements: category.subElements?.map(se => ({
+              id: se.id,
+              name: se.name,
+              budget: se.subElementBudget,
+              used: se.totalUtilised,
+              balance: se.balance,
+              rawData: se  // Log the raw sub-element data
+            }))
+          })
+        })
+      }
+      
+      // Additional debugging: Check if subElementBudget field exists
+      if (budgetData.value.categories) {
+        budgetData.value.categories.forEach((category, catIndex) => {
+          if (category.subElements) {
+            category.subElements.forEach((subElement, subIndex) => {
+              console.log(`🔍 Sub-element ${catIndex}-${subIndex}: ${subElement.name}`, {
+                hasSubElementBudget: 'subElementBudget' in subElement,
+                subElementBudgetValue: subElement.subElementBudget,
+                allFields: Object.keys(subElement)
+              })
+            })
+          }
+        })
+      }
+    } else {
+      console.warn('⚠️ No budget data found, initializing empty budget')
       budgetData.value = {
-        ...budgetData.value,
-        ...calculationsResponse.data
+        totalBudget: 0,
+        categories: []
       }
     }
     
   } catch (error) {
-    console.error('Failed to load budget data:', error)
+    console.error('❌ Failed to load budget data:', error)
     // Show empty state if API fails
     budgetData.value = {
       totalBudget: 0,
@@ -1007,23 +1038,16 @@ const handleAddCategory = async () => {
       // Call backend API to create category
       const categoryData = {
         name: addCategoryForm.value.name,
-        budget: addCategoryForm.value.budget,
-        description: addCategoryForm.value.description,
-        patientId: userInfo.data.patientId
+        categoryBudget: addCategoryForm.value.budget,
+        description: addCategoryForm.value.description
       }
       
       const response = await createBudgetCategory(userInfo.data.patientId, categoryData)
       if (response?.data) {
-        // Add the new category to local data
-        const newCategory = {
-          id: response.data.id || Math.max(...budgetData.value.categories.map(c => c.id)) + 1,
-          name: addCategoryForm.value.name,
-          categoryBudget: addCategoryForm.value.budget,
-          subElements: []
-        }
+        console.log('New category created:', response.data)
         
-        budgetData.value.categories.push(newCategory)
-        console.log('New category added:', newCategory)
+        // Reload budget data to ensure UI is updated with correct data
+        await loadBudgetData()
         
         addCategoryModalVisible.value = false
         message.success('Category added successfully!')
@@ -1060,7 +1084,7 @@ const handleAddSubElement = async () => {
         const subElementData = {
           categoryId: addSubElementForm.value.categoryId,
           name: addSubElementForm.value.name,
-          budget: addSubElementForm.value.budget,
+          subElementBudget: addSubElementForm.value.budget,
           description: addSubElementForm.value.description,
           patientId: userInfo.data.patientId
         }
@@ -1071,20 +1095,10 @@ const handleAddSubElement = async () => {
           subElementData
         )
         if (response?.data) {
-          // Add the new sub-element to local data
-          const newSubElement = {
-            id: response.data.id || Math.max(...budgetData.value.categories.flatMap(c => c.subElements).map(s => s.id)) + 1,
-            name: addSubElementForm.value.name,
-            subElementBudget: addSubElementForm.value.budget,
-            monthlyUsage: new Array(12).fill(0),
-            totalUtilised: 0,
-            balance: addSubElementForm.value.budget,
-            comments: addSubElementForm.value.description || 'Newly added sub-element',
-            warningLevel: 'normal'
-          }
+          console.log('New sub-element created:', response.data)
           
-          category.subElements.push(newSubElement)
-          console.log('New sub-element added:', newSubElement)
+          // Reload budget data to ensure consistency
+          await loadBudgetData()
           
           addSubElementModalVisible.value = false
           message.success('Sub-element added successfully!')
@@ -1149,17 +1163,46 @@ const handleMonthlyInput = async () => {
 
     // Calculate total utilised amount
     const totalUsed = monthlyInputForm.value.monthlyData.reduce((sum, amount) => sum + (amount || 0), 0)
+    console.log('🔍 Monthly input debug:', {
+      monthlyData: monthlyInputForm.value.monthlyData,
+      totalUsed,
+      subElement: currentSubElement.value
+    })
     
     // Call backend API to update sub-element
     const subElementData = {
       id: currentSubElement.value.id,
+      name: currentSubElement.value.name,
+      description: currentSubElement.value.description,
+      subElementBudget: currentSubElement.value.subElementBudget, // 保持 budget 字段
       monthlyUsage: monthlyInputForm.value.monthlyData,
       totalUtilised: totalUsed,
       balance: currentSubElement.value.subElementBudget - totalUsed,
+      comments: currentSubElement.value.comments,
+      warningLevel: currentSubElement.value.warningLevel,
       patientId: userInfo.data.patientId
     }
     
-    const response = await updateBudgetSubElement(subElementData)
+    // Find the category ID for this sub-element
+    let categoryId = null
+    for (const category of budgetData.value.categories) {
+      if (category.subElements && category.subElements.some(se => se.id === currentSubElement.value.id)) {
+        categoryId = category.id
+        break
+      }
+    }
+    
+    if (!categoryId) {
+      message.error('Category not found for this sub-element')
+      return
+    }
+    
+    const response = await updateBudgetSubElement(
+      userInfo.data.patientId,
+      categoryId,
+      currentSubElement.value.id,
+      subElementData
+    )
     if (response?.data) {
       // Update the sub-element's monthly usage data
       currentSubElement.value.monthlyUsage = [...monthlyInputForm.value.monthlyData]
@@ -1195,6 +1238,11 @@ const handleMonthlyInput = async () => {
         balance: currentSubElement.value.balance,
         percentage: Math.round(percentage)
       })
+      
+      // Reload budget data to ensure UI is updated with fresh data from backend
+      console.log('🔄 Reloading budget data after monthly input...')
+      await loadBudgetData()
+      console.log('✅ Budget data reloaded after monthly input')
       
       monthlyInputModalVisible.value = false
       currentSubElement.value = null
@@ -1232,65 +1280,71 @@ const handleRefund = async () => {
 
     const refundAmount = refundForm.value.amount
     
-    // Call backend API to update sub-element
-    const subElementData = {
-      id: currentRefundItem.value.id,
-      totalUtilised: currentRefundItem.value.totalUtilised - refundAmount,
-      balance: currentRefundItem.value.balance + refundAmount,
-      patientId: userInfo.data.patientId
+    // Store original values for logging
+    const oldUsed = currentRefundItem.value.totalUtilised
+    const oldBalance = currentRefundItem.value.balance
+
+    // Find the category ID for this sub-element
+    let categoryId = null
+    for (const category of budgetData.value.categories) {
+      if (category.subElements && category.subElements.some(se => se.id === currentRefundItem.value.id)) {
+        categoryId = category.id
+        break
+      }
     }
     
-    const response = await updateBudgetSubElement(subElementData)
+    if (!categoryId) {
+      message.error('Category not found for this sub-element')
+      return
+    }
+    
+    // Use the dedicated refund endpoint
+    const refundData = {
+      patientId: userInfo.data.patientId,
+      categoryId: categoryId,
+      subElementId: currentRefundItem.value.id,
+      amount: refundAmount,
+      reason: refundForm.value.reason
+    }
+    
+    console.log('🔍 Frontend - Sending refund request:', refundData)
+    const response = await api.post('/budget/refund', refundData)
+    console.log('🔍 Refund API response:', response)
+    
     if (response?.data) {
-      // Update used amount and balance
-      currentRefundItem.value.totalUtilised -= refundAmount
-      currentRefundItem.value.balance += refundAmount
-  
-  // Update warning level
-  const newPercentage = currentRefundItem.value.subElementBudget > 0 ? (currentRefundItem.value.totalUtilised / currentRefundItem.value.subElementBudget) * 100 : 0
-  if (newPercentage >= 100) {
-    currentRefundItem.value.warningLevel = 'critical'
-  } else if (newPercentage >= 80) {
-    currentRefundItem.value.warningLevel = 'warning'
-  } else {
-    currentRefundItem.value.warningLevel = 'normal'
-  }
-  
-  // Create refund comment
-  const reasonText = {
-    'defective': 'Defective product',
-    'wrong_brand': 'Wrong brand',
-    'wrong_size': 'Wrong size',
-    'quality_issue': 'Quality issue',
-    'duplicate_order': 'Duplicate order',
-    'customer_request': 'Customer request',
-    'other': 'Other reason'
-  }[refundForm.value.reason] || refundForm.value.reason
-  
-  const refundComment = `Refund: $${refundAmount.toLocaleString()} - ${reasonText}${refundForm.value.comment ? ` (${refundForm.value.comment})` : ''}`
-  
-  // Update comments
-  if (currentRefundItem.value.comments && currentRefundItem.value.comments !== 'Newly added sub-element') {
-    currentRefundItem.value.comments += `; ${refundComment}`
-  } else {
-    currentRefundItem.value.comments = refundComment
-  }
-  
-  console.log('Refund processed:', {
-    subElement: currentRefundItem.value.name,
-    refundAmount,
-    oldUsed,
-    newUsed: currentRefundItem.value.totalUtilised,
-    oldBalance,
-    newBalance: currentRefundItem.value.balance,
-    reason: reasonText,
-    comment: refundForm.value.comment
-  })
-  
-  // Close modal
-  refundModalVisible.value = false
-  currentRefundItem.value = null
-  
+      console.log('✅ Refund processed successfully:', {
+        subElement: currentRefundItem.value.name,
+        refundAmount,
+        oldUsed,
+        newUsed: currentRefundItem.value.totalUtilised - refundAmount,
+        oldBalance,
+        newBalance: currentRefundItem.value.balance + refundAmount,
+        reason: refundForm.value.reason,
+        comment: refundForm.value.comment
+      })
+      
+      console.log('🔄 Reloading budget data after refund...')
+      // Reload budget data to ensure UI is updated with fresh data from backend
+      await loadBudgetData()
+      console.log('✅ Budget data reloaded after refund')
+      
+      // Debug: Check the specific sub-element after reload
+      const updatedSubElement = budgetData.value.categories
+        ?.flatMap(cat => cat.subElements || [])
+        ?.find(se => se.id === currentRefundItem.value.id)
+      if (updatedSubElement) {
+        console.log('🔍 Updated sub-element after refund:', {
+          name: updatedSubElement.name,
+          balance: updatedSubElement.balance,
+          totalUtilised: updatedSubElement.totalUtilised,
+          subElementBudget: updatedSubElement.subElementBudget
+        })
+      }
+      
+      // Close modal
+      refundModalVisible.value = false
+      currentRefundItem.value = null
+      
       // Show success message and ask about uploading receipt
       message.success(`Refund of $${refundAmount.toLocaleString()} processed successfully!`)
     } else {
@@ -1312,6 +1366,98 @@ const handleRefund = async () => {
     },
     onCancel() {
       console.log('User chose not to upload receipt')
+    }
+  })
+}
+
+// Handle delete category
+const handleDeleteCategory = async (category) => {
+  Modal.confirm({
+    title: 'Delete Category',
+    content: `Are you sure you want to delete the category "${category.name}"? This will also delete all sub-elements within this category. This action cannot be undone.`,
+    okText: 'Yes, Delete',
+    cancelText: 'Cancel',
+    okType: 'danger',
+    onOk: async () => {
+      try {
+        const userInfo = await getMe()
+        if (!userInfo?.data?.patientId) {
+          message.error('Patient ID not found')
+          return
+        }
+
+        console.log('🗑️ Deleting category:', category.name, 'ID:', category.id)
+        const response = await deleteBudgetCategory(userInfo.data.patientId, category.id)
+        
+        if (response?.data) {
+          console.log('✅ Category deleted successfully:', response.data)
+          message.success('Category deleted successfully!')
+          
+          // Reload budget data to refresh the UI
+          await loadBudgetData()
+        } else {
+          message.error('Failed to delete category')
+        }
+      } catch (error) {
+        console.error('❌ Failed to delete category:', error)
+        message.error('Failed to delete category: ' + (error.message || 'Unknown error'))
+      }
+    },
+    onCancel() {
+      console.log('User cancelled category deletion')
+    }
+  })
+}
+
+// Handle delete sub-element
+const handleDeleteSubElement = async (subElement) => {
+  Modal.confirm({
+    title: 'Delete Sub-element',
+    content: `Are you sure you want to delete the sub-element "${subElement.name}"? This action cannot be undone.`,
+    okText: 'Yes, Delete',
+    cancelText: 'Cancel',
+    okType: 'danger',
+    onOk: async () => {
+      try {
+        const userInfo = await getMe()
+        if (!userInfo?.data?.patientId) {
+          message.error('Patient ID not found')
+          return
+        }
+
+        // Find the category ID for this sub-element
+        let categoryId = null
+        for (const category of budgetData.value.categories) {
+          if (category.subElements && category.subElements.some(se => se.id === subElement.id)) {
+            categoryId = category.id
+            break
+          }
+        }
+
+        if (!categoryId) {
+          message.error('Category not found for this sub-element')
+          return
+        }
+
+        console.log('🗑️ Deleting sub-element:', subElement.name, 'ID:', subElement.id, 'from category:', categoryId)
+        const response = await deleteBudgetSubElement(userInfo.data.patientId, categoryId, subElement.id)
+        
+        if (response?.data) {
+          console.log('✅ Sub-element deleted successfully:', response.data)
+          message.success('Sub-element deleted successfully!')
+          
+          // Reload budget data to refresh the UI
+          await loadBudgetData()
+        } else {
+          message.error('Failed to delete sub-element')
+        }
+      } catch (error) {
+        console.error('❌ Failed to delete sub-element:', error)
+        message.error('Failed to delete sub-element: ' + (error.message || 'Unknown error'))
+      }
+    },
+    onCancel() {
+      console.log('User cancelled sub-element deletion')
     }
   })
 }
@@ -1363,6 +1509,29 @@ const budgetColumns = [
       }
       
       return h('span', { style: { color, fontWeight: 'bold' } }, `${pct}%`)
+    }
+  },
+  {
+    title: 'Actions',
+    key: 'actions',
+    width: 120,
+    customRender: ({ record }) => {
+      // Only show actions for POA and Manager roles
+      if (userRole.value !== 'poa' && userRole.value !== 'manager') {
+        return h('span', { style: { color: '#999', fontStyle: 'italic' } }, 'View only')
+      }
+      
+      return h('div', { style: { display: 'flex', gap: '8px' } }, [
+        h(Button, {
+          type: 'primary',
+          danger: true,
+          size: 'small',
+          onClick: () => handleDeleteCategory(record),
+          style: {
+            fontWeight: 'bold'
+          }
+        }, () => 'Remove')
+      ])
     }
   }
 ]
@@ -1461,13 +1630,52 @@ const subElementColumns = [
   {
     title: 'Actions',
     key: 'actions',
-    width: 200,
+    width: 300,
     customRender: ({ record }) => {
-      // Only show actions for manager role
-      if (userRole.value !== 'manager') {
+      // Only show actions for POA and Manager roles
+      if (userRole.value !== 'poa' && userRole.value !== 'manager') {
         return h('span', { style: { color: '#999', fontStyle: 'italic' } }, 'View only')
       }
       
+      // POA only sees Remove button
+      if (userRole.value === 'poa') {
+        return h('div', { style: { display: 'flex', gap: '8px' } }, [
+          h('div', { style: { display: 'flex', alignItems: 'center', gap: '4px' } }, [
+            h(Button, {
+              type: 'primary',
+              danger: true,
+              size: 'small',
+              onClick: () => handleDeleteSubElement(record),
+              style: {
+                fontWeight: 'bold',
+                minWidth: '80px'
+              }
+            }, () => 'Remove'),
+            h(
+              resolveComponent('a-tooltip'),
+              { title: 'Click to permanently delete this sub-element. This action cannot be undone.' },
+              {
+                default: () => h('span', {
+                  style: {
+                    color: '#999',
+                    cursor: 'help',
+                    fontSize: '12px',
+                    border: '1px solid #999',
+                    borderRadius: '50%',
+                    width: '16px',
+                    height: '16px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }
+                }, '?')
+              }
+            )
+          ])
+        ])
+      }
+      
+      // Manager sees all actions
       return h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap' } }, [
         h('div', { style: { display: 'flex', alignItems: 'center', gap: '4px' } }, [
           h(Button, {
@@ -1544,6 +1752,38 @@ const subElementColumns = [
           h(
             resolveComponent('a-tooltip'),
             { title: 'Click to upload receipts or documents related to this budget item.' },
+            {
+              default: () => h('span', {
+                style: {
+                  color: '#999',
+                  cursor: 'help',
+                  fontSize: '12px',
+                  border: '1px solid #999',
+                  borderRadius: '50%',
+                  width: '16px',
+                  height: '16px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }
+              }, '?')
+            }
+          )
+        ]),
+        h('div', { style: { display: 'flex', alignItems: 'center', gap: '4px' } }, [
+          h(Button, {
+            type: 'primary',
+            danger: true,
+            size: 'small',
+            onClick: () => handleDeleteSubElement(record),
+            style: {
+              fontWeight: 'bold',
+              minWidth: '80px'
+            }
+          }, () => 'Remove'),
+          h(
+            resolveComponent('a-tooltip'),
+            { title: 'Click to permanently delete this sub-element. This action cannot be undone.' },
             {
               default: () => h('span', {
                 style: {

@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -148,6 +149,11 @@ public class BudgetServiceImpl implements BudgetService {
             .findFirst()
             .orElseThrow(() -> new IllegalArgumentException("Category not found: " + categoryId));
         
+        // Initialize sub-elements list if null
+        if (category.getSubElements() == null) {
+            category.setSubElements(new ArrayList<>());
+        }
+        
         // Generate ID for new sub-element
         if (subElement.getId() == null || subElement.getId().isEmpty()) {
             subElement.setId(UUID.randomUUID().toString());
@@ -251,17 +257,30 @@ public class BudgetServiceImpl implements BudgetService {
             .findFirst().orElseThrow(() -> new IllegalArgumentException("Category not found: " + categoryId));
         BudgetSubElement sub = category.getSubElements().stream().filter(s -> s.getId().equals(subElementId))
             .findFirst().orElseThrow(() -> new IllegalArgumentException("Sub-element not found: " + subElementId));
+        
+        System.out.println("🔍 Backend - refundSubElement called:");
+        System.out.println("  Sub-element: " + sub.getName());
+        System.out.println("  Original budget: " + sub.getSubElementBudget());
+        System.out.println("  Original used: " + sub.getTotalUtilised());
+        System.out.println("  Original balance: " + sub.getBalance());
+        System.out.println("  Refund amount: " + amount);
+        
         // Refund means decrease utilised and increase balance
         double newTotal = Math.max(0, sub.getTotalUtilised() - amount);
         sub.setTotalUtilised(newTotal);
         sub.calculateBalance();
         sub.calculateWarningLevel();
+        
+        System.out.println("  After refund - used: " + sub.getTotalUtilised());
+        System.out.println("  After refund - balance: " + sub.getBalance());
         // Optionally append reason in comments
         String comments = sub.getComments();
         String delta = "Refund: " + amount + (reason != null && !reason.isEmpty() ? (" (" + reason + ")") : "");
         sub.setComments(comments == null || comments.isEmpty() ? delta : comments + "; " + delta);
         budget.setUpdatedAt(LocalDateTime.now());
-        budget = budgetCalculationService.calculateBudgetMetrics(budget);
+        
+        // Don't call calculateBudgetMetrics here as it will recalculate totalUtilised from monthlyUsage
+        // which doesn't reflect the refund changes
         return budgetRepository.save(budget);
     }
 

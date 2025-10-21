@@ -118,7 +118,11 @@ public class BudgetSubElement {
     }
 
     public double getTotalUtilised() { return totalUtilised; }
-    public void setTotalUtilised(double totalUtilised) { this.totalUtilised = totalUtilised; }
+    public void setTotalUtilised(double totalUtilised) { 
+        this.totalUtilised = totalUtilised;
+        calculateBalance();
+        calculateWarningLevel();
+    }
 
     public double getBalance() { return balance; }
     public void setBalance(double balance) { this.balance = balance; }

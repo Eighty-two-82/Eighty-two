@@ -1,5 +1,6 @@
 package com.careapp.domain;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class BudgetCategory {
@@ -10,9 +11,12 @@ public class BudgetCategory {
     private List<BudgetSubElement> subElements; // sub-element list
     
     // constructor
-    public BudgetCategory() {}
+    public BudgetCategory() {
+        this.subElements = new ArrayList<>();
+    }
     
     public BudgetCategory(String name, double categoryBudget) {
+        this();
         this.name = name;
         this.categoryBudget = categoryBudget;
     }

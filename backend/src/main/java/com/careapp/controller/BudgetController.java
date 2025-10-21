@@ -7,6 +7,7 @@ import com.careapp.service.BudgetCalculationService;
 import com.careapp.service.BudgetService;
 import com.careapp.utils.Result;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.CrossOrigin;
 
 import javax.annotation.Resource;
 import java.util.List;
@@ -18,6 +19,7 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api/budget")
+@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:5174", "http://127.0.0.1:5174", "http://localhost:3001"}, allowCredentials = "true")
 public class BudgetController {
 
     @Resource
@@ -164,6 +166,25 @@ public class BudgetController {
             String reason = (String) request.get("reason");
 
             Budget updated = budgetService.refundSubElement(patientId, categoryId, subElementId, amount, reason);
+            
+            // Debug: Log the updated sub-element data
+            System.out.println("🔍 Backend - Returning updated budget data:");
+            if (updated != null && updated.getCategories() != null) {
+                for (BudgetCategory category : updated.getCategories()) {
+                    if (category.getSubElements() != null) {
+                        for (BudgetSubElement subElement : category.getSubElements()) {
+                            if (subElement.getId().equals(subElementId)) {
+                                System.out.println("  Updated sub-element: " + subElement.getName());
+                                System.out.println("  Balance: " + subElement.getBalance());
+                                System.out.println("  Total utilised: " + subElement.getTotalUtilised());
+                                System.out.println("  Sub-element budget: " + subElement.getSubElementBudget());
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            
             return Result.success(updated, "Refund processed successfully!");
         } catch (Exception e) {
             return Result.error("400", "Failed to process refund: " + e.getMessage());
@@ -473,6 +494,14 @@ public class BudgetController {
     @PutMapping("/patient/{patientId}/categories/{categoryId}/sub-elements/{subElementId}")
     public Result<BudgetSubElement> updateBudgetSubElement(@PathVariable String patientId, @PathVariable String categoryId, @PathVariable String subElementId, @RequestBody BudgetSubElement subElementData) {
         try {
+            System.out.println("🔍 Backend - updateBudgetSubElement called:");
+            System.out.println("  Patient ID: " + patientId);
+            System.out.println("  Category ID: " + categoryId);
+            System.out.println("  Sub-element ID: " + subElementId);
+            System.out.println("  Sub-element data: " + subElementData);
+            System.out.println("  Monthly usage: " + subElementData.getMonthlyUsage());
+            System.out.println("  Total utilised: " + subElementData.getTotalUtilised());
+            System.out.println("  Balance: " + subElementData.getBalance());
             Budget budget = budgetService.getBudgetByPatientId(patientId);
             if (budget != null && budget.getCategories() != null) {
                 for (BudgetCategory category : budget.getCategories()) {
@@ -482,6 +511,11 @@ public class BudgetController {
                                 subElement.setName(subElementData.getName());
                                 subElement.setDescription(subElementData.getDescription());
                                 subElement.setSubElementBudget(subElementData.getSubElementBudget());
+                                subElement.setMonthlyUsage(subElementData.getMonthlyUsage());
+                                subElement.setTotalUtilised(subElementData.getTotalUtilised());
+                                subElement.setBalance(subElementData.getBalance());
+                                subElement.setComments(subElementData.getComments());
+                                subElement.setWarningLevel(subElementData.getWarningLevel());
                                 
                                 Budget updatedBudget = budgetService.updateBudget(budget);
                                 return Result.success(subElement, "Budget sub-element updated successfully!");
