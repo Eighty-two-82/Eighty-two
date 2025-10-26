@@ -142,6 +142,17 @@ public class UserController {
         return Result.<String>error("404", "User not found");
     }
 
+    // Forgot password: generate token and send email
+    @PostMapping("/forgot-password-email")
+    public Result<Boolean> forgotPasswordWithEmail(@RequestBody Map<String, String> body) {
+        String identifier = body.get("identifier"); // email or uname
+        boolean success = userService.createPasswordResetTokenAndSendEmail(identifier);
+        if (success) {
+            return Result.success(true, "Password reset email sent!");
+        }
+        return Result.<Boolean>error("404", "User not found or email sending failed");
+    }
+
     // Reset password by token
     @PostMapping("/reset-password")
     public Result<Boolean> resetPassword(@RequestBody Map<String, String> body) {
@@ -276,7 +287,7 @@ public class UserController {
             // 4. Log the logout event for security purposes
             
             // For now, we'll just return a success message
-            // TODO: Implement proper token invalidation and session cleanup
+            // Note: Token invalidation and session cleanup should be implemented for production use
             
             return Result.success("Logout successful", "User logged out successfully!");
         } catch (Exception e) {

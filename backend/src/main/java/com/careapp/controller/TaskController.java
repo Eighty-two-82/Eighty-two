@@ -66,13 +66,12 @@ public class TaskController {
             task.setOrganizationId(organizationId != null ? organizationId : "org-001");
             task.setStatus("In Progress");             // Default status
             
-            // Set assignedToId - support from request or map from assignedTo name, or leave unassigned
+            // Set assignedToId - require explicit worker ID to avoid name ambiguity
             if (request.getAssignedToId() != null && !request.getAssignedToId().isEmpty()) {
                 task.setAssignedToId(request.getAssignedToId());
             } else if (request.getAssignedTo() != null && !request.getAssignedTo().isEmpty()) {
-                // Map from assignedTo name to worker ID
-                String workerId = mapWorkerNameToId(request.getAssignedTo());
-                task.setAssignedToId(workerId);
+                // Reject ambiguous name-only assignment to prevent misrouting
+                return Result.error("400", "assignedToId is required when assigning a worker. Do not use name-only assignment.");
             } else {
                 // Task is unassigned - no worker assigned
                 task.setAssignedToId(null);
@@ -461,26 +460,6 @@ public class TaskController {
         }
     }
     
-    // Helper method: Map worker name to worker ID
-    private String mapWorkerNameToId(String workerName) {
-        if (workerName == null || workerName.isEmpty()) return null;
-        
-        try {
-            // Try to find worker by name in database
-            List<Worker> workers = workerService.getAllWorkers();
-            for (Worker worker : workers) {
-                if (worker.getName() != null && worker.getName().equals(workerName)) {
-                    return worker.getId();
-                }
-            }
-            
-            // If not found, return null (unassigned task)
-            return null;
-        } catch (Exception e) {
-            // If database lookup fails, return null
-            return null;
-        }
-    }
     
     // ========== Additional API endpoints for frontend compatibility ==========
     

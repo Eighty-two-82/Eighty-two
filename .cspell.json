@@ -1,0 +1,21 @@
+{
+  "version": "0.2",
+  "language": "en",
+  "words": [
+    "careapp",
+    "utilised",
+    "sendgrid",
+    "misrouting",
+    "microuting"
+  ],
+  "ignoreWords": [
+    "careapp",
+    "utilised", 
+    "sendgrid",
+    "misrouting",
+    "microuting"
+  ],
+  "import": [
+    "@cspell/dict-java/cspell-ext.json"
+  ]
+}

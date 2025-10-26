@@ -8,7 +8,7 @@ public class CreateTaskRequest {
     
     private String title;
     private String description;
-    private String assignedTo;        // Worker name (A, B, C)
+    private String assignedTo;        // Worker name (deprecated - use assignedToId instead)
     private String assignedToId;      // Worker ID (W001, W002, W003)
     private String priority;          // normal, urgent, very-urgent
     

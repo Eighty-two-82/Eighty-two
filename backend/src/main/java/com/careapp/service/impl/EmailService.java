@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class EmailService {
 
-    @Value("${spring.sendgrid.api-key}")
+    @Value("${sendgrid.api-key}")
     private String apiKey;
 
     // 纯文本

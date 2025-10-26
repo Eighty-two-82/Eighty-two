@@ -20,7 +20,7 @@ public class Task {
     private String description;
     
     @Field("assigned_to")
-    private String assignedTo; // Worker ID or name
+    private String assignedTo; // Worker name (deprecated - use assignedToId instead)
     
     @Field("assigned_to_id")
     private String assignedToId; // Worker user ID

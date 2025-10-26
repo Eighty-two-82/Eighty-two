@@ -22,6 +22,9 @@ public interface UserService {
 
     // Forgot password: generate token and set expiry, return token
     String createPasswordResetToken(String identifier);
+    
+    // Forgot password: generate token, set expiry, and send email
+    boolean createPasswordResetTokenAndSendEmail(String identifier);
 
     // Reset password by token
     boolean resetPasswordByToken(String token, String newPassword);

@@ -3,10 +3,16 @@ package com.careapp.service.impl;
 import com.careapp.domain.Budget;
 import com.careapp.domain.BudgetCategory;
 import com.careapp.domain.BudgetSubElement;
+import com.careapp.domain.Patient;
+import com.careapp.domain.User;
 import com.careapp.repository.BudgetRepository;
+import com.careapp.repository.PatientRepository;
+import com.careapp.repository.UserRepository;
 import com.careapp.service.BudgetCalculationService;
 import com.careapp.service.BudgetService;
+import com.careapp.service.impl.EmailService;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
@@ -27,6 +33,15 @@ public class BudgetServiceImpl implements BudgetService {
     
     @Resource
     private BudgetCalculationService budgetCalculationService;
+    
+    @Resource
+    private EmailService emailService;
+    
+    @Resource
+    private PatientRepository patientRepository;
+    
+    @Resource
+    private UserRepository userRepository;
 
     @Override
     public Budget createBudget(Budget budget) {
@@ -200,7 +215,12 @@ public class BudgetServiceImpl implements BudgetService {
         budget = budgetCalculationService.calculateBudgetMetrics(budget);
         
         // Save to database
-        return budgetRepository.save(budget);
+        budget = budgetRepository.save(budget);
+        
+        // Check for budget alerts and send emails
+        checkAndSendBudgetAlerts(budget, patientId, subElement);
+        
+        return budget;
     }
 
     @Override
@@ -279,7 +299,7 @@ public class BudgetServiceImpl implements BudgetService {
         sub.setComments(comments == null || comments.isEmpty() ? delta : comments + "; " + delta);
         budget.setUpdatedAt(LocalDateTime.now());
         
-        // Don't call calculateBudgetMetrics here as it will recalculate totalUtilised from monthlyUsage
+        // Don't call calculateBudgetMetrics here as it will recalculate total  from monthlyUsage
         // which doesn't reflect the refund changes
         return budgetRepository.save(budget);
     }
@@ -298,7 +318,12 @@ public class BudgetServiceImpl implements BudgetService {
         sub.setMonthlyUsage(monthlyAmounts);
         budget.setUpdatedAt(LocalDateTime.now());
         budget = budgetCalculationService.calculateBudgetMetrics(budget);
-        return budgetRepository.save(budget);
+        budget = budgetRepository.save(budget);
+        
+        // Check for budget alerts and send emails
+        checkAndSendBudgetAlerts(budget, patientId, sub);
+        
+        return budget;
     }
 
 
@@ -321,6 +346,106 @@ public class BudgetServiceImpl implements BudgetService {
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * Check budget usage and send alert emails if necessary
+     * @param budget The budget to check
+     * @param patientId The patient ID
+     * @param updatedSubElement The sub-element that was updated
+     */
+    private void checkAndSendBudgetAlerts(Budget budget, String patientId, BudgetSubElement updatedSubElement) {
+        try {
+            // Get patient information
+            Patient patient = patientRepository.findById(patientId).orElse(null);
+            if (patient == null || !StringUtils.hasText(patient.getPoaId())) {
+                return; // No patient or no POA, skip email
+            }
+            
+            // Get POA user information
+            User poaUser = userRepository.findById(patient.getPoaId()).orElse(null);
+            if (poaUser == null || !StringUtils.hasText(poaUser.getEmail())) {
+                return; // No POA user or no email, skip email
+            }
+            
+            // Check if the updated sub-element exceeds warning thresholds
+            double monthlyUsage = updatedSubElement.getMonthlyUsage().stream()
+                .mapToDouble(Double::doubleValue)
+                .sum();
+            double budgetAmount = updatedSubElement.getSubElementBudget();
+            double usagePercentage = (monthlyUsage / budgetAmount) * 100;
+            
+            String alertLevel = null;
+            String subject = null;
+            String emailContent = null;
+            
+            // Determine alert level
+            if (usagePercentage >= 100) {
+                alertLevel = "CRITICAL";
+                subject = "🚨 CareTrack Budget Alert - CRITICAL: Budget Exceeded";
+                emailContent = String.format(
+                    "Dear %s,\n\n" +
+                    "🚨 CRITICAL BUDGET ALERT for %s\n\n" +
+                    "The budget for '%s' has been EXCEEDED!\n\n" +
+                    "Budget Details:\n" +
+                    "• Category: %s\n" +
+                    "• Sub-element: %s\n" +
+                    "• Budget Amount: $%.2f\n" +
+                    "• Current Usage: $%.2f\n" +
+                    "• Usage Percentage: %.1f%%\n\n" +
+                    "Please review the budget immediately and take necessary actions.\n\n" +
+                    "Best regards,\n" +
+                    "CareTrack Team",
+                    poaUser.getFirstName() != null ? poaUser.getFirstName() : "POA",
+                    patient.getFirstName() != null ? patient.getFirstName() : "Patient",
+                    updatedSubElement.getName(),
+                    budget.getCategories().stream()
+                        .filter(cat -> cat.getSubElements().contains(updatedSubElement))
+                        .findFirst().map(BudgetCategory::getName).orElse("Unknown"),
+                    updatedSubElement.getName(),
+                    budgetAmount,
+                    monthlyUsage,
+                    usagePercentage
+                );
+            } else if (usagePercentage >= 80) {
+                alertLevel = "WARNING";
+                subject = "⚠️ CareTrack Budget Alert - WARNING: Budget Nearly Exceeded";
+                emailContent = String.format(
+                    "Dear %s,\n\n" +
+                    "⚠️ BUDGET WARNING for %s\n\n" +
+                    "The budget for '%s' is approaching its limit.\n\n" +
+                    "Budget Details:\n" +
+                    "• Category: %s\n" +
+                    "• Sub-element: %s\n" +
+                    "• Budget Amount: $%.2f\n" +
+                    "• Current Usage: $%.2f\n" +
+                    "• Usage Percentage: %.1f%%\n\n" +
+                    "Please monitor the budget closely to avoid exceeding the limit.\n\n" +
+                    "Best regards,\n" +
+                    "CareTrack Team",
+                    poaUser.getFirstName() != null ? poaUser.getFirstName() : "POA",
+                    patient.getFirstName() != null ? patient.getFirstName() : "Patient",
+                    updatedSubElement.getName(),
+                    budget.getCategories().stream()
+                        .filter(cat -> cat.getSubElements().contains(updatedSubElement))
+                        .findFirst().map(BudgetCategory::getName).orElse("Unknown"),
+                    updatedSubElement.getName(),
+                    budgetAmount,
+                    monthlyUsage,
+                    usagePercentage
+                );
+            }
+            
+            // Send email if alert is needed
+            if (alertLevel != null) {
+                emailService.sendText(poaUser.getEmail(), subject, emailContent);
+                System.out.println("Budget alert email sent to " + poaUser.getEmail() + " for " + alertLevel + " level alert");
+            }
+            
+        } catch (Exception e) {
+            // Log error but don't fail the budget update
+            System.err.println("Failed to send budget alert email: " + e.getMessage());
         }
     }
 }
