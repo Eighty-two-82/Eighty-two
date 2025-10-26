@@ -24,6 +24,7 @@ Database integration (MySQL / JPA) can be added later with minimal changes.
 
 **Run:**
 `cd backend
+export SENDGRID_API_KEY=dummy_key
 ./mvnw spring-boot:run`
 
 **Test endpoint:**
