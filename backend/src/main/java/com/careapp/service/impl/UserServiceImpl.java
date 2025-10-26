@@ -3,7 +3,6 @@ package com.careapp.service.impl;
 import com.careapp.domain.User;
 import com.careapp.repository.UserRepository;
 import com.careapp.service.UserService;
-import com.careapp.service.impl.EmailService;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 

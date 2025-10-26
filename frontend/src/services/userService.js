@@ -59,8 +59,11 @@ export async function login(credentials) {
                 status: user.status
             };
             
-            // Store user ID in sessionStorage for API calls (not full user info)
+            // Store user ID and organization ID in sessionStorage for API calls
             sessionStorage.setItem('userId', user.id);
+            if (user.organizationId) {
+                sessionStorage.setItem('organizationId', user.organizationId);
+            }
             
             return {
                 data: {

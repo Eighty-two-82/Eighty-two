@@ -1,7 +1,6 @@
 package com.careapp.dto;
 
 import com.careapp.domain.Message;
-import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
 /**

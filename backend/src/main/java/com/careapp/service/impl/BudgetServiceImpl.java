@@ -10,7 +10,6 @@ import com.careapp.repository.PatientRepository;
 import com.careapp.repository.UserRepository;
 import com.careapp.service.BudgetCalculationService;
 import com.careapp.service.BudgetService;
-import com.careapp.service.impl.EmailService;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 

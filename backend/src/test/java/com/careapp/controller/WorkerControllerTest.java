@@ -1,7 +1,6 @@
 package com.careapp.controller;
 
 import com.careapp.domain.Worker;
-import com.careapp.dto.DailyScheduleRequest;
 import com.careapp.dto.WorkerPhotoUploadRequest;
 import com.careapp.service.WorkerService;
 import org.junit.jupiter.api.BeforeEach;

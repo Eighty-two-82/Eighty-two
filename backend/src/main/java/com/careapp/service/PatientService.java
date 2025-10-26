@@ -84,4 +84,9 @@ public class PatientService {
         }
         return null;
     }
+    
+    // Get patients by organization ID
+    public List<Patient> getPatientsByOrganization(String organizationId) {
+        return patientRepository.findByOrganizationId(organizationId);
+    }
 }

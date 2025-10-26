@@ -64,7 +64,6 @@ public class BudgetPermissionServiceImpl implements BudgetPermissionService {
         }
         
         String userType = user.getUserType();
-        String userPatientId = user.getPatientId();
         String organizationId = user.getOrganizationId();
         
         // Only Manager can create budgets (with proper authorization)
@@ -151,7 +150,6 @@ public class BudgetPermissionServiceImpl implements BudgetPermissionService {
         
         String userType = user.getUserType();
         String userPatientId = user.getPatientId();
-        String organizationId = user.getOrganizationId();
         
         // POA and Family Members can access their own patient
         if (("POA".equals(userType) || "FM".equals(userType)) && userPatientId != null) {

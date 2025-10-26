@@ -385,7 +385,7 @@ public class BudgetController {
                         category.setDescription(categoryData.getDescription());
                         category.setCategoryBudget(categoryData.getCategoryBudget());
                         
-                        Budget updatedBudget = budgetService.updateBudget(budget);
+                        budgetService.updateBudget(budget);
                         return Result.success(category, "Budget category updated successfully!");
                     }
                 }
@@ -483,7 +483,7 @@ public class BudgetController {
                                 subElement.setDescription(subElementData.getDescription());
                                 subElement.setSubElementBudget(subElementData.getSubElementBudget());
                                 
-                                Budget updatedBudget = budgetService.updateBudget(budget);
+                                budgetService.updateBudget(budget);
                                 return Result.success(subElement, "Budget sub-element updated successfully!");
                             }
                         }

@@ -15,7 +15,7 @@ const api = axios.create({
     }
 });
 
-// Request interceptor to add auth token
+// Request interceptor to add auth token and user headers
 api.interceptors.request.use(
     (config) => {
         // Get token from sessionStorage only
@@ -23,6 +23,19 @@ api.interceptors.request.use(
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
+        
+        // Add user ID header for backend permission checks
+        const userId = sessionStorage.getItem('userId');
+        if (userId) {
+            config.headers['X-User-Id'] = userId;
+        }
+        
+        // Add organization ID header if available
+        const organizationId = sessionStorage.getItem('organizationId');
+        if (organizationId) {
+            config.headers['X-Organization-Id'] = organizationId;
+        }
+        
         return config;
     },
     (error) => {

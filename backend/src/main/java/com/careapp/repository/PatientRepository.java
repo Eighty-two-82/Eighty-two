@@ -45,4 +45,10 @@ public interface PatientRepository extends MongoRepository<Patient, String> {
     
     // Count patients by current status
     long countByCurrentStatus(String currentStatus);
+    
+    // Find patients by organization ID
+    List<Patient> findByOrganizationId(String organizationId);
+    
+    // Count patients by organization
+    long countByOrganizationId(String organizationId);
 }

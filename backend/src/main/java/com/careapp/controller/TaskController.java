@@ -59,13 +59,12 @@ public class TaskController {
             task.setOrganizationId(organizationId != null ? organizationId : "org-001");
             task.setStatus("In Progress");             // Default status
             
-            // Set assignedToId - support from request or map from assignedTo name, or leave unassigned
+            // Set assignedToId - require explicit worker ID to avoid name ambiguity
             if (request.getAssignedToId() != null && !request.getAssignedToId().isEmpty()) {
                 task.setAssignedToId(request.getAssignedToId());
             } else if (request.getAssignedTo() != null && !request.getAssignedTo().isEmpty()) {
-                // Map from assignedTo name to worker ID
-                String workerId = mapWorkerNameToId(request.getAssignedTo());
-                task.setAssignedToId(workerId);
+                // Reject ambiguous name-only assignment to prevent misrouting
+                return Result.error("400", "assignedToId is required when assigning a worker. Do not use name-only assignment.");
             } else {
                 // Task is unassigned - no worker assigned
                 task.setAssignedToId(null);
@@ -454,22 +453,7 @@ public class TaskController {
         }
     }
     
-    // Helper method: Map worker name to worker ID
-    private String mapWorkerNameToId(String workerName) {
-        if (workerName == null) return "W000";
-        
-        switch (workerName) {
-            case "A": return "W001";
-            case "B": return "W002";
-            case "C": return "W003";
-            case "D": return "W004";
-            case "E": return "W005";
-            case "F": return "W006";
-            case "G": return "W007";
-            case "H": return "W008";
-            default: return "W000"; // Unknown worker
-        }
-    }
+    // Name-to-ID hard mapping removed intentionally to avoid ambiguity.
     
     // ========== Additional API endpoints for frontend compatibility ==========
     

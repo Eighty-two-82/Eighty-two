@@ -184,4 +184,15 @@ public class PatientController {
             return Result.error("500", "Failed to retrieve patient: " + e.getMessage());
         }
     }
+    
+    // Get patients by organization ID (for data isolation)
+    @GetMapping("/organization/{organizationId}")
+    public Result<List<Patient>> getPatientsByOrganization(@PathVariable String organizationId) {
+        try {
+            List<Patient> patients = patientService.getPatientsByOrganization(organizationId);
+            return Result.success(patients, "Patients retrieved successfully!");
+        } catch (Exception e) {
+            return Result.error("500", "Failed to retrieve patients: " + e.getMessage());
+        }
+    }
 }
