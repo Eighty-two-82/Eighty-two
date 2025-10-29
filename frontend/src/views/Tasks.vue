@@ -728,7 +728,7 @@
       </a-form>
     </a-modal>
 
-    <!-- POA Task Confirmation Modal（仅 POA 渲染） -->
+    <!-- POA Task Confirmation Modal（ -->
     <a-modal
       v-if="isPOA"
       v-model:open="taskConfirmModalVisible"
@@ -853,7 +853,12 @@ import {
   getRecurringTasks,
   createRecurringTask,
   updateRecurringTask,
-  deleteRecurringTask as deleteRecurringTaskAPI
+  deleteRecurringTask as deleteRecurringTaskAPI,
+  createTaskRequest,
+  getPendingTaskRequests,
+  getMyTaskRequests,
+  approveTaskRequest,
+  rejectTaskRequest
 } from '../services/taskService'
 
 // Reactive data
@@ -1262,18 +1267,23 @@ const onRequestTypeChange = () => {
 const confirmRequestTask = async () => {
   try {
     message.loading('Submitting request...', 0)
-    await new Promise(resolve => setTimeout(resolve, 1000))
     
-    const requestId = Date.now()
+    // Get current user info
+    const userInfo = await getMe()
+    if (!userInfo?.data) {
+      throw new Error('User not authenticated')
+    }
     
     // Prepare request data with frequency information if it's a recurring task
     const requestData = {
-      id: requestId,
       requester: 'POA',
       taskTitle: requestTaskForm.value.title,
+      description: requestTaskForm.value.description || '',
       requestType: requestTaskForm.value.requestType,
-      reason: requestTaskForm.value.reason,
-      status: 'Pending'
+      priority: requestTaskForm.value.priority || 'normal',
+      reason: requestTaskForm.value.reason || '',
+      status: 'Pending',
+      submittedDate: dayjs().format('YYYY-MM-DD')
     }
     
     // Add frequency data if it's a recurring task request
@@ -1288,26 +1298,41 @@ const confirmRequestTask = async () => {
       requestData.endDate = requestTaskForm.value.endDate?.format('YYYY-MM-DD')
     }
     
-    // Add to change requests for manager to review
-    const newRequest = { ...requestData }
+    // Call backend API to save request
+    const response = await createTaskRequest(requestData)
     
-    // Add to POA's own requests for tracking
-    const myNewRequest = {
-      ...requestData,
-      submittedDate: dayjs().format('YYYY-MM-DD'),
-      approvalReason: null,
-      rejectionReason: null
+    if (response?.data) {
+      // Update local state for immediate UI update
+      const newRequest = response.data
+      changeRequests.value.unshift(newRequest)
+      myRequests.value.unshift(newRequest)
+      
+      message.destroy()
+      message.success('Task request submitted successfully!')
+      requestTaskModalVisible.value = false
+      
+      // Reset form
+      requestTaskForm.value = {
+        requestType: '',
+        title: '',
+        description: '',
+        priority: '',
+        reason: '',
+        frequency: '',
+        frequencyNumber: 1,
+        timeOfDay: null,
+        dayOfWeek: '',
+        dayOfMonth: null,
+        month: '',
+        startDate: null,
+        endDate: null
+      }
     }
-    
-    changeRequests.value.unshift(newRequest)
-    myRequests.value.unshift(myNewRequest)
-    
-    message.destroy()
-    message.success('Task request submitted successfully!')
-    requestTaskModalVisible.value = false
   } catch (error) {
     message.destroy()
-    message.error('Failed to submit request')
+    const errorMsg = error?.response?.data?.msg || error?.message || 'Failed to submit request'
+    message.error(errorMsg)
+    console.error('Failed to submit request:', error)
   }
 }
 
@@ -1406,22 +1431,50 @@ const handleRequestConfirmation = async () => {
   
   try {
     message.loading(`${action === 'approve' ? 'Approving' : 'Rejecting'} request...`, 0)
-    await new Promise(resolve => setTimeout(resolve, 1000))
     
-    const requestIndex = changeRequests.value.findIndex(r => r.id === request.id)
-    if (requestIndex !== -1) {
-      if (action === 'approve') {
-        changeRequests.value[requestIndex].status = 'Approved'
-        if (requestConfirmReason.value) {
-          changeRequests.value[requestIndex].approvalReason = requestConfirmReason.value
+    // Call backend API to approve or reject
+    let response
+    if (action === 'approve') {
+      response = await approveTaskRequest(request.id, {
+        approvalReason: requestConfirmReason.value || ''
+      })
+    } else {
+      response = await rejectTaskRequest(request.id, {
+        rejectionReason: requestConfirmReason.value || ''
+      })
+    }
+    
+    if (response?.data) {
+      const updatedRequest = response.data
+      
+      // Update local state
+      const requestIndex = changeRequests.value.findIndex(r => r.id === request.id)
+      if (requestIndex !== -1) {
+        changeRequests.value[requestIndex] = {
+          ...changeRequests.value[requestIndex],
+          status: updatedRequest.status,
+          approvalReason: updatedRequest.approvalReason,
+          rejectionReason: updatedRequest.rejectionReason
         }
-        
-        // If it's a recurring task request, create the recurring task template
-        if (request.requestType === 'recurring') {
+      }
+      
+      // Also update POA's request status if it exists in myRequests
+      const myRequestIndex = myRequests.value.findIndex(r => r.id === request.id)
+      if (myRequestIndex !== -1) {
+        myRequests.value[myRequestIndex] = {
+          ...myRequests.value[myRequestIndex],
+          status: updatedRequest.status,
+          approvalReason: updatedRequest.approvalReason,
+          rejectionReason: updatedRequest.rejectionReason
+        }
+      }
+      
+      // If approved and it's a recurring task request, create the recurring task template
+      if (action === 'approve' && request.requestType === 'recurring') {
+        try {
           const newRecurringTask = {
-            id: Date.now(),
             title: request.taskTitle,
-            description: request.reason,
+            description: request.reason || '',
             assignedTo: 'A', // Default assignment, in real app this would be determined by manager
             frequency: request.frequency,
             frequencyNumber: request.frequencyNumber,
@@ -1430,45 +1483,30 @@ const handleRequestConfirmation = async () => {
             dayOfMonth: request.dayOfMonth,
             month: request.month,
             startDate: request.startDate,
-            endDate: request.endDate,
-            isActive: true,
-            createdAt: dayjs().format('YYYY-MM-DD')
+            endDate: request.endDate
           }
-          recurringTasks.value.push(newRecurringTask)
-        }
-      } else if (action === 'reject') {
-        changeRequests.value[requestIndex].status = 'Rejected'
-        if (requestConfirmReason.value) {
-          changeRequests.value[requestIndex].rejectionReason = requestConfirmReason.value
-        }
-      }
-    }
-    
-    // Also update POA's request status
-    const myRequestIndex = myRequests.value.findIndex(r => r.id === request.id)
-    if (myRequestIndex !== -1) {
-      if (action === 'approve') {
-        myRequests.value[myRequestIndex].status = 'Approved'
-        if (requestConfirmReason.value) {
-          myRequests.value[myRequestIndex].approvalReason = requestConfirmReason.value
-        }
-      } else if (action === 'reject') {
-        myRequests.value[myRequestIndex].status = 'Rejected'
-        if (requestConfirmReason.value) {
-          myRequests.value[myRequestIndex].rejectionReason = requestConfirmReason.value
+          const recurringResponse = await createRecurringTask(newRecurringTask)
+          if (recurringResponse?.data) {
+            recurringTasks.value.push(recurringResponse.data)
+          }
+        } catch (error) {
+          console.error('Failed to create recurring task:', error)
+          // Don't fail the whole operation if recurring task creation fails
         }
       }
+      
+      message.destroy()
+      message.success(`Request ${action === 'approve' ? 'approved' : 'rejected'} successfully!`)
+      requestConfirmModalVisible.value = false
+      pendingRequestAction.value = null
+      requestConfirmReason.value = ''
     }
-    
-    message.destroy()
-    message.success(`Request ${action === 'approve' ? 'approved' : 'rejected'} successfully!`)
-    requestConfirmModalVisible.value = false
-    pendingRequestAction.value = null
-    requestConfirmReason.value = ''
     
   } catch (error) {
     message.destroy()
-    message.error(`Failed to ${action} request`)
+    const errorMsg = error?.response?.data?.msg || error?.message || `Failed to ${action} request`
+    message.error(errorMsg)
+    console.error(`Failed to ${action} request:`, error)
   }
 }
 
@@ -1851,9 +1889,58 @@ const loadTasks = async () => {
     } else if (currentUser.value.role === 'poa') {
       // Load tasks for patient(s) this POA manages
       response = await getTasksByPatient(currentUser.value.patientId)
+      
+      // Load POA's own requests
+      try {
+        const myRequestsResponse = await getMyTaskRequests()
+        if (myRequestsResponse && myRequestsResponse.data) {
+          myRequests.value = myRequestsResponse.data.map(req => ({
+            id: req.id,
+            taskTitle: req.taskTitle,
+            requestType: req.requestType,
+            frequency: req.frequency,
+            frequencyNumber: req.frequencyNumber,
+            reason: req.reason,
+            submittedDate: req.submittedDate,
+            status: req.status,
+            approvalReason: req.approvalReason,
+            rejectionReason: req.rejectionReason
+          }))
+        }
+      } catch (error) {
+        console.error('Failed to load my requests:', error)
+      }
     } else if (currentUser.value.role === 'manager') {
       // Load all tasks
       response = await getAllTasks()
+      
+      // Load pending change requests for manager
+      try {
+        const pendingRequestsResponse = await getPendingTaskRequests()
+        if (pendingRequestsResponse && pendingRequestsResponse.data) {
+          changeRequests.value = pendingRequestsResponse.data.map(req => ({
+            id: req.id,
+            requester: req.requester,
+            taskTitle: req.taskTitle,
+            requestType: req.requestType,
+            frequency: req.frequency,
+            frequencyNumber: req.frequencyNumber,
+            reason: req.reason,
+            status: req.status,
+            approvalReason: req.approvalReason,
+            rejectionReason: req.rejectionReason,
+            // Include recurring task fields
+            timeOfDay: req.timeOfDay,
+            dayOfWeek: req.dayOfWeek,
+            dayOfMonth: req.dayOfMonth,
+            month: req.month,
+            startDate: req.startDate,
+            endDate: req.endDate
+          }))
+        }
+      } catch (error) {
+        console.error('Failed to load pending requests:', error)
+      }
     }
     
     if (response && response.data) {

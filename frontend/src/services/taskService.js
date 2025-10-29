@@ -345,3 +345,149 @@ export async function deleteRecurringTask(taskId) {
         }
     }
 }
+
+// ==================== Task Request APIs ====================
+
+// Create a new task request (POA submits request)
+export async function createTaskRequest(requestData) {
+    try {
+        const response = await api.post('/tasks/requests', requestData);
+        const result = response.data;
+        
+        if (result.code === "0" && result.data) {
+            return {
+                data: result.data
+            };
+        } else {
+            throw new Error(result.msg || 'Failed to create task request');
+        }
+    } catch (error) {
+        if (error.response?.data?.msg) {
+            throw new Error(error.response.data.msg);
+        } else if (error.message) {
+            throw error;
+        } else {
+            throw new Error('Failed to create task request');
+        }
+    }
+}
+
+// Get pending task requests (Manager view)
+export async function getPendingTaskRequests() {
+    try {
+        const response = await api.get('/tasks/requests/pending');
+        const result = response.data;
+        
+        if (result.code === "0" && result.data) {
+            return {
+                data: result.data
+            };
+        } else {
+            throw new Error(result.msg || 'Failed to get pending task requests');
+        }
+    } catch (error) {
+        if (error.response?.data?.msg) {
+            throw new Error(error.response.data.msg);
+        } else if (error.message) {
+            throw error;
+        } else {
+            throw new Error('Failed to get pending task requests');
+        }
+    }
+}
+
+// Get all task requests by requester (POA view)
+export async function getMyTaskRequests() {
+    try {
+        const response = await api.get('/tasks/requests/my-requests');
+        const result = response.data;
+        
+        if (result.code === "0" && result.data) {
+            return {
+                data: result.data
+            };
+        } else {
+            throw new Error(result.msg || 'Failed to get my task requests');
+        }
+    } catch (error) {
+        if (error.response?.data?.msg) {
+            throw new Error(error.response.data.msg);
+        } else if (error.message) {
+            throw error;
+        } else {
+            throw new Error('Failed to get my task requests');
+        }
+    }
+}
+
+// Get all task requests by organization (Manager view all)
+export async function getAllTaskRequests() {
+    try {
+        const response = await api.get('/tasks/requests');
+        const result = response.data;
+        
+        if (result.code === "0" && result.data) {
+            return {
+                data: result.data
+            };
+        } else {
+            throw new Error(result.msg || 'Failed to get all task requests');
+        }
+    } catch (error) {
+        if (error.response?.data?.msg) {
+            throw new Error(error.response.data.msg);
+        } else if (error.message) {
+            throw error;
+        } else {
+            throw new Error('Failed to get all task requests');
+        }
+    }
+}
+
+// Approve a task request (Manager action)
+export async function approveTaskRequest(requestId, approvalData) {
+    try {
+        const response = await api.post(`/tasks/requests/${requestId}/approve`, approvalData);
+        const result = response.data;
+        
+        if (result.code === "0" && result.data) {
+            return {
+                data: result.data
+            };
+        } else {
+            throw new Error(result.msg || 'Failed to approve task request');
+        }
+    } catch (error) {
+        if (error.response?.data?.msg) {
+            throw new Error(error.response.data.msg);
+        } else if (error.message) {
+            throw error;
+        } else {
+            throw new Error('Failed to approve task request');
+        }
+    }
+}
+
+// Reject a task request (Manager action)
+export async function rejectTaskRequest(requestId, rejectionData) {
+    try {
+        const response = await api.post(`/tasks/requests/${requestId}/reject`, rejectionData);
+        const result = response.data;
+        
+        if (result.code === "0" && result.data) {
+            return {
+                data: result.data
+            };
+        } else {
+            throw new Error(result.msg || 'Failed to reject task request');
+        }
+    } catch (error) {
+        if (error.response?.data?.msg) {
+            throw new Error(error.response.data.msg);
+        } else if (error.message) {
+            throw error;
+        } else {
+            throw new Error('Failed to reject task request');
+        }
+    }
+}
