@@ -72,7 +72,16 @@ public class BudgetServiceImpl implements BudgetService {
     public Budget getBudgetByPatientId(String patientId) {
         Optional<Budget> budget = budgetRepository.findByPatientId(patientId);
         if (budget.isPresent()) {
-            return budget.get();
+            Budget budgetObj = budget.get();
+            // Initialize null subElements for all categories (fix for old data)
+            if (budgetObj.getCategories() != null) {
+                for (BudgetCategory category : budgetObj.getCategories()) {
+                    if (category.getSubElements() == null) {
+                        category.setSubElements(new java.util.ArrayList<>());
+                    }
+                }
+            }
+            return budgetObj;
         }
         throw new IllegalArgumentException("Budget not found for patient: " + patientId);
     }
@@ -91,6 +100,15 @@ public class BudgetServiceImpl implements BudgetService {
         
         // Update timestamp
         budget.setUpdatedAt(LocalDateTime.now());
+        
+        // Initialize null subElements for all categories (fix for old data)
+        if (budget.getCategories() != null) {
+            for (BudgetCategory category : budget.getCategories()) {
+                if (category.getSubElements() == null) {
+                    category.setSubElements(new java.util.ArrayList<>());
+                }
+            }
+        }
         
         // Generate IDs for new categories and sub-elements
         generateIds(budget);
