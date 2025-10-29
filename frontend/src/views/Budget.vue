@@ -559,6 +559,7 @@ import {
   getBudgetByPatient,
   createBudget,
   updateBudget,
+  adjustTotalBudget,
   deleteBudget,
   getBudgetCategories,
   createBudgetCategory,
@@ -771,7 +772,17 @@ const getRowClassName = (record) => {
 // Get warning information
 const getWarningInfo = () => {
   const warnings = []
+  // Check if categories exist and is an array
+  if (!budgetData.value?.categories || !Array.isArray(budgetData.value.categories)) {
+    return warnings
+  }
+  
   budgetData.value.categories.forEach(category => {
+    // Check if subElements exist and is an array
+    if (!category?.subElements || !Array.isArray(category.subElements)) {
+      return
+    }
+    
     category.subElements.forEach(subElement => {
       const percentage = subElement.subElementBudget > 0 ? (subElement.totalUtilised / subElement.subElementBudget) * 100 : 0
       if (percentage >= 80) {
@@ -798,9 +809,17 @@ const getWarningInfo = () => {
 
 // Calculate total used amount
 const getTotalUsed = () => {
+  if (!budgetData.value?.categories || !Array.isArray(budgetData.value.categories)) {
+    return 0
+  }
+  
   return budgetData.value.categories.reduce((total, category) => {
+    if (!category?.subElements || !Array.isArray(category.subElements)) {
+      return total
+    }
+    
     return total + category.subElements.reduce((categoryTotal, subElement) => {
-      return categoryTotal + subElement.totalUtilised
+      return categoryTotal + (subElement.totalUtilised || 0)
     }, 0)
   }, 0)
 }
@@ -854,13 +873,12 @@ const handleBudgetAdjust = async () => {
     if (adjustTab.value === 'total') {
       // Adjust total budget
       if (budgetAdjustForm.value.newTotalBudget && budgetAdjustForm.value.newTotalBudget > 0) {
-        // Call backend API to update total budget
-        const budgetUpdateData = {
-          totalBudget: budgetAdjustForm.value.newTotalBudget,
-          patientId: userInfo.data.patientId
-        }
-        
-        const response = await updateBudget(budgetUpdateData)
+        // Call backend API to adjust total budget using dedicated endpoint
+        const response = await adjustTotalBudget(
+          userInfo.data.patientId,
+          budgetAdjustForm.value.newTotalBudget,
+          budgetAdjustForm.value.totalAdjustReason || 'Budget adjustment'
+        )
         if (response?.data) {
           budgetData.value.totalBudget = budgetAdjustForm.value.newTotalBudget
           console.log('Total budget adjusted to:', budgetAdjustForm.value.newTotalBudget)
@@ -882,18 +900,18 @@ const handleBudgetAdjust = async () => {
         if (fromCategory && toCategory) {
           // Call backend API to update categories
           const fromCategoryData = {
-            id: fromCategory.id,
-            budget: fromCategory.categoryBudget - budgetAdjustForm.value.categoryAdjustAmount,
-            patientId: userInfo.data.patientId
+            name: fromCategory.name,
+            description: fromCategory.description,
+            categoryBudget: fromCategory.categoryBudget - budgetAdjustForm.value.categoryAdjustAmount
           }
           const toCategoryData = {
-            id: toCategory.id,
-            budget: toCategory.categoryBudget + budgetAdjustForm.value.categoryAdjustAmount,
-            patientId: userInfo.data.patientId
+            name: toCategory.name,
+            description: toCategory.description,
+            categoryBudget: toCategory.categoryBudget + budgetAdjustForm.value.categoryAdjustAmount
           }
           
-          const fromResponse = await updateBudgetCategory(fromCategoryData)
-          const toResponse = await updateBudgetCategory(toCategoryData)
+          const fromResponse = await updateBudgetCategory(userInfo.data.patientId, fromCategory.id, fromCategoryData)
+          const toResponse = await updateBudgetCategory(userInfo.data.patientId, toCategory.id, toCategoryData)
           
           if (fromResponse?.data && toResponse?.data) {
             fromCategory.categoryBudget -= budgetAdjustForm.value.categoryAdjustAmount
@@ -914,25 +932,35 @@ const handleBudgetAdjust = async () => {
           budgetAdjustForm.value.subElementAdjustAmount > 0) {
         
         const category = budgetData.value.categories.find(c => c.id === budgetAdjustForm.value.selectedCategory)
-        if (category) {
+        if (category && category.subElements && Array.isArray(category.subElements)) {
           const fromSubElement = category.subElements.find(s => s.id === budgetAdjustForm.value.fromSubElement)
           const toSubElement = category.subElements.find(s => s.id === budgetAdjustForm.value.toSubElement)
           
           if (fromSubElement && toSubElement) {
             // Call backend API to update sub-elements
             const fromSubElementData = {
-              id: fromSubElement.id,
-              budget: fromSubElement.subElementBudget - budgetAdjustForm.value.subElementAdjustAmount,
-              patientId: userInfo.data.patientId
+              name: fromSubElement.name,
+              description: fromSubElement.description,
+              subElementBudget: fromSubElement.subElementBudget - budgetAdjustForm.value.subElementAdjustAmount
             }
             const toSubElementData = {
-              id: toSubElement.id,
-              budget: toSubElement.subElementBudget + budgetAdjustForm.value.subElementAdjustAmount,
-              patientId: userInfo.data.patientId
+              name: toSubElement.name,
+              description: toSubElement.description,
+              subElementBudget: toSubElement.subElementBudget + budgetAdjustForm.value.subElementAdjustAmount
             }
             
-            const fromResponse = await updateBudgetSubElement(fromSubElementData)
-            const toResponse = await updateBudgetSubElement(toSubElementData)
+            const fromResponse = await updateBudgetSubElement(
+              userInfo.data.patientId, 
+              budgetAdjustForm.value.selectedCategory,
+              fromSubElement.id,
+              fromSubElementData
+            )
+            const toResponse = await updateBudgetSubElement(
+              userInfo.data.patientId,
+              budgetAdjustForm.value.selectedCategory,
+              toSubElement.id,
+              toSubElementData
+            )
             
             if (fromResponse?.data && toResponse?.data) {
               fromSubElement.subElementBudget -= budgetAdjustForm.value.subElementAdjustAmount
@@ -966,7 +994,7 @@ const onCategoryChange = () => {
 const getSelectedCategorySubElements = () => {
   if (!budgetAdjustForm.value.selectedCategory) return []
   const category = budgetData.value.categories.find(c => c.id === budgetAdjustForm.value.selectedCategory)
-  return category ? category.subElements : []
+  return category?.subElements || []
 }
 
 // Show add category modal
@@ -1001,14 +1029,14 @@ const handleAddCategory = async () => {
       }
 
       // Call backend API to create category
+      // Backend expects 'categoryBudget' not 'budget'
       const categoryData = {
         name: addCategoryForm.value.name,
-        budget: addCategoryForm.value.budget,
-        description: addCategoryForm.value.description,
-        patientId: userInfo.data.patientId
+        categoryBudget: addCategoryForm.value.budget,
+        description: addCategoryForm.value.description
       }
       
-      const response = await createBudgetCategory(categoryData)
+      const response = await createBudgetCategory(userInfo.data.patientId, categoryData)
       if (response?.data) {
         // Add the new category to local data
         const newCategory = {
@@ -1050,18 +1078,21 @@ const handleAddSubElement = async () => {
         return
       }
 
-      const category = budgetData.value.categories.find(c => c.id === addSubElementForm.value.categoryId)
+          const category = budgetData.value.categories.find(c => c.id === addSubElementForm.value.categoryId)
       if (category) {
+        // Ensure subElements array exists
+        if (!category.subElements) {
+          category.subElements = []
+        }
         // Call backend API to create sub-element
+        // Backend expects 'subElementBudget' not 'budget'
         const subElementData = {
-          categoryId: addSubElementForm.value.categoryId,
           name: addSubElementForm.value.name,
-          budget: addSubElementForm.value.budget,
-          description: addSubElementForm.value.description,
-          patientId: userInfo.data.patientId
+          subElementBudget: addSubElementForm.value.budget,
+          description: addSubElementForm.value.description
         }
         
-        const response = await createBudgetSubElement(subElementData)
+        const response = await createBudgetSubElement(userInfo.data.patientId, addSubElementForm.value.categoryId, subElementData)
         if (response?.data) {
           // Add the new sub-element to local data
           const newSubElement = {

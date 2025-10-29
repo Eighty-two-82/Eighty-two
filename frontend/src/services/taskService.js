@@ -98,9 +98,18 @@ export async function createTask(taskData) {
 }
 
 // Update task
-export async function updateTask(taskId, taskData) {
+export async function updateTask(taskData) {
     try {
-        const response = await api.put(`/tasks/${taskId}`, taskData);
+        // Extract taskId from taskData
+        const taskId = taskData.id;
+        if (!taskId) {
+            throw new Error('Task ID is required');
+        }
+        
+        // Remove id from taskData before sending (it's in the URL)
+        const { id, ...updateData } = taskData;
+        
+        const response = await api.put(`/tasks/${taskId}`, updateData);
         const result = response.data;
         
         if (result.code === "0" && result.data) {

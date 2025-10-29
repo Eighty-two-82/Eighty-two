@@ -1143,6 +1143,7 @@ const confirmEditTask = async () => {
       dueDate: editTaskForm.value.dueDate.format('YYYY-MM-DD')
     }
     
+    // Call API to update task (taskId is in taskData)
     const response = await updateTask(taskData)
     
     if (response.data) {
@@ -1150,7 +1151,7 @@ const confirmEditTask = async () => {
       if (taskIndex !== -1) {
         todayTasks.value[taskIndex] = {
           ...todayTasks.value[taskIndex],
-          ...taskData
+          ...response.data
         }
       }
       

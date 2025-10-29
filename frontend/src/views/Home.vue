@@ -409,8 +409,15 @@ const roleDisplay = computed(() => {
 // --- Budget Preview - loaded from API ---
 const budgetCategories = ref([])
 
-const totalBudget = computed(() => budgetCategories.value.reduce((s, c) => s + c.budget, 0))
-const totalUsed = computed(() => budgetCategories.value.reduce((s, c) => s + c.used, 0))
+const totalBudget = computed(() => budgetCategories.value.reduce((s, c) => s + (c.categoryBudget || 0), 0))
+const totalUsed = computed(() => budgetCategories.value.reduce((s, c) => {
+  // Calculate used from subElements if available
+  if (c.subElements && c.subElements.length > 0) {
+    const categoryUsed = c.subElements.reduce((sum, se) => sum + (se.totalUtilised || 0), 0)
+    return s + categoryUsed
+  }
+  return s + (c.used || 0)
+}, 0))
 const totalLeft = computed(() => totalBudget.value - totalUsed.value)
 const totalUsagePct = computed(() => {
   if (totalBudget.value === 0) {
@@ -422,12 +429,19 @@ const budgetUsageColor = computed(() => totalUsagePct.value >= 100 ? 'red' : tot
 
 const topCategoryWarnings = computed(() => {
   const arr = budgetCategories.value
-    .map(c => ({
-      category: c.name,
-      pct: c.budget > 0 ? Math.round((c.used / c.budget) * 100) : 0,
-      used: c.used,
-      budget: c.budget
-    }))
+    .map(c => {
+      // Calculate used from subElements
+      const used = c.subElements && c.subElements.length > 0 
+        ? c.subElements.reduce((sum, se) => sum + (se.totalUtilised || 0), 0)
+        : (c.used || 0)
+      const budget = c.categoryBudget || c.budget || 0
+      return {
+        category: c.name,
+        pct: budget > 0 ? Math.round((used / budget) * 100) : 0,
+        used,
+        budget
+      }
+    })
     .sort((a, b) => b.pct - a.pct)
     .slice(0, 3)
   return arr

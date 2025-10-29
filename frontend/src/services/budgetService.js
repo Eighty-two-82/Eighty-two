@@ -52,6 +52,11 @@ export async function createBudget(budgetData) {
 // Update budget
 export async function updateBudget(budgetData) {
     try {
+        // Backend expects full Budget object with ID
+        if (!budgetData.id) {
+            throw new Error('Budget ID is required for update');
+        }
+        
         const response = await api.put('/budget', budgetData);
         const result = response.data;
         
@@ -69,6 +74,34 @@ export async function updateBudget(budgetData) {
             throw error;
         } else {
             throw new Error('Failed to update budget');
+        }
+    }
+}
+
+// Adjust total budget (uses dedicated endpoint)
+export async function adjustTotalBudget(patientId, newTotalBudget, reason) {
+    try {
+        const response = await api.post('/budget/adjust-total', {
+            patientId,
+            newTotalBudget,
+            reason
+        });
+        const result = response.data;
+        
+        if (result.code === "0" && result.data) {
+            return {
+                data: result.data
+            };
+        } else {
+            throw new Error(result.msg || 'Failed to adjust total budget');
+        }
+    } catch (error) {
+        if (error.response?.data?.msg) {
+            throw new Error(error.response.data.msg);
+        } else if (error.message) {
+            throw error;
+        } else {
+            throw new Error('Failed to adjust total budget');
         }
     }
 }
