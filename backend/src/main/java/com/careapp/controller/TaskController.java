@@ -2,15 +2,18 @@ package com.careapp.controller;
 
 import com.careapp.domain.Task;
 import com.careapp.domain.RecurringTask;
+import com.careapp.domain.TaskRequest;
 import com.careapp.dto.CreateTaskRequest;
 import com.careapp.dto.CreateRecurringTaskRequest;
 import com.careapp.service.TaskService;
 import com.careapp.service.RecurringTaskService;
+import com.careapp.service.TaskRequestService;
 import com.careapp.utils.Result;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +28,9 @@ public class TaskController {
     
     @Resource
     private RecurringTaskService recurringTaskService;
+    
+    @Resource
+    private TaskRequestService taskRequestService;
     
     // Create a new task
     @PostMapping
@@ -574,6 +580,138 @@ public class TaskController {
             return Result.success(tasks, "All patient tasks retrieved successfully!");
         } catch (Exception e) {
             return Result.error("500", "Failed to retrieve all patient tasks: " + e.getMessage());
+        }
+    }
+    
+    // ==================== Task Request Endpoints ====================
+    
+    // Create a new task request (POA submits request)
+    @PostMapping("/requests")
+    public Result<TaskRequest> createTaskRequest(
+            @RequestBody TaskRequest request,
+            @RequestHeader(value = "X-User-Id", required = false) String userId,
+            @RequestHeader(value = "X-Organization-Id", required = false) String organizationId,
+            @RequestHeader(value = "X-Patient-Id", required = false) String patientId) {
+        try {
+            // Set user information from headers
+            if (userId != null) {
+                request.setRequesterId(userId);
+            }
+            if (organizationId != null) {
+                request.setOrganizationId(organizationId);
+            }
+            if (patientId != null) {
+                request.setPatientId(patientId);
+            }
+            
+            TaskRequest createdRequest = taskRequestService.createTaskRequest(request);
+            return Result.success(createdRequest, "Task request submitted successfully!");
+        } catch (Exception e) {
+            return Result.error("500", "Failed to submit task request: " + e.getMessage());
+        }
+    }
+    
+    // Get pending task requests for an organization (Manager view)
+    @GetMapping("/requests/pending")
+    public Result<List<TaskRequest>> getPendingRequests(
+            @RequestHeader(value = "X-Organization-Id", required = false) String organizationId) {
+        try {
+            if (organizationId == null || organizationId.isEmpty()) {
+                return Result.error("400", "Organization ID is required!");
+            }
+            List<TaskRequest> requests = taskRequestService.getPendingRequestsByOrganization(organizationId);
+            return Result.success(requests, "Pending requests retrieved successfully!");
+        } catch (Exception e) {
+            return Result.error("500", "Failed to retrieve pending requests: " + e.getMessage());
+        }
+    }
+    
+    // Get all task requests by requester (POA view)
+    @GetMapping("/requests/my-requests")
+    public Result<List<TaskRequest>> getMyRequests(
+            @RequestHeader(value = "X-User-Id", required = false) String userId) {
+        try {
+            if (userId == null || userId.isEmpty()) {
+                return Result.error("400", "User ID is required!");
+            }
+            List<TaskRequest> requests = taskRequestService.getRequestsByRequester(userId);
+            return Result.success(requests, "My requests retrieved successfully!");
+        } catch (Exception e) {
+            return Result.error("500", "Failed to retrieve my requests: " + e.getMessage());
+        }
+    }
+    
+    // Get all task requests by organization (Manager view all)
+    @GetMapping("/requests")
+    public Result<List<TaskRequest>> getAllRequests(
+            @RequestHeader(value = "X-Organization-Id", required = false) String organizationId) {
+        try {
+            if (organizationId == null || organizationId.isEmpty()) {
+                return Result.error("400", "Organization ID is required!");
+            }
+            List<TaskRequest> requests = taskRequestService.getAllRequestsByOrganization(organizationId);
+            return Result.success(requests, "All requests retrieved successfully!");
+        } catch (Exception e) {
+            return Result.error("500", "Failed to retrieve requests: " + e.getMessage());
+        }
+    }
+    
+    // Approve a task request (Manager action)
+    @PostMapping("/requests/{requestId}/approve")
+    public Result<TaskRequest> approveRequest(
+            @PathVariable String requestId,
+            @RequestBody Map<String, String> body,
+            @RequestHeader(value = "X-User-Id", required = false) String userId) {
+        try {
+            if (userId == null || userId.isEmpty()) {
+                return Result.error("400", "User ID is required!");
+            }
+            String approvalReason = body.get("approvalReason");
+            TaskRequest request = taskRequestService.approveRequest(requestId, userId, approvalReason);
+            if (request != null) {
+                return Result.success(request, "Request approved successfully!");
+            } else {
+                return Result.error("404", "Request not found!");
+            }
+        } catch (Exception e) {
+            return Result.error("500", "Failed to approve request: " + e.getMessage());
+        }
+    }
+    
+    // Reject a task request (Manager action)
+    @PostMapping("/requests/{requestId}/reject")
+    public Result<TaskRequest> rejectRequest(
+            @PathVariable String requestId,
+            @RequestBody Map<String, String> body,
+            @RequestHeader(value = "X-User-Id", required = false) String userId) {
+        try {
+            if (userId == null || userId.isEmpty()) {
+                return Result.error("400", "User ID is required!");
+            }
+            String rejectionReason = body.get("rejectionReason");
+            TaskRequest request = taskRequestService.rejectRequest(requestId, userId, rejectionReason);
+            if (request != null) {
+                return Result.success(request, "Request rejected successfully!");
+            } else {
+                return Result.error("404", "Request not found!");
+            }
+        } catch (Exception e) {
+            return Result.error("500", "Failed to reject request: " + e.getMessage());
+        }
+    }
+    
+    // Get task request by ID
+    @GetMapping("/requests/{requestId}")
+    public Result<TaskRequest> getTaskRequest(@PathVariable String requestId) {
+        try {
+            Optional<TaskRequest> request = taskRequestService.getTaskRequestById(requestId);
+            if (request.isPresent()) {
+                return Result.success(request.get(), "Request retrieved successfully!");
+            } else {
+                return Result.error("404", "Request not found!");
+            }
+        } catch (Exception e) {
+            return Result.error("500", "Failed to retrieve request: " + e.getMessage());
         }
     }
 }
