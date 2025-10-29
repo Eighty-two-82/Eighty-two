@@ -135,6 +135,11 @@ public class BudgetServiceImpl implements BudgetService {
             category.setId(UUID.randomUUID().toString());
         }
         
+        // Initialize subElements if null
+        if (category.getSubElements() == null) {
+            category.setSubElements(new java.util.ArrayList<>());
+        }
+        
         // Generate IDs for sub-elements
         if (category.getSubElements() != null) {
             for (BudgetSubElement subElement : category.getSubElements()) {
@@ -142,6 +147,11 @@ public class BudgetServiceImpl implements BudgetService {
                     subElement.setId(UUID.randomUUID().toString());
                 }
             }
+        }
+        
+        // Initialize categories list if null
+        if (budget.getCategories() == null) {
+            budget.setCategories(new java.util.ArrayList<>());
         }
         
         // Add category to budget
