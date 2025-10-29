@@ -1944,63 +1944,26 @@ onMounted(async () => {
 const loadWorkers = async () => {
   try {
     // Use organization-specific API if organizationId is available
-    // This ensures we only get workers bound to the current organization
     let response
     if (organizationId.value && organizationId.value !== 'default-org') {
-      console.log('Loading workers by organization:', organizationId.value)
       response = await getWorkersByOrganization(organizationId.value)
     } else {
       // Fallback to all workers if no organization ID
-      console.log('No organization ID, loading all workers (fallback)')
       response = await getAllWorkers()
     }
     
-    // Map backend worker data to frontend format
-    if (response?.data) {
-      workers.value = response.data.map(worker => {
-        // Normalize status: backend may return 'active', frontend expects 'Active'
-        const normalizedStatus = worker.status 
-          ? worker.status.charAt(0).toUpperCase() + worker.status.slice(1).toLowerCase()
-          : 'Active'
-        
-        // Map fields from backend to frontend format
-        return {
-          id: worker.id,
-          workerId: worker.workerId || worker.id,
-          name: worker.name || '',
-          photo: worker.photoUrl || worker.photo || null,
-          position: worker.position || 'Care Worker', // Default position if not provided
-          status: normalizedStatus,
-          joinDate: worker.createdAt ? new Date(worker.createdAt).toISOString().split('T')[0] : null,
-          email: worker.email || '',
-          role: worker.role || 'Worker',
-          phone: worker.phone || '',
-          notes: worker.notes || '',
-          organizationId: worker.organizationId || organizationId.value
-        }
-      })
-      
-      // Initialize available workers (all active workers)
-      // Handle both 'Active' and 'active' status for compatibility
-      availableWorkers.value = workers.value.filter(worker => {
-        const status = worker.status || ''
-        return status.toLowerCase() === 'active'
-      })
-      
-      console.log('Loaded workers:', workers.value.length, 'for organization:', organizationId.value)
-      console.log('Workers data:', workers.value)
-      console.log('Available workers:', availableWorkers.value.length)
-      console.log('Available workers data:', availableWorkers.value)
-    } else {
-      workers.value = []
-      availableWorkers.value = []
-    }
+    workers.value = response.data || []
+    
+    // Initialize available workers (all active workers)
+    availableWorkers.value = workers.value.filter(worker => worker.status === 'active')
+    
+    console.log('Loaded workers:', workers.value.length, 'for organization:', organizationId.value)
+    console.log('Available workers:', availableWorkers.value.length)
+    console.log('Available workers data:', availableWorkers.value)
     
   } catch (error) {
     console.error('Failed to load workers:', error)
     message.error('Failed to load workers')
-    workers.value = []
-    availableWorkers.value = []
   }
 }
 
@@ -2009,53 +1972,15 @@ const loadDailySchedule = async (dateStr) => {
   try {
     if (organizationId.value) {
       const response = await getDailySchedule(organizationId.value, dateStr)
-      if (response?.data && response.data.length > 0) {
-        // Map backend data to frontend format if needed
-        dailyWorkers.value = response.data.map(worker => {
-          // Normalize status if needed
-          const normalizedStatus = worker.status 
-            ? worker.status.charAt(0).toUpperCase() + worker.status.slice(1).toLowerCase()
-            : 'Active'
-          
-          return {
-            id: worker.id,
-            workerId: worker.workerId || worker.id,
-            name: worker.name || '',
-            photo: worker.photoUrl || worker.photo || null,
-            position: worker.position || 'Care Worker',
-            status: normalizedStatus,
-            joinDate: worker.createdAt ? new Date(worker.createdAt).toISOString().split('T')[0] : null,
-            email: worker.email || '',
-            role: worker.role || 'Worker',
-            phone: worker.phone || '',
-            notes: worker.notes || '',
-            organizationId: worker.organizationId || organizationId.value
-          }
-        })
-        console.log('Loaded daily schedule workers:', dailyWorkers.value.length, 'for date:', dateStr)
-      } else {
-        // If no schedule exists for this date, use all active workers from the organization
-        // workers.value is already filtered by organizationId in loadWorkers()
-        console.log('No schedule found for date:', dateStr, ', showing all active workers from organization:', organizationId.value)
-        console.log('Total workers in organization:', workers.value.length)
-        dailyWorkers.value = workers.value.filter(worker => {
-          const status = worker.status || ''
-          const isActive = status.toLowerCase() === 'active'
-          return isActive
-        })
-        console.log('Active workers shown:', dailyWorkers.value.length)
-      }
+      const scheduledWorkers = response.data || []
+      
+      // Update daily workers with scheduled workers
+      dailyWorkers.value = scheduledWorkers
     }
   } catch (error) {
     console.error('Failed to load daily schedule:', error)
-    // If no schedule exists for this date, show all active workers from the organization
-    // workers.value is already filtered by organizationId in loadWorkers()
-    console.log('Error loading schedule, falling back to active workers from organization:', organizationId.value)
-    dailyWorkers.value = workers.value.filter(worker => {
-      const status = worker.status || ''
-      return status.toLowerCase() === 'active'
-    })
-    console.log('Active workers shown after error:', dailyWorkers.value.length)
+    // If no schedule exists for this date, dailyWorkers will be empty
+    dailyWorkers.value = []
   }
 }
 </script>

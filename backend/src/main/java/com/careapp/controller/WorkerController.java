@@ -64,20 +64,6 @@ public class WorkerController {
         }
     }
 
-    // Get workers by patient (filtered by patient's assignments)
-    // NOTE: This more specific route must come BEFORE the generic /organization/{organizationId} route
-    @GetMapping("/organization/{organizationId}/patient/{patientId}")
-    public Result<List<Worker>> getWorkersByPatient(
-            @PathVariable String organizationId,
-            @PathVariable String patientId) {
-        try {
-            List<Worker> workers = workerService.getWorkersByPatient(organizationId, patientId);
-            return Result.success(workers, "Workers retrieved successfully!");
-        } catch (Exception e) {
-            return Result.error("500", "Failed to retrieve workers: " + e.getMessage());
-        }
-    }
-    
     // Get workers by organization
     @GetMapping("/organization/{organizationId}")
     public Result<List<Worker>> getWorkersByOrganization(@PathVariable String organizationId) {

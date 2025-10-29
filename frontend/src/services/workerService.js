@@ -49,30 +49,6 @@ export async function getWorkersByOrganization(organizationId) {
     }
 }
 
-// Get workers by patient (filtered by patient's assignments)
-export async function getWorkersByPatient(organizationId, patientId) {
-    try {
-        const response = await api.get(`/workers/organization/${organizationId}/patient/${patientId}`);
-        const result = response.data;
-        
-        if (result.code === "0" && result.data) {
-            return {
-                data: result.data
-            };
-        } else {
-            throw new Error(result.msg || 'Failed to get workers by patient');
-        }
-    } catch (error) {
-        if (error.response?.data?.msg) {
-            throw new Error(error.response.data.msg);
-        } else if (error.message) {
-            throw error;
-        } else {
-            throw new Error('Failed to get workers by patient');
-        }
-    }
-}
-
 // Create a new worker
 export async function createWorker(workerData) {
     try {

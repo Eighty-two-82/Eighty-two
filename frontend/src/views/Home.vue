@@ -310,7 +310,7 @@ import { ref, computed, onMounted, h } from 'vue'
 import dayjs from 'dayjs'
 import { QuestionCircleOutlined, CheckSquareOutlined, BarChartOutlined, SettingOutlined, AppstoreOutlined, MessageOutlined, HomeOutlined, TeamOutlined, UploadOutlined, ClockCircleOutlined, CalendarOutlined } from '@ant-design/icons-vue'
 import { getMe } from '@/services/userService'
-import { getBudgetByPatient, getBudgetCalculations } from '@/services/budgetService'
+import { getBudgetByPatient, getBudgetCalculations, getBudgetCategories } from '@/services/budgetService'
 import { getTasksByPatient, getTasksByWorker, getAllTasks } from '@/services/taskService'
 
 const userRole = ref('worker')
@@ -339,16 +339,34 @@ const loadHomeData = async () => {
     const userInfo = await getMe()
     if (!userInfo?.data) return
     
-    // Load budget data for non-worker roles
+    // Load budget data for non-worker roles - use same API as Budget page
     if (userRole.value !== 'worker' && userInfo.data.patientId) {
       try {
+        // Load budget calculations (includes totalBudget) - same as Budget page
+        const calculationsResponse = await getBudgetCalculations(userInfo.data.patientId)
+        if (calculationsResponse?.data) {
+          budgetData.value = {
+            ...budgetData.value,
+            ...calculationsResponse.data
+          }
+        }
+        
+        // Load budget by patient (for budget data structure)
         const budgetResponse = await getBudgetByPatient(userInfo.data.patientId)
         if (budgetResponse?.data) {
-          budgetCategories.value = budgetResponse.data.categories || []
+          budgetData.value.totalBudget = budgetResponse.data.totalBudget || budgetData.value.totalBudget || 0
+        }
+        
+        // Load budget categories - same as Budget page
+        const categoriesResponse = await getBudgetCategories(userInfo.data.patientId)
+        if (categoriesResponse?.data) {
+          budgetCategories.value = categoriesResponse.data
+          budgetData.value.categories = categoriesResponse.data
         }
       } catch (error) {
         console.error('Failed to load budget data:', error)
         budgetCategories.value = []
+        budgetData.value = { totalBudget: 0, categories: [] }
       }
     }
     
@@ -393,6 +411,7 @@ const loadHomeData = async () => {
   } catch (error) {
     console.error('Failed to load home data:', error)
     budgetCategories.value = []
+    budgetData.value = { totalBudget: 0, categories: [] }
     taskPreview.value = []
   }
 }
@@ -406,18 +425,35 @@ const roleDisplay = computed(() => {
   }
 })
 
-// --- Budget Preview - loaded from API ---
+// --- Budget Preview - loaded from API (same as Budget page) ---
 const budgetCategories = ref([])
+const budgetData = ref({
+  totalBudget: 0,
+  categories: []
+})
 
-const totalBudget = computed(() => budgetCategories.value.reduce((s, c) => s + (c.categoryBudget || 0), 0))
-const totalUsed = computed(() => budgetCategories.value.reduce((s, c) => {
-  // Calculate used from subElements if available
-  if (c.subElements && c.subElements.length > 0) {
-    const categoryUsed = c.subElements.reduce((sum, se) => sum + (se.totalUtilised || 0), 0)
-    return s + categoryUsed
+// Calculate total used (same logic as Budget page)
+const getTotalUsed = () => {
+  if (!budgetData.value?.categories || !Array.isArray(budgetData.value.categories)) {
+    return 0
   }
-  return s + (c.used || 0)
-}, 0))
+  
+  return budgetData.value.categories.reduce((total, category) => {
+    if (!category?.subElements || !Array.isArray(category.subElements)) {
+      return total
+    }
+    
+    return total + category.subElements.reduce((categoryTotal, subElement) => {
+      return categoryTotal + (subElement?.totalUtilised || 0)
+    }, 0)
+  }, 0)
+}
+
+// Use totalBudget from budgetData (same as Budget page)
+const totalBudget = computed(() => budgetData.value.totalBudget || 0)
+// Calculate total used using same method as Budget page
+const totalUsed = computed(() => getTotalUsed())
+// Calculate total left (same as Budget page getTotalBalance)
 const totalLeft = computed(() => totalBudget.value - totalUsed.value)
 const totalUsagePct = computed(() => {
   if (totalBudget.value === 0) {
@@ -428,9 +464,10 @@ const totalUsagePct = computed(() => {
 const budgetUsageColor = computed(() => totalUsagePct.value >= 100 ? 'red' : totalUsagePct.value >= 80 ? 'orange' : 'green')
 
 const topCategoryWarnings = computed(() => {
-  const arr = budgetCategories.value
+  const categories = budgetData.value?.categories || budgetCategories.value || []
+  const arr = categories
     .map(c => {
-      // Calculate used from subElements
+      // Calculate used from subElements (same logic as Budget page)
       const used = c.subElements && c.subElements.length > 0 
         ? c.subElements.reduce((sum, se) => sum + (se.totalUtilised || 0), 0)
         : (c.used || 0)

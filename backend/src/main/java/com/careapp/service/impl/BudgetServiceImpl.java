@@ -168,9 +168,6 @@ public class BudgetServiceImpl implements BudgetService {
         }
         
         // Add sub-element to category
-        if (category.getSubElements() == null) {
-            category.setSubElements(new java.util.ArrayList<>());
-        }
         category.getSubElements().add(subElement);
         budget.setUpdatedAt(LocalDateTime.now());
         
