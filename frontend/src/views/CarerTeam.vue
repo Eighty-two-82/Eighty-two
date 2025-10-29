@@ -456,7 +456,7 @@ import {
 import { message } from 'ant-design-vue'
 import dayjs from 'dayjs'
 import { getMe } from '@/services/userService'
-import { getAllWorkers, getWorkersByOrganization, getDailySchedule } from '@/services/workerService'
+import { getAllWorkers, getWorkersByOrganization, getWorkersByPatient, getDailySchedule } from '@/services/workerService'
 import { generateInviteCode } from '@/services/inviteCodeService'
 
 // Reactive data
@@ -468,8 +468,8 @@ const generateTokenModalVisible = ref(false)
 const tokenDisplayModalVisible = ref(false)
 const generatedToken = ref('')
 const isShowingExistingToken = ref(false)
-const tokenExists = ref(false) // 标记Token是否存在
-const tokenExpirationDate = ref(null) // 保存Token过期时间
+const tokenExists = ref(false) // 
+const tokenExpirationDate = ref(null) // 
 
 // Organization management
 const currentOrganization = ref(null)
@@ -520,14 +520,25 @@ const onShiftChange = () => {
 const updateDailyWorkers = (dateStr) => {
   // For now, show all active team members for the selected date
   // In a real implementation, this would filter based on actual schedule data
-  dailyWorkers.value = workers.value.filter(worker => worker.status === 'Active')
+  // Handle both 'Active' and 'active' status for compatibility
+  dailyWorkers.value = workers.value.filter(worker => {
+    const status = worker.status || ''
+    return status.toLowerCase() === 'active'
+  })
+  console.log('Updated dailyWorkers:', dailyWorkers.value.length, 'for date:', dateStr)
 }
 
 const updateFilteredWorkers = () => {
   // Filter workers based on selected shift
+  const beforeFilter = dailyWorkers.value.length
   filteredWorkers.value = dailyWorkers.value.filter(worker => {
-    return worker.shift === selectedShift.value
+    const matches = worker.shift === selectedShift.value
+    if (!matches && worker) {
+      console.log(`Worker ${worker.name} (${worker.workerId}) shift '${worker.shift}' doesn't match selected shift '${selectedShift.value}'`)
+    }
+    return matches
   })
+  console.log(`updateFilteredWorkers: ${beforeFilter} dailyWorkers -> ${filteredWorkers.value.length} filteredWorkers (selectedShift: ${selectedShift.value})`)
 }
 
 // Shift-related methods
@@ -924,49 +935,55 @@ onMounted(async () => {
     // Load current organization info
     await loadCurrentOrganization()
     
+    // Set today as default date BEFORE loading workers
+    // This ensures selectedDate is available in loadWorkers callback
+    selectedDate.value = dayjs()
+    const todayStr = selectedDate.value.format('YYYY-MM-DD')
+    
     // Load workers from API
     await loadWorkers()
     
-    // Add Manager and POA to workers list with shift assignments
-    const managerAndPOA = [
-      {
-        id: 99,
-        workerId: 'M001',
-        name: 'Manager Smith',
-        photo: null,
-        position: 'Care Manager',
-        status: 'Active',
-        joinDate: '2022-01-01',
-        email: 'manager@careapp.com',
-        role: 'Manager',
-        shift: 'morning' // Manager typically works morning shift
-      },
-      {
-        id: 100,
-        workerId: 'P001',
-        name: 'Family Member',
-        photo: null,
-        position: 'Power of Attorney',
-        status: 'Active',
-        joinDate: '2022-01-01',
-        email: 'family@careapp.com',
-        role: 'POA',
-        shift: 'morning' // POA typically available during morning shift
-      }
-    ]
-    
-    // Combine all team members
-    workers.value = [...workers.value, ...managerAndPOA]
-    
-    // Set today as default date
-    selectedDate.value = dayjs()
-    const todayStr = selectedDate.value.format('YYYY-MM-DD')
+    // Add Manager and POA to workers list with shift assignments (optional, comment out if not needed)
+    // const managerAndPOA = [
+    //   {
+    //     id: 99,
+    //     workerId: 'M001',
+    //     name: 'Manager Smith',
+    //     photo: null,
+    //     position: 'Care Manager',
+    //     status: 'Active',
+    //     joinDate: '2022-01-01',
+    //     email: 'manager@careapp.com',
+    //     role: 'Manager',
+    //     shift: 'morning'
+    //   },
+    //   {
+    //     id: 100,
+    //     workerId: 'P001',
+    //     name: 'Family Member',
+    //     photo: null,
+    //     position: 'Power of Attorney',
+    //     status: 'Active',
+    //     joinDate: '2022-01-01',
+    //     email: 'family@careapp.com',
+    //     role: 'POA',
+    //     shift: 'morning'
+    //   }
+    // ]
+    // 
+    // // Combine all team members
+    // workers.value = [...workers.value, ...managerAndPOA]
     
     // Load daily schedule for today
     await loadDailySchedule(organizationId, todayStr)
     
-    // Initialize filtered workers
+    // Ensure dailyWorkers and filteredWorkers are updated after all data is loaded
+    updateDailyWorkers(todayStr)
     updateFilteredWorkers()
+    
+    console.log('Final workers count:', workers.value.length)
+    console.log('Final dailyWorkers count:', dailyWorkers.value.length)
+    console.log('Final filteredWorkers count:', filteredWorkers.value.length)
     
     // For managers, load client info automatically if bound to a patient
     if (userInfo?.data?.role === 'manager' && userInfo?.data?.patientId) {
@@ -1030,26 +1047,60 @@ const loadExistingTokenInfo = async () => {
 // Load workers from API
 const loadWorkers = async () => {
   try {
-    // Get current user info to get organizationId
+    // Get current user info to get organizationId and patientId
     const userInfo = await getMe()
     const organizationId = userInfo?.data?.organizationId || 'default-org'
+    const patientId = userInfo?.data?.patientId
     
-    // Use organization-specific API if organizationId is available
+    // Use patient-specific API if patientId is available
     let response
-    if (organizationId && organizationId !== 'default-org') {
+    if (organizationId && organizationId !== 'default-org' && patientId) {
+      // Get only workers assigned to this patient
+      response = await getWorkersByPatient(organizationId, patientId)
+      console.log('Loading workers by patient:', patientId, 'for organization:', organizationId)
+    } else if (organizationId && organizationId !== 'default-org') {
+      // Fallback: get all workers in organization
       response = await getWorkersByOrganization(organizationId)
+      console.log('Loading workers by organization:', organizationId)
     } else {
       // Fallback to all workers if no organization ID
       response = await getAllWorkers()
+      console.log('Loading all workers')
     }
     
     if (response?.data) {
-      // Add shift information to workers
-      workers.value = response.data.map(worker => ({
-        ...worker,
-        shift: getRandomShift() // Assign random shift for demo purposes
-      }))
-      console.log('Loaded workers for CarerTeam:', workers.value.length, 'for organization:', organizationId)
+      // Map backend worker data to frontend format
+      workers.value = response.data.map(worker => {
+        // Normalize status: backend may return 'active', frontend expects 'Active'
+        const normalizedStatus = worker.status 
+          ? worker.status.charAt(0).toUpperCase() + worker.status.slice(1).toLowerCase()
+          : 'Active'
+        
+        // Map fields from backend to frontend format
+        return {
+          id: worker.id,
+          workerId: worker.workerId || worker.id,
+          name: worker.name || '',
+          photo: worker.photoUrl || worker.photo || null,
+          position: worker.position || 'Care Worker', // Default position if not provided
+          status: normalizedStatus,
+          joinDate: worker.createdAt ? new Date(worker.createdAt).toISOString().split('T')[0] : null,
+          email: worker.email || '',
+          role: worker.role || 'Worker',
+          shift: 'morning' // Default to morning shift (can be overridden by schedule)
+        }
+      })
+      console.log('Loaded workers for CarerTeam:', workers.value.length)
+      console.log('Workers data:', workers.value)
+      
+      // Update daily workers and filtered workers after loading
+      // Note: This will be called again in onMounted after selectedDate is set
+      // But we call it here too in case it's called elsewhere
+      if (selectedDate.value) {
+        const dateStr = selectedDate.value.format('YYYY-MM-DD')
+        updateDailyWorkers(dateStr)
+        updateFilteredWorkers()
+      }
     }
   } catch (error) {
     console.error('Failed to load workers:', error)
@@ -1143,7 +1194,8 @@ const loadWorkers = async () => {
   }
 }
 
-// Helper function to assign random shifts for demo
+// Helper function to assign random shifts for demo (deprecated, now using default 'morning')
+// Keeping for backward compatibility in case it's used elsewhere
 const getRandomShift = () => {
   const shifts = ['morning', 'afternoon', 'night']
   return shifts[Math.floor(Math.random() * shifts.length)]
@@ -1153,15 +1205,36 @@ const getRandomShift = () => {
 const loadDailySchedule = async (organizationId, dateStr) => {
   try {
     const response = await getDailySchedule(organizationId, dateStr)
-    if (response?.data) {
-      dailyWorkers.value = response.data
+    if (response?.data && response.data.length > 0) {
+      // Map backend data to frontend format if needed
+      dailyWorkers.value = response.data.map(worker => {
+        // Normalize status if needed
+        const normalizedStatus = worker.status 
+          ? worker.status.charAt(0).toUpperCase() + worker.status.slice(1).toLowerCase()
+          : 'Active'
+        
+        return {
+          id: worker.id,
+          workerId: worker.workerId || worker.id,
+          name: worker.name || '',
+          photo: worker.photoUrl || worker.photo || null,
+          position: worker.position || 'Care Worker',
+          status: normalizedStatus,
+          joinDate: worker.createdAt ? new Date(worker.createdAt).toISOString().split('T')[0] : null,
+          email: worker.email || '',
+          role: worker.role || 'Worker',
+          shift: worker.shift || getRandomShift()
+        }
+      })
+      console.log('Loaded daily schedule workers:', dailyWorkers.value.length)
     } else {
       // If no schedule exists, show all active workers
-      dailyWorkers.value = workers.value.filter(worker => worker.status === 'Active')
+      console.log('No schedule found, using all active workers')
+      updateDailyWorkers(dateStr)
     }
   } catch (error) {
     console.error('Failed to load daily schedule:', error)
-    // Fallback to mock data
+    // Fallback: show all active workers
     updateDailyWorkers(dateStr)
   }
 }

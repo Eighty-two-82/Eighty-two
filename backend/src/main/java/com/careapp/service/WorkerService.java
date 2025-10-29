@@ -1,22 +1,28 @@
 package com.careapp.service;
 
 import com.careapp.domain.Worker;
+import com.careapp.domain.User;
 import com.careapp.dto.DailyScheduleRequest;
 import com.careapp.dto.WorkerPhotoUploadRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Autowired;
 import com.careapp.repository.WorkerRepository;
+import com.careapp.repository.UserRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.ArrayList;
+import java.util.stream.Collectors;
 
 @Service
 public class WorkerService {
 
     @Autowired
     private WorkerRepository workerRepository;
+    
+    @Autowired
+    private UserRepository userRepository;
 
     // Create a new worker
     public Worker createWorker(Worker worker) {
@@ -53,8 +59,121 @@ public class WorkerService {
     }
 
     // Get workers by organization
+    // Similar to getWorkersByPatient, this finds workers through User binding relationship
     public List<Worker> getWorkersByOrganization(String organizationId) {
-        return workerRepository.findByOrganizationId(organizationId);
+        List<Worker> foundWorkers = new ArrayList<>();
+        
+        System.out.println("🔍 WorkerService.getWorkersByOrganization - organizationId: " + organizationId);
+        
+        // First, find all User records bound to this organization
+        List<User> boundUsers = userRepository.findByOrganizationId(organizationId);
+        System.out.println("🔍 Found " + boundUsers.size() + " users in organization " + organizationId);
+        
+        // Filter for workers only
+        List<User> boundWorkers = boundUsers.stream()
+            .filter(user -> {
+                String userType = user.getUserType();
+                String role = user.getRole();
+                boolean isWorker = "WORKER".equalsIgnoreCase(userType) || 
+                       "worker".equalsIgnoreCase(role) ||
+                       "Worker".equalsIgnoreCase(role);
+                if (isWorker) {
+                    System.out.println("🔍 Found worker user: " + user.getEmail() + " (userType: " + userType + ", role: " + role + ")");
+                }
+                return isWorker;
+            })
+            .collect(Collectors.toList());
+        
+        System.out.println("🔍 Filtered to " + boundWorkers.size() + " worker users");
+        
+        // Find corresponding Worker records by email or other matching fields
+        for (User user : boundWorkers) {
+            Worker matchedWorker = null;
+            
+            // Try to find Worker by email first
+            if (user.getEmail() != null && !user.getEmail().isEmpty()) {
+                Optional<Worker> worker = workerRepository.findByEmail(user.getEmail());
+                if (worker.isPresent()) {
+                    Worker w = worker.get();
+                    System.out.println("🔍 Found Worker by email: " + user.getEmail() + " -> Worker ID: " + w.getId() + ", Org: " + w.getOrganizationId());
+                    if (organizationId == null || organizationId.equals(w.getOrganizationId())) {
+                        matchedWorker = w;
+                        System.out.println("✅ Worker organization matches!");
+                    } else {
+                        System.out.println("⚠️ Worker organization doesn't match: " + w.getOrganizationId() + " vs " + organizationId);
+                    }
+                } else {
+                    System.out.println("⚠️ No Worker found by email: " + user.getEmail());
+                }
+            }
+            
+            // If not found by email, try to find by User ID matching Worker ID
+            if (matchedWorker == null) {
+                Optional<Worker> workerById = workerRepository.findById(user.getId());
+                if (workerById.isPresent()) {
+                    Worker w = workerById.get();
+                    System.out.println("🔍 Found Worker by User ID: " + user.getId() + " -> Worker ID: " + w.getId() + ", Org: " + w.getOrganizationId());
+                    if (organizationId == null || organizationId.equals(w.getOrganizationId())) {
+                        matchedWorker = w;
+                        System.out.println("✅ Worker organization matches!");
+                    }
+                } else {
+                    System.out.println("⚠️ No Worker found by User ID: " + user.getId());
+                }
+            }
+            
+            // If no Worker record found in workers collection, create a Worker object from User data
+            // This handles the case where User exists but Worker collection doesn't have corresponding record
+            if (matchedWorker == null) {
+                System.out.println("📝 Creating Worker object from User data for: " + user.getEmail());
+                Worker workerFromUser = new Worker();
+                workerFromUser.setId(user.getId());
+                workerFromUser.setName(user.getFirstName() + " " + (user.getMiddleName() != null ? user.getMiddleName() + " " : "") + user.getLastName());
+                workerFromUser.setEmail(user.getEmail());
+                workerFromUser.setOrganizationId(user.getOrganizationId());
+                workerFromUser.setStatus("active"); // Default status
+                workerFromUser.setCreatedAt(LocalDateTime.now());
+                workerFromUser.setUpdatedAt(LocalDateTime.now());
+                
+                // Set workerId if available (could be from user uname or generate one)
+                if (user.getUname() != null && !user.getUname().isEmpty()) {
+                    workerFromUser.setWorkerId(user.getUname());
+                } else {
+                    // Generate a simple worker ID
+                    workerFromUser.setWorkerId("W" + user.getId().substring(Math.max(0, user.getId().length() - 6)));
+                }
+                
+                matchedWorker = workerFromUser;
+                System.out.println("✅ Created Worker object from User: " + matchedWorker.getName() + " (ID: " + matchedWorker.getId() + ")");
+            }
+            
+            if (matchedWorker != null) {
+                foundWorkers.add(matchedWorker);
+            }
+        }
+        
+        System.out.println("🔍 Found " + foundWorkers.size() + " workers from User binding");
+        
+        // Also check workers collection directly as fallback (for workers that exist in workers collection but not in users)
+        List<String> foundWorkerIds = foundWorkers.stream()
+            .map(Worker::getId)
+            .collect(Collectors.toList());
+        
+        List<Worker> directWorkers = workerRepository.findByOrganizationId(organizationId);
+        System.out.println("🔍 Checking " + directWorkers.size() + " direct workers in organization");
+        
+        List<Worker> directMatches = directWorkers.stream()
+            .filter(worker -> !foundWorkerIds.contains(worker.getId())) // Avoid duplicates by ID
+            .collect(Collectors.toList());
+        
+        System.out.println("🔍 Found " + directMatches.size() + " additional workers from direct workers collection");
+        
+        // Combine both sources
+        foundWorkers.addAll(directMatches);
+        
+        System.out.println("✅ Total workers found: " + foundWorkers.size());
+        
+        return foundWorkers;
     }
 
     // Get workers by status
@@ -379,5 +498,136 @@ public class WorkerService {
         return workers.stream()
             .filter(worker -> worker.getPhotoUrl() == null || worker.getPhotoUrl().isEmpty())
             .collect(java.util.stream.Collectors.toList());
+    }
+    
+    /**
+     * Get workers assigned to a specific patient (based on User binding relationship, like how patient info is connected)
+     * This finds workers through User.patientId binding, similar to how patient information is retrieved
+     * @param organizationId The organization ID
+     * @param patientId The patient ID
+     * @return List of workers assigned to the patient
+     */
+    public List<Worker> getWorkersByPatient(String organizationId, String patientId) {
+        List<Worker> foundWorkers = new ArrayList<>();
+        
+        System.out.println("🔍 WorkerService.getWorkersByPatient - patientId: " + patientId + ", organizationId: " + organizationId);
+        
+        // First, find all User records bound to this patient (similar to getPatientById approach)
+        List<User> boundUsers = userRepository.findByPatientIdAndOrganizationId(patientId, organizationId);
+        System.out.println("🔍 Found " + boundUsers.size() + " users bound to patient " + patientId);
+        
+        // Filter for workers only
+        List<User> boundWorkers = boundUsers.stream()
+            .filter(user -> {
+                String userType = user.getUserType();
+                String role = user.getRole();
+                boolean isWorker = "WORKER".equalsIgnoreCase(userType) || 
+                       "worker".equalsIgnoreCase(role) ||
+                       "Worker".equalsIgnoreCase(role);
+                if (isWorker) {
+                    System.out.println("🔍 Found worker user: " + user.getEmail() + " (userType: " + userType + ", role: " + role + ")");
+                }
+                return isWorker;
+            })
+            .collect(Collectors.toList());
+        
+        System.out.println("🔍 Filtered to " + boundWorkers.size() + " worker users");
+        
+        // Find corresponding Worker records by email or other matching fields
+        for (User user : boundWorkers) {
+            Worker matchedWorker = null;
+            
+            // Try to find Worker by email first
+            if (user.getEmail() != null && !user.getEmail().isEmpty()) {
+                Optional<Worker> worker = workerRepository.findByEmail(user.getEmail());
+                if (worker.isPresent()) {
+                    Worker w = worker.get();
+                    System.out.println("🔍 Found Worker by email: " + user.getEmail() + " -> Worker ID: " + w.getId() + ", Org: " + w.getOrganizationId());
+                    if (organizationId == null || organizationId.equals(w.getOrganizationId())) {
+                        matchedWorker = w;
+                        System.out.println("✅ Worker organization matches!");
+                    } else {
+                        System.out.println("⚠️ Worker organization doesn't match: " + w.getOrganizationId() + " vs " + organizationId);
+                    }
+                } else {
+                    System.out.println("⚠️ No Worker found by email: " + user.getEmail());
+                }
+            }
+            
+            // If not found by email, try to find by User ID matching Worker ID
+            if (matchedWorker == null) {
+                Optional<Worker> workerById = workerRepository.findById(user.getId());
+                if (workerById.isPresent()) {
+                    Worker w = workerById.get();
+                    System.out.println("🔍 Found Worker by User ID: " + user.getId() + " -> Worker ID: " + w.getId() + ", Org: " + w.getOrganizationId());
+                    if (organizationId == null || organizationId.equals(w.getOrganizationId())) {
+                        matchedWorker = w;
+                        System.out.println("✅ Worker organization matches!");
+                    }
+                } else {
+                    System.out.println("⚠️ No Worker found by User ID: " + user.getId());
+                }
+            }
+            
+            // If no Worker record found in workers collection, create a Worker object from User data
+            // This handles the case where User exists but Worker collection doesn't have corresponding record
+            if (matchedWorker == null) {
+                System.out.println("📝 Creating Worker object from User data for: " + user.getEmail());
+                Worker workerFromUser = new Worker();
+                workerFromUser.setId(user.getId());
+                workerFromUser.setName(user.getFirstName() + " " + (user.getMiddleName() != null ? user.getMiddleName() + " " : "") + user.getLastName());
+                workerFromUser.setEmail(user.getEmail());
+                workerFromUser.setOrganizationId(user.getOrganizationId());
+                workerFromUser.setStatus("active"); // Default status
+                workerFromUser.setCreatedAt(LocalDateTime.now());
+                workerFromUser.setUpdatedAt(LocalDateTime.now());
+                
+                // Set workerId if available (could be from user uname or generate one)
+                if (user.getUname() != null && !user.getUname().isEmpty()) {
+                    workerFromUser.setWorkerId(user.getUname());
+                } else {
+                    // Generate a simple worker ID
+                    workerFromUser.setWorkerId("W" + user.getId().substring(Math.max(0, user.getId().length() - 6)));
+                }
+                
+                matchedWorker = workerFromUser;
+                System.out.println("✅ Created Worker object from User: " + matchedWorker.getName() + " (ID: " + matchedWorker.getId() + ")");
+            }
+            
+            if (matchedWorker != null) {
+                foundWorkers.add(matchedWorker);
+            }
+        }
+        
+        System.out.println("🔍 Found " + foundWorkers.size() + " workers from User binding");
+        
+        // Also check shift allocations as fallback (existing logic)
+        List<String> foundWorkerIds = foundWorkers.stream()
+            .map(Worker::getId)
+            .collect(Collectors.toList());
+            
+        List<Worker> shiftAllocatedWorkers = workerRepository.findByOrganizationId(organizationId);
+        System.out.println("🔍 Checking " + shiftAllocatedWorkers.size() + " shift allocated workers in organization");
+        
+        List<Worker> allocationMatches = shiftAllocatedWorkers.stream()
+            .filter(worker -> {
+                List<Worker.ShiftAllocation> allocations = worker.getShiftAllocations();
+                if (allocations != null) {
+                    return allocations.stream()
+                        .anyMatch(allocation -> patientId.equals(allocation.getPatientId()));
+                }
+                return false;
+            })
+            .filter(worker -> !foundWorkerIds.contains(worker.getId())) // Avoid duplicates by ID
+            .collect(Collectors.toList());
+        
+        System.out.println("🔍 Found " + allocationMatches.size() + " additional workers from shift allocations");
+        
+        // Combine both sources
+        foundWorkers.addAll(allocationMatches);
+        
+        System.out.println("✅ Total workers found: " + foundWorkers.size());
+        
+        return foundWorkers;
     }
 }
