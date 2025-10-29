@@ -207,6 +207,11 @@ public class BudgetServiceImpl implements BudgetService {
             .findFirst()
             .orElseThrow(() -> new IllegalArgumentException("Category not found: " + categoryId));
         
+        // Initialize subElements if null
+        if (category.getSubElements() == null) {
+            category.setSubElements(new java.util.ArrayList<>());
+        }
+        
         // Find the sub-element
         BudgetSubElement subElement = category.getSubElements().stream()
             .filter(s -> s.getId().equals(subElementId))
@@ -258,6 +263,12 @@ public class BudgetServiceImpl implements BudgetService {
         BudgetCategory category = budget.getCategories().stream()
             .filter(c -> c.getId().equals(categoryId))
             .findFirst().orElseThrow(() -> new IllegalArgumentException("Category not found: " + categoryId));
+        
+        // Initialize subElements if null
+        if (category.getSubElements() == null) {
+            category.setSubElements(new java.util.ArrayList<>());
+        }
+        
         BudgetSubElement from = category.getSubElements().stream().filter(s -> s.getId().equals(fromSubElementId))
             .findFirst().orElseThrow(() -> new IllegalArgumentException("From sub-element not found: " + fromSubElementId));
         BudgetSubElement to = category.getSubElements().stream().filter(s -> s.getId().equals(toSubElementId))
@@ -281,6 +292,12 @@ public class BudgetServiceImpl implements BudgetService {
         BudgetCategory category = budget.getCategories().stream()
             .filter(c -> c.getId().equals(categoryId))
             .findFirst().orElseThrow(() -> new IllegalArgumentException("Category not found: " + categoryId));
+        
+        // Initialize subElements if null
+        if (category.getSubElements() == null) {
+            category.setSubElements(new java.util.ArrayList<>());
+        }
+        
         BudgetSubElement sub = category.getSubElements().stream().filter(s -> s.getId().equals(subElementId))
             .findFirst().orElseThrow(() -> new IllegalArgumentException("Sub-element not found: " + subElementId));
         // Refund means decrease utilised and increase balance
@@ -306,6 +323,12 @@ public class BudgetServiceImpl implements BudgetService {
         BudgetCategory category = budget.getCategories().stream()
             .filter(c -> c.getId().equals(categoryId))
             .findFirst().orElseThrow(() -> new IllegalArgumentException("Category not found: " + categoryId));
+        
+        // Initialize subElements if null
+        if (category.getSubElements() == null) {
+            category.setSubElements(new java.util.ArrayList<>());
+        }
+        
         BudgetSubElement sub = category.getSubElements().stream().filter(s -> s.getId().equals(subElementId))
             .findFirst().orElseThrow(() -> new IllegalArgumentException("Sub-element not found: " + subElementId));
         sub.setMonthlyUsage(monthlyAmounts);
