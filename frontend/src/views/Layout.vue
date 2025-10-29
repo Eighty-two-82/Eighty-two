@@ -244,11 +244,11 @@
                   {{ notification.message }}
                 </p>
                 <div style="margin-top: 8px; font-size: 12px; color: #999;">
-                  {{ formatNotificationTime(notification.timestamp) }}
+                  {{ formatNotificationTime(notification.createdAt || notification.timestamp) }}
                 </div>
               </div>
               <a-button 
-                v-if="!notification.read" 
+                v-if="!notification.isRead" 
                 type="text" 
                 size="small" 
                 @click="markAsRead(notification.id)"
@@ -277,7 +277,13 @@
     SettingOutlined, MessageOutlined, AppstoreOutlined, UserOutlined,
     QuestionCircleOutlined, BellOutlined, LogoutOutlined
   } from '@ant-design/icons-vue'
+  import { message } from 'ant-design-vue'
   import { getMe, logout } from '@/services/userService'
+  import { 
+    getMyNotifications, 
+    markAsRead as markNotificationAsRead, 
+    markAllAsRead as markAllNotificationsAsRead 
+  } from '@/services/notificationService'
   
   const selectedKeys = ref(['home'])
   const userRole = ref('worker')
@@ -298,6 +304,9 @@
       
       // Check if this is the first visit
       checkFirstVisit()
+      
+      // Load notifications from backend API
+      await loadNotifications()
     } catch (e) {
       console.error('Failed to get user info:', e)
     }
@@ -456,152 +465,17 @@
     if (path) router.push(path)
   }
 
-  // Role-based notification data - Make it reactive
-  const allNotifications = ref({
-    manager: [
-      {
-        id: 1,
-        type: 'warning',
-        title: 'Budget Alert',
-        message: 'Hygiene Products category has exceeded 80% of budget. Current usage: 93%',
-        timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
-        read: false
-      },
-      {
-        id: 2,
-        type: 'error',
-        title: 'Task Overdue',
-        message: 'Morning Medication task assigned to Worker A is overdue by 2 hours',
-        timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000),
-        read: false
-      },
-      {
-        id: 3,
-        type: 'info',
-        title: 'New Request',
-        message: 'POA has submitted a new task request: "Add Physical Therapy Session"',
-        timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000),
-        read: true
-      },
-      {
-        id: 4,
-        type: 'success',
-        title: 'Task Completed',
-        message: 'Evening Care task has been completed by Worker C and approved by POA',
-        timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000),
-        read: true
-      },
-      {
-        id: 5,
-        type: 'warning',
-        title: 'System Maintenance',
-        message: 'Scheduled system maintenance will occur tonight from 2:00 AM to 4:00 AM',
-        timestamp: new Date(Date.now() - 8 * 60 * 60 * 1000),
-        read: false
-      },
-      {
-        id: 6,
-        type: 'error',
-        title: 'Critical Alert',
-        message: 'Toothpaste sub-element budget has been exceeded by $100',
-        timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000),
-        read: false
-      }
-    ],
-    poa: [
-      {
-        id: 1,
-        type: 'info',
-        title: 'Request Status Update',
-        message: 'Your request for "Add Physical Therapy Session" has been approved by Manager',
-        timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000),
-        read: false
-      },
-      {
-        id: 2,
-        type: 'warning',
-        title: 'Task Review Required',
-        message: 'Worker A has completed "Morning Medication" task. Please review and approve.',
-        timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
-        read: false
-      },
-      {
-        id: 3,
-        type: 'success',
-        title: 'Task Approved',
-        message: 'Your approval for "Evening Care" task has been recorded',
-        timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000),
-        read: true
-      },
-      {
-        id: 4,
-        type: 'info',
-        title: 'Budget Overview',
-        message: 'Monthly budget report is available. Current usage: 67% of total budget',
-        timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000),
-        read: true
-      },
-      {
-        id: 5,
-        type: 'warning',
-        title: 'System Maintenance',
-        message: 'Scheduled system maintenance will occur tonight from 2:00 AM to 4:00 AM',
-        timestamp: new Date(Date.now() - 8 * 60 * 60 * 1000),
-        read: false
-      }
-    ],
-    worker: [
-      {
-        id: 1,
-        type: 'info',
-        title: 'New Task Assigned',
-        message: 'You have been assigned a new task: "Physical Therapy Session" due today at 2:00 PM',
-        timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000),
-        read: false
-      },
-      {
-        id: 2,
-        type: 'warning',
-        title: 'Task Reminder',
-        message: 'Your "Morning Medication" task is due in 30 minutes',
-        timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
-        read: false
-      },
-      {
-        id: 3,
-        type: 'success',
-        title: 'Task Approved',
-        message: 'Your completion of "Evening Care" task has been approved by POA',
-        timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000),
-        read: true
-      },
-      {
-        id: 4,
-        type: 'error',
-        title: 'Task Rejected',
-        message: 'Your completion of "Morning Medication" was rejected. Please redo the task.',
-        timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000),
-        read: false
-      },
-      {
-        id: 5,
-        type: 'warning',
-        title: 'System Maintenance',
-        message: 'Scheduled system maintenance will occur tonight from 2:00 AM to 4:00 AM',
-        timestamp: new Date(Date.now() - 8 * 60 * 60 * 1000),
-        read: false
-      }
-    ]
-  })
+  // Notification data loaded from backend API
+  const allNotifications = ref([])
 
-  // Get notifications based on user role
+  // Get notifications - now loaded from API
   const notifications = computed(() => {
-    return allNotifications.value[userRole.value] || []
+    return allNotifications.value || []
   })
 
   // Computed property for unread notifications count
   const unreadNotificationsCount = computed(() => {
-    const count = notifications.value.filter(n => !n.read).length
+    const count = notifications.value.filter(n => !n.isRead).length
     console.log('Unread notifications count:', count)
     return count
   })
@@ -611,41 +485,59 @@
     notificationModalVisible.value = true
   }
 
-  const markAsRead = (notificationId) => {
-    const roleNotifications = allNotifications.value[userRole.value]
-    if (roleNotifications) {
-      const notification = roleNotifications.find(n => n.id === notificationId)
-      if (notification) {
-        notification.read = true
-        console.log('Marked notification as read:', notificationId)
-        console.log('Unread count after mark as read:', unreadNotificationsCount.value)
-        
-        // Show success message
-        message.success('Notification marked as read')
+  // Load notifications from backend API
+  const loadNotifications = async () => {
+    try {
+      const response = await getMyNotifications()
+      if (response?.data) {
+        allNotifications.value = response.data
+        console.log('Loaded notifications from backend:', allNotifications.value.length)
       }
+    } catch (error) {
+      console.error('Failed to load notifications:', error)
+      // Set empty array on error
+      allNotifications.value = []
     }
   }
 
-  const markAllAsRead = () => {
-    const roleNotifications = allNotifications.value[userRole.value]
-    if (roleNotifications) {
-      let markedCount = 0
-      roleNotifications.forEach(notification => {
-        if (!notification.read) {
-          notification.read = true
-          markedCount++
+  const markAsRead = async (notificationId) => {
+    try {
+      const response = await markNotificationAsRead(notificationId)
+      if (response?.data) {
+        // Update local notification state
+        const notification = allNotifications.value.find(n => n.id === notificationId)
+        if (notification) {
+          notification.isRead = true
         }
-      })
-      
-      console.log('Marked all notifications as read, count:', markedCount)
-      console.log('Unread count after mark all as read:', unreadNotificationsCount.value)
-      
-      // Show success message
-      if (markedCount > 0) {
-        message.success(`All ${markedCount} notifications marked as read`)
-      } else {
-        message.info('No unread notifications to mark')
+        console.log('Marked notification as read:', notificationId)
+        message.success('Notification marked as read')
       }
+    } catch (error) {
+      console.error('Failed to mark notification as read:', error)
+      message.error('Failed to mark notification as read')
+    }
+  }
+
+  const markAllAsRead = async () => {
+    try {
+      const response = await markAllNotificationsAsRead()
+      if (response?.data !== undefined) {
+        const markedCount = response.data
+        console.log('Marked all notifications as read, count:', markedCount)
+        
+        // Update all notifications to read
+        allNotifications.value.forEach(n => n.isRead = true)
+        
+        // Show success message
+        if (markedCount > 0) {
+          message.success(`All ${markedCount} notifications marked as read`)
+        } else {
+          message.info('No unread notifications to mark')
+        }
+      }
+    } catch (error) {
+      console.error('Failed to mark all notifications as read:', error)
+      message.error('Failed to mark all notifications as read')
     }
   }
 
@@ -690,8 +582,12 @@
   }
 
   const formatNotificationTime = (timestamp) => {
+    if (!timestamp) return 'Unknown'
+    
     const now = new Date()
-    const diff = now - timestamp
+    // Handle both Date objects and string timestamps
+    const notificationDate = timestamp instanceof Date ? timestamp : new Date(timestamp)
+    const diff = now - notificationDate
     const hours = Math.floor(diff / (1000 * 60 * 60))
     const minutes = Math.floor(diff / (1000 * 60))
     

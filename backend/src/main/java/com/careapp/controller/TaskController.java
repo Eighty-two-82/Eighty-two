@@ -206,8 +206,45 @@ public class TaskController {
         try {
             Optional<Task> existingTask = taskService.getTaskById(id);
             if (existingTask.isPresent()) {
-                task.setId(id);
-                Task updatedTask = taskService.updateTask(task);
+                Task taskToUpdate = existingTask.get();
+                
+                // Update only provided fields, preserve existing ones
+                if (task.getTitle() != null && !task.getTitle().isEmpty()) {
+                    taskToUpdate.setTitle(task.getTitle());
+                }
+                if (task.getDescription() != null) {
+                    taskToUpdate.setDescription(task.getDescription());
+                }
+                if (task.getAssignedTo() != null) {
+                    taskToUpdate.setAssignedTo(task.getAssignedTo());
+                }
+                if (task.getAssignedToId() != null) {
+                    taskToUpdate.setAssignedToId(task.getAssignedToId());
+                }
+                if (task.getPriority() != null && !task.getPriority().isEmpty()) {
+                    taskToUpdate.setPriority(task.getPriority());
+                }
+                if (task.getStatus() != null && !task.getStatus().isEmpty()) {
+                    taskToUpdate.setStatus(task.getStatus());
+                }
+                if (task.getDueDate() != null) {
+                    taskToUpdate.setDueDate(task.getDueDate());
+                }
+                if (task.getApprovalReason() != null) {
+                    taskToUpdate.setApprovalReason(task.getApprovalReason());
+                }
+                if (task.getRejectionReason() != null) {
+                    taskToUpdate.setRejectionReason(task.getRejectionReason());
+                }
+                if (task.getPatientId() != null) {
+                    taskToUpdate.setPatientId(task.getPatientId());
+                }
+                if (task.getOrganizationId() != null) {
+                    taskToUpdate.setOrganizationId(task.getOrganizationId());
+                }
+                
+                // Save to database
+                Task updatedTask = taskService.updateTask(taskToUpdate);
                 return Result.success(updatedTask, "Task updated successfully!");
             } else {
                 return Result.error("404", "Task not found!");
