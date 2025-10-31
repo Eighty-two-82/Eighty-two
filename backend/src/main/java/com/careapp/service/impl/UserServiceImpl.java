@@ -85,13 +85,32 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public boolean bindWorkerToPatient(String workerId, String patientId) {
+        System.out.println("🔍 bindWorkerToPatient - Worker ID: " + workerId + ", Patient ID: " + patientId);
         User worker = userRepository.findById(workerId).orElse(null);
-        if (worker == null) return false;
+        if (worker == null) {
+            System.out.println("❌ bindWorkerToPatient - Worker not found: " + workerId);
+            return false;
+        }
+        System.out.println("🔍 bindWorkerToPatient - Worker found: " + worker.getEmail() + ", Current patientId: " + worker.getPatientId());
         worker.setPatientId(patientId);
         // 注意：不再修改 status 字段，status 应该用于表示 worker 的实际状态（active, inactive, pending 等）
         // 绑定状态可以通过 patientId != null 来判断
-        userRepository.save(worker);
-        return true;
+        User savedWorker = userRepository.save(worker);
+        if (savedWorker != null) {
+            System.out.println("✅ bindWorkerToPatient - Worker saved successfully, patientId: " + savedWorker.getPatientId());
+            // Verify the save was successful
+            User verifyWorker = userRepository.findById(workerId).orElse(null);
+            if (verifyWorker != null && patientId.equals(verifyWorker.getPatientId())) {
+                System.out.println("✅ bindWorkerToPatient - Verification successful, patientId confirmed: " + verifyWorker.getPatientId());
+                return true;
+            } else {
+                System.out.println("❌ bindWorkerToPatient - Verification failed! Expected: " + patientId + ", Got: " + (verifyWorker != null ? verifyWorker.getPatientId() : "null"));
+                return false;
+            }
+        } else {
+            System.out.println("❌ bindWorkerToPatient - Failed to save worker");
+            return false;
+        }
     }
 
     @Override

@@ -265,12 +265,15 @@
             </div>
           </template>
           
-          <a-form
-            :model="notificationForm"
-            :label-col="{ span: 6 }"
-            :wrapper-col="{ span: 18 }"
-            @finish="onNotificationFormFinish"
-          >
+          <!-- Only render form after settings are loaded to prevent default values overriding backend values -->
+          <a-spin :spinning="!notificationSettingsLoaded" tip="Loading notification settings...">
+            <a-form
+              v-if="notificationSettingsLoaded"
+              :model="notificationForm"
+              :label-col="{ span: 6 }"
+              :wrapper-col="{ span: 18 }"
+              @finish="onNotificationFormFinish"
+            >
             <a-form-item label="Task Reminders">
               <a-switch 
                 v-model:checked="notificationForm.taskReminders"
@@ -320,7 +323,8 @@
                 Save Notification Settings
               </a-button>
             </a-form-item>
-          </a-form>
+            </a-form>
+          </a-spin>
         </a-card>
       </a-col>
     </a-row>
@@ -347,6 +351,7 @@ const userRole = ref('worker')
 const patientLoading = ref(false)
 const profileLoading = ref(false)
 const notificationLoading = ref(false)
+const notificationSettingsLoaded = ref(false) // Track if notification settings have been loaded
 const generatedClientId = ref('')
 const organizationName = ref('')
 const clientIdInput = ref('')
@@ -383,12 +388,12 @@ const profileForm = reactive({
   hobbies: ''
 })
 
-// Notification Form
+// Notification Form - initialized with default values, will be updated from backend
 const notificationForm = reactive({
-  taskReminders: true,
-  approvalNotifications: true,
-  budgetWarning: true,
-  emailNotifications: true
+  taskReminders: false, // Will be loaded from backend
+  approvalNotifications: false, // Will be loaded from backend
+  budgetWarning: false, // Will be loaded from backend
+  emailNotifications: false // Will be loaded from backend
 })
 
 // Computed property to check if user can edit patient information
@@ -500,30 +505,58 @@ const loadPatientData = () => {
   // The actual loading is done in loadPatientInfo function
 }
 
-// Mock function to load notification settings
+// Load notification settings from backend
 const loadNotificationSettings = async () => {
+  notificationSettingsLoaded.value = false
   try {
     const userInfo = await getMe()
+    console.log('🔍 Setting.vue - loadNotificationSettings - userInfo:', userInfo)
+    console.log('🔍 Setting.vue - loadNotificationSettings - userInfo.data:', userInfo?.data)
+    
     if (userInfo?.data) {
-      // Load notification settings from user data
-      notificationForm.taskReminders = userInfo.data.taskReminders !== undefined ? userInfo.data.taskReminders : true
-      notificationForm.approvalNotifications = userInfo.data.approvalNotifications !== undefined ? userInfo.data.approvalNotifications : (userRole.value === 'poa' || userRole.value === 'manager')
-      notificationForm.budgetWarning = userInfo.data.budgetWarning !== undefined ? userInfo.data.budgetWarning : (userRole.value === 'poa' || userRole.value === 'manager')
-      notificationForm.emailNotifications = userInfo.data.emailNotifications !== undefined ? userInfo.data.emailNotifications : true
+      // Debug: log all notification settings from backend
+      console.log('🔔 Setting.vue - Notification settings from backend:', {
+        taskReminders: userInfo.data.taskReminders,
+        approvalNotifications: userInfo.data.approvalNotifications,
+        budgetWarning: userInfo.data.budgetWarning,
+        emailNotifications: userInfo.data.emailNotifications
+      })
+      
+      // Use ?? operator for cleaner default value handling
+      // Load notification settings from user data, with proper fallbacks
+      notificationForm.taskReminders = userInfo.data.taskReminders ?? true
+      notificationForm.emailNotifications = userInfo.data.emailNotifications ?? true
+      
+      // Role-specific defaults for approval notifications and budget warnings
+      const hasApprovalAccess = userRole.value === 'poa' || userRole.value === 'manager'
+      notificationForm.approvalNotifications = userInfo.data.approvalNotifications ?? hasApprovalAccess
+      notificationForm.budgetWarning = userInfo.data.budgetWarning ?? hasApprovalAccess
+      
+      console.log('✅ Setting.vue - Notification form after loading:', {
+        taskReminders: notificationForm.taskReminders,
+        approvalNotifications: notificationForm.approvalNotifications,
+        budgetWarning: notificationForm.budgetWarning,
+        emailNotifications: notificationForm.emailNotifications
+      })
     } else {
-      // Fallback to default values
+      // Fallback to default values if no user data
+      const hasApprovalAccess = userRole.value === 'poa' || userRole.value === 'manager'
       notificationForm.taskReminders = true
-      notificationForm.approvalNotifications = userRole.value === 'poa' || userRole.value === 'manager'
-      notificationForm.budgetWarning = userRole.value === 'poa' || userRole.value === 'manager'
+      notificationForm.approvalNotifications = hasApprovalAccess
+      notificationForm.budgetWarning = hasApprovalAccess
       notificationForm.emailNotifications = true
     }
   } catch (error) {
     console.error('Failed to load notification settings:', error)
-    // Fallback to default values
+    // Fallback to default values on error
+    const hasApprovalAccess = userRole.value === 'poa' || userRole.value === 'manager'
     notificationForm.taskReminders = true
-    notificationForm.approvalNotifications = userRole.value === 'poa' || userRole.value === 'manager'
-    notificationForm.budgetWarning = userRole.value === 'poa' || userRole.value === 'manager'
+    notificationForm.approvalNotifications = hasApprovalAccess
+    notificationForm.budgetWarning = hasApprovalAccess
     notificationForm.emailNotifications = true
+  } finally {
+    // Mark as loaded after setting values (regardless of success or failure)
+    notificationSettingsLoaded.value = true
   }
 }
 
