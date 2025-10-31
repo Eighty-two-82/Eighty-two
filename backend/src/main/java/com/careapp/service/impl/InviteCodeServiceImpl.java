@@ -1,6 +1,7 @@
 package com.careapp.service.impl;
 
 import com.careapp.domain.InviteCode;
+import com.careapp.domain.User;
 import com.careapp.repository.InviteCodeRepository;
 import com.careapp.service.InviteCodeService;
 import com.careapp.service.UserService;
@@ -125,9 +126,8 @@ public class InviteCodeServiceImpl implements InviteCodeService {
             try {
                 // Get the manager who created this token (createdBy)
                 String managerId = inviteCode.getCreatedBy();
-                String patientId = inviteCode.getPatientId();
                 
-                System.out.println("🔍 Worker token - Manager ID: " + managerId + ", Patient ID: " + patientId);
+                System.out.println("🔍 Worker token - Manager ID: " + managerId);
                 
                 if (managerId != null) {
                     // Bind worker to manager using UserService
@@ -137,20 +137,32 @@ public class InviteCodeServiceImpl implements InviteCodeService {
                     } else {
                         System.out.println("❌ Failed to bind worker " + usedBy + " to manager " + managerId);
                     }
-                }
-                
-                if (patientId != null) {
-                    // Bind worker to patient (same as manager binding)
-                    boolean bindPatientSuccess = userService.bindWorkerToPatient(usedBy, patientId);
-                    if (bindPatientSuccess) {
-                        System.out.println("✅ Successfully bound worker " + usedBy + " to patient " + patientId);
-                        System.out.println("🔍 Worker can now access client information for patient: " + patientId);
+                    
+                    // Get manager's patientId from database
+                    User manager = userService.getUserById(managerId);
+                    if (manager != null) {
+                        String managerPatientId = manager.getPatientId();
+                        System.out.println("🔍 Manager's patientId from database: " + managerPatientId);
+                        
+                        if (managerPatientId != null && !managerPatientId.trim().isEmpty()) {
+                            // Bind worker to patient using manager's patientId
+                            boolean bindPatientSuccess = userService.bindWorkerToPatient(usedBy, managerPatientId);
+                            if (bindPatientSuccess) {
+                                System.out.println("✅ Successfully bound worker " + usedBy + " to patient " + managerPatientId + " (from manager)");
+                                System.out.println("🔍 Worker can now access client information for patient: " + managerPatientId);
+                            } else {
+                                System.out.println("❌ Failed to bind worker " + usedBy + " to patient " + managerPatientId);
+                            }
+                        } else {
+                            System.out.println("⚠️ Manager " + managerId + " does not have a patientId assigned");
+                        }
                     } else {
-                        System.out.println("❌ Failed to bind worker " + usedBy + " to patient " + patientId);
+                        System.out.println("❌ Manager " + managerId + " not found in database");
                     }
                 }
             } catch (Exception e) {
                 System.err.println("❌ Error binding worker to manager/patient: " + e.getMessage());
+                e.printStackTrace();
                 // Don't fail the invite code usage if binding fails
             }
         }

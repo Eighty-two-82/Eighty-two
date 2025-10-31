@@ -88,6 +88,40 @@ public class UserController {
         }
     }
 
+    // Sync worker patientId from manager's patientId
+    @PostMapping("/worker/{workerId}/sync-patient-from-manager")
+    public Result<String> syncWorkerPatientFromManager(@PathVariable String workerId) {
+        try {
+            User worker = userService.getUserById(workerId);
+            if (worker == null) {
+                return Result.<String>error("404", "Worker not found!");
+            }
+            
+            if (worker.getManagerId() == null || worker.getManagerId().trim().isEmpty()) {
+                return Result.<String>error("400", "Worker is not bound to any manager!");
+            }
+            
+            User manager = userService.getUserById(worker.getManagerId());
+            if (manager == null) {
+                return Result.<String>error("404", "Manager not found!");
+            }
+            
+            String managerPatientId = manager.getPatientId();
+            if (managerPatientId == null || managerPatientId.trim().isEmpty()) {
+                return Result.<String>error("400", "Manager does not have a patientId assigned!");
+            }
+            
+            boolean success = userService.bindWorkerToPatient(workerId, managerPatientId);
+            if (success) {
+                return Result.success("Worker patientId synced from manager successfully! PatientId: " + managerPatientId);
+            } else {
+                return Result.<String>error("400", "Failed to sync worker patientId from manager!");
+            }
+        } catch (Exception e) {
+            return Result.<String>error("500", "Error syncing worker patientId: " + e.getMessage());
+        }
+    }
+
     // Change password with old password verification
     @PostMapping("/change-password")
     public Result<Boolean> changePassword(@RequestBody Map<String, String> body) {

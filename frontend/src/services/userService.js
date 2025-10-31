@@ -92,7 +92,7 @@ export async function getMe() {
     // Get user ID from sessionStorage
     const userId = sessionStorage.getItem('userId');
     if (!userId) {
-        console.warn('No user ID found in sessionStorage');
+        console.warn('⚠️ No user ID found in sessionStorage');
         return {
             data: {
                 role: "guest",
@@ -104,12 +104,25 @@ export async function getMe() {
     
     try {
         const response = await api.get(`/auth/me?userId=${userId}`);
+
         const result = response.data;
         
         if (result.code === "0" && result.data) {
             const user = result.data;
             console.log('🔍 userService.js - Raw user data from backend:', user);
             console.log('🔍 userService.js - PatientId from backend:', user.patientId);
+            
+            // Debug: Check notification settings in raw backend response
+            console.log('🔔 userService.js - Raw notification settings from backend:', {
+                taskReminders: user.taskReminders,
+                approvalNotifications: user.approvalNotifications,
+                budgetWarning: user.budgetWarning,
+                emailNotifications: user.emailNotifications,
+                // Also check if Jackson serialized with 'is' prefix
+                'user.taskReminders (typeof)': typeof user.taskReminders,
+                'user.approvalNotifications (typeof)': typeof user.approvalNotifications,
+                'All user keys': Object.keys(user)
+            });
             
             const userInfo = {
                 id: user.id,
@@ -121,9 +134,35 @@ export async function getMe() {
                 lastName: user.lastName,
                 userType: user.userType,
                 organizationId: user.organizationId,
-                patientId: user.patientId,
-                status: user.status
+                patientId: user.patientId || null, // Explicitly set to null if undefined
+                status: user.status,
+                managerId: user.managerId || null,
+                // Notification settings - include from backend response
+                // Handle both possible field names (taskReminders or taskReminders from isTaskReminders())
+                taskReminders: user.taskReminders !== undefined ? user.taskReminders : (user.isTaskReminders !== undefined ? user.isTaskReminders : true),
+                approvalNotifications: user.approvalNotifications !== undefined ? user.approvalNotifications : (user.isApprovalNotifications !== undefined ? user.isApprovalNotifications : true),
+                budgetWarning: user.budgetWarning !== undefined ? user.budgetWarning : (user.isBudgetWarning !== undefined ? user.isBudgetWarning : true),
+                emailNotifications: user.emailNotifications !== undefined ? user.emailNotifications : (user.isEmailNotifications !== undefined ? user.isEmailNotifications : true),
+                // Additional fields that might be useful
+                hobbies: user.hobbies || null
             };
+            
+            // 绑定检查逻辑 (方案3)
+            // 对于 worker 或 manager，如果 patientId 为 null，给出警告
+            if ((userInfo.userType === 'WORKER' || userInfo.userType === 'MANAGER' || 
+                 userInfo.role === 'worker' || userInfo.role === 'manager') && 
+                !userInfo.patientId) {
+                console.warn('⚠️ User not bound to a patient yet.', {
+                    userId: userInfo.id,
+                    userType: userInfo.userType,
+                    role: userInfo.role
+                });
+                
+                // 对于 worker，如果已经绑定了 manager，可以尝试自动同步
+                if (userInfo.userType === 'WORKER' && userInfo.managerId) {
+                    console.log('💡 Worker has manager, you can call sync-patient-from-manager API to fix this.');
+                }
+            }
             
             console.log('Retrieved user info from backend:', userInfo);
             console.log('🔍 userService.js - Final patientId:', userInfo.patientId);
@@ -134,16 +173,44 @@ export async function getMe() {
             throw new Error(result.msg || 'Failed to get user information');
         }
     } catch (error) {
-        console.error('Failed to get user info from backend:', error);
+        console.error('❌ Failed to get user info from backend:', error);
         
         // Fallback: return basic guest info
         return {
             data: {
                 role: "guest",
                 email: "guest@example.com",
-                name: "Guest User"
+                name: "Guest User",
+                patientId: null
             }
         };
+    }
+}
+
+// Sync worker patientId from manager (手动同步 API)
+export async function syncWorkerPatientFromManager(workerId) {
+    try {
+        const response = await api.post(`/auth/worker/${workerId}/sync-patient-from-manager`);
+        const result = response.data;
+        
+        if (result.code === "0") {
+            console.log('✅ Worker patientId synced from manager successfully');
+            return {
+                data: result.data,
+                success: true
+            };
+        } else {
+            throw new Error(result.msg || 'Failed to sync worker patientId');
+        }
+    } catch (error) {
+        console.error('❌ Failed to sync worker patientId:', error);
+        if (error.response?.data?.msg) {
+            throw new Error(error.response.data.msg);
+        } else if (error.message) {
+            throw error;
+        } else {
+            throw new Error('Failed to sync worker patientId from manager');
+        }
     }
 }
 
