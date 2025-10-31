@@ -11,6 +11,14 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.ArrayList;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.util.UUID;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class WorkerService {
@@ -394,5 +402,116 @@ public class WorkerService {
         return workers.stream()
             .filter(worker -> worker.getPhotoUrl() == null || worker.getPhotoUrl().isEmpty())
             .collect(java.util.stream.Collectors.toList());
+    }
+
+    /**
+     * Bind worker to manager
+     * @param workerId The worker ID
+     * @param managerId The manager ID
+     * @return Updated worker or null if worker not found
+     */
+    public Worker bindWorkerToManager(String workerId, String managerId) {
+        Optional<Worker> optionalWorker = workerRepository.findById(workerId);
+        if (optionalWorker.isPresent()) {
+            Worker worker = optionalWorker.get();
+            worker.setManagerId(managerId);
+            worker.setUpdatedAt(LocalDateTime.now());
+            return workerRepository.save(worker);
+        }
+        return null;
+    }
+
+    /**
+     * Unbind worker from manager
+     * @param workerId The worker ID
+     * @return Updated worker or null if worker not found
+     */
+    public Worker unbindWorkerFromManager(String workerId) {
+        Optional<Worker> optionalWorker = workerRepository.findById(workerId);
+        if (optionalWorker.isPresent()) {
+            Worker worker = optionalWorker.get();
+            worker.setManagerId(null);
+            worker.setUpdatedAt(LocalDateTime.now());
+            return workerRepository.save(worker);
+        }
+        return null;
+    }
+
+    /**
+     * Get workers by manager ID
+     * @param managerId The manager ID
+     * @return List of workers managed by the manager
+     */
+    public List<Worker> getWorkersByManagerId(String managerId) {
+        List<Worker> allWorkers = workerRepository.findAll();
+        return allWorkers.stream()
+            .filter(worker -> managerId.equals(worker.getManagerId()))
+            .collect(java.util.stream.Collectors.toList());
+    }
+
+    /**
+     * Save worker file (image-only or general docs) and update worker photoUrl
+     * @param workerId Worker ID
+     * @param file Multipart file
+     * @param imageOnly If true, only accept image/*; otherwise accept image/PDF/Excel/Word
+     * @return Updated worker or null if worker not found
+     */
+    public Worker saveWorkerFile(String workerId, MultipartFile file, boolean imageOnly) throws IOException {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("Please select a file to upload!");
+        }
+
+        String contentType = file.getContentType();
+        if (contentType == null) {
+            throw new IllegalArgumentException("File type cannot be determined!");
+        }
+
+        boolean allowed;
+        if (imageOnly) {
+            allowed = contentType.startsWith("image/");
+        } else {
+            allowed = contentType.startsWith("image/") ||
+                    contentType.equals("application/pdf") ||
+                    contentType.equals("application/vnd.ms-excel") ||
+                    contentType.equals("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") ||
+                    contentType.equals("application/msword") ||
+                    contentType.equals("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+        }
+        if (!allowed) {
+            throw new IllegalArgumentException(imageOnly ?
+                "Only image files are allowed!" :
+                "Only image, PDF, Excel and Word files are allowed!");
+        }
+
+        // Create upload directory
+        String uploadDir = imageOnly ? "uploads/worker-photos/" : "uploads/worker-files/";
+        File directory = new File(uploadDir);
+        if (!directory.exists()) {
+            directory.mkdirs();
+        }
+
+        // Generate unique filename
+        String originalFilename = file.getOriginalFilename();
+        String fileExtension = "";
+        if (originalFilename != null && originalFilename.contains(".")) {
+            fileExtension = originalFilename.substring(originalFilename.lastIndexOf("."));
+        }
+        String newFilename = workerId + "_" + UUID.randomUUID().toString() + fileExtension;
+
+        // Save file to disk
+        Path filePath = Paths.get(uploadDir + newFilename);
+        Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+
+        // Build public url and persist to worker
+        String fileUrl = (imageOnly ? "/uploads/worker-photos/" : "/uploads/worker-files/") + newFilename;
+
+        Optional<Worker> optionalWorker = workerRepository.findById(workerId);
+        if (optionalWorker.isEmpty()) {
+            return null;
+        }
+        Worker worker = optionalWorker.get();
+        worker.setPhotoUrl(fileUrl);
+        worker.setUpdatedAt(LocalDateTime.now());
+        return workerRepository.save(worker);
     }
 }

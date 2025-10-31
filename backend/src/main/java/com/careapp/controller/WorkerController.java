@@ -9,16 +9,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/workers")
@@ -301,57 +295,14 @@ public class WorkerController {
             @PathVariable String id, 
             @RequestPart("file") MultipartFile file) {
         try {
-            if (file.isEmpty()) {
-                return Result.error("400", "Please select a file to upload!");
-            }
-            
-            // Validate file type - supports images, PDF, Excel, Word document
-            String contentType = file.getContentType();
-            if (contentType == null) {
-                return Result.error("400", "File type cannot be determined!");
-            }
-            
-            // Allowed file types
-            boolean isAllowed = contentType.startsWith("image/") ||  // Image files
-                               contentType.equals("application/pdf") ||  // PDF files
-                               contentType.equals("application/vnd.ms-excel") ||  // Excel (.xls)
-                               contentType.equals("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") ||  // Excel (.xlsx)
-                               contentType.equals("application/msword") ||  // Word (.doc)
-                               contentType.equals("application/vnd.openxmlformats-officedocument.wordprocessingml.document");  // Word (.docx)
-            
-            if (!isAllowed) {
-                return Result.error("400", "Only image, PDF, Excel, and Word files are allowed!");
-            }
-            
-            // Create upload directory
-            String uploadDir = "uploads/worker-files/";
-            File directory = new File(uploadDir);
-            if (!directory.exists()) {
-                directory.mkdirs();
-            }
-            
-            // Generate unique filename
-            String originalFilename = file.getOriginalFilename();
-            String fileExtension = "";
-            if (originalFilename != null && originalFilename.contains(".")) {
-                fileExtension = originalFilename.substring(originalFilename.lastIndexOf("."));
-            }
-            String newFilename = id + "_" + UUID.randomUUID().toString() + fileExtension;
-            
-            // Save file
-            Path filePath = Paths.get(uploadDir + newFilename);
-            Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
-            
-            // Generate access URL (simplified as relative path, should be complete URL in production)
-            String fileUrl = "/uploads/worker-files/" + newFilename;
-            
-            // Update database
-            Worker worker = workerService.uploadWorkerPhotoSimple(id, fileUrl);
+            Worker worker = workerService.saveWorkerFile(id, file, false);
             if (worker != null) {
-                return Result.success(worker, "Worker file uploaded successfully! URL: " + fileUrl);
+                return Result.success(worker, "Worker file uploaded successfully!");
             } else {
                 return Result.error("404", "Worker not found!");
             }
+        } catch (IllegalArgumentException e) {
+            return Result.error("400", e.getMessage());
         } catch (IOException e) {
             return Result.error("500", "Failed to save file: " + e.getMessage());
         } catch (Exception e) {
@@ -426,39 +377,14 @@ public class WorkerController {
             @PathVariable String id,
             @RequestPart("photo") MultipartFile photo) {
         try {
-            if (photo == null || photo.isEmpty()) {
-                return Result.error("400", "Please select a photo to upload!");
-            }
-
-            String contentType = photo.getContentType();
-            if (contentType == null || !contentType.startsWith("image/")) {
-                return Result.error("400", "Only image files are allowed for photo upload!");
-            }
-
-            String uploadDir = "uploads/worker-photos/";
-            File directory = new File(uploadDir);
-            if (!directory.exists()) {
-                directory.mkdirs();
-            }
-
-            String originalFilename = photo.getOriginalFilename();
-            String fileExtension = "";
-            if (originalFilename != null && originalFilename.contains(".")) {
-                fileExtension = originalFilename.substring(originalFilename.lastIndexOf("."));
-            }
-            String newFilename = id + "_" + java.util.UUID.randomUUID().toString() + fileExtension;
-
-            Path filePath = Paths.get(uploadDir + newFilename);
-            Files.copy(photo.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
-
-            String fileUrl = "/uploads/worker-photos/" + newFilename;
-
-            Worker worker = workerService.uploadWorkerPhotoSimple(id, fileUrl);
+            Worker worker = workerService.saveWorkerFile(id, photo, true);
             if (worker != null) {
                 return Result.success(worker, "Worker photo uploaded successfully!");
             } else {
                 return Result.error("404", "Worker not found!");
             }
+        } catch (IllegalArgumentException e) {
+            return Result.error("400", e.getMessage());
         } catch (IOException e) {
             return Result.error("500", "Failed to save file: " + e.getMessage());
         } catch (Exception e) {
@@ -519,6 +445,63 @@ public class WorkerController {
             return Result.success(workers, "Retrieved " + workers.size() + " workers without photos!");
         } catch (Exception e) {
             return Result.error("500", "Failed to retrieve workers without photos: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Bind worker to manager
+     * POST /api/workers/{id}/bind-manager/{managerId}
+     * @param id Worker ID
+     * @param managerId Manager ID
+     * @return Updated worker
+     */
+    @PostMapping("/{id}/bind-manager/{managerId}")
+    public Result<Worker> bindWorkerToManager(@PathVariable String id, @PathVariable String managerId) {
+        try {
+            Worker worker = workerService.bindWorkerToManager(id, managerId);
+            if (worker != null) {
+                return Result.success(worker, "Worker bound to manager successfully!");
+            } else {
+                return Result.error("404", "Worker not found!");
+            }
+        } catch (Exception e) {
+            return Result.error("500", "Failed to bind worker to manager: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Unbind worker from manager
+     * POST /api/workers/{id}/unbind-manager
+     * @param id Worker ID
+     * @return Updated worker
+     */
+    @PostMapping("/{id}/unbind-manager")
+    public Result<Worker> unbindWorkerFromManager(@PathVariable String id) {
+        try {
+            Worker worker = workerService.unbindWorkerFromManager(id);
+            if (worker != null) {
+                return Result.success(worker, "Worker unbound from manager successfully!");
+            } else {
+                return Result.error("404", "Worker not found!");
+            }
+        } catch (Exception e) {
+            return Result.error("500", "Failed to unbind worker from manager: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Get workers by manager ID
+     * GET /api/workers/manager/{managerId}
+     * @param managerId Manager ID
+     * @return List of workers managed by the manager
+     */
+    @GetMapping("/manager/{managerId}")
+    public Result<List<Worker>> getWorkersByManagerId(@PathVariable String managerId) {
+        try {
+            List<Worker> workers = workerService.getWorkersByManagerId(managerId);
+            return Result.success(workers, "Workers retrieved successfully!");
+        } catch (Exception e) {
+            return Result.error("500", "Failed to retrieve workers: " + e.getMessage());
         }
     }
 

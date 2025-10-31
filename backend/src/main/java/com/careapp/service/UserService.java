@@ -16,6 +16,9 @@ public interface UserService {
     
     // manager bind service
     boolean bindManagerToPatient(String managerId, String patientId);
+    
+    // worker-manager binding service
+    boolean bindWorkerToManager(String workerId, String managerId);
 
     // Change password with old password verification
     boolean changePassword(String identifier, String oldPassword, String newPassword);

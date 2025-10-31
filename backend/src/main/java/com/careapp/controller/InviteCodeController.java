@@ -66,7 +66,7 @@ public class InviteCodeController {
             return Result.<String>success("Access granted!", "Invite code used successfully!");
         } else {
             System.out.println("❌ Backend - Failed to use invite code");
-            return Result.<String>error("400", "Failed to use invite code!");
+            return Result.<String>error("400", "Failed to use invite code! The token type may not match your user role, or the token may be invalid.");
         }
     }
 

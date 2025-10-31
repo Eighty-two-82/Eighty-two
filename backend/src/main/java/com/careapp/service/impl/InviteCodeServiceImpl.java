@@ -120,6 +120,41 @@ public class InviteCodeServiceImpl implements InviteCodeService {
             }
         }
         
+        // If this is a WORKER invite code, bind the worker to the manager and patient
+        if ("WORKER".equals(inviteCode.getTargetType())) {
+            try {
+                // Get the manager who created this token (createdBy)
+                String managerId = inviteCode.getCreatedBy();
+                String patientId = inviteCode.getPatientId();
+                
+                System.out.println("🔍 Worker token - Manager ID: " + managerId + ", Patient ID: " + patientId);
+                
+                if (managerId != null) {
+                    // Bind worker to manager using UserService
+                    boolean bindManagerSuccess = userService.bindWorkerToManager(usedBy, managerId);
+                    if (bindManagerSuccess) {
+                        System.out.println("✅ Successfully bound worker " + usedBy + " to manager " + managerId);
+                    } else {
+                        System.out.println("❌ Failed to bind worker " + usedBy + " to manager " + managerId);
+                    }
+                }
+                
+                if (patientId != null) {
+                    // Bind worker to patient (same as manager binding)
+                    boolean bindPatientSuccess = userService.bindWorkerToPatient(usedBy, patientId);
+                    if (bindPatientSuccess) {
+                        System.out.println("✅ Successfully bound worker " + usedBy + " to patient " + patientId);
+                        System.out.println("🔍 Worker can now access client information for patient: " + patientId);
+                    } else {
+                        System.out.println("❌ Failed to bind worker " + usedBy + " to patient " + patientId);
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("❌ Error binding worker to manager/patient: " + e.getMessage());
+                // Don't fail the invite code usage if binding fails
+            }
+        }
+        
         return true;
     }
 

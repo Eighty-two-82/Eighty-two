@@ -25,6 +25,8 @@ public class Worker {
     @Field("organization_id")
     private String organizationId;
     
+    @Field("manager_id")
+    private String managerId; // Manager who manages this worker
     
     @Field("created_at")
     private LocalDateTime createdAt;
@@ -155,6 +157,8 @@ public class Worker {
     public String getOrganizationId() { return organizationId; }
     public void setOrganizationId(String organizationId) { this.organizationId = organizationId; }
 
+    public String getManagerId() { return managerId; }
+    public void setManagerId(String managerId) { this.managerId = managerId; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

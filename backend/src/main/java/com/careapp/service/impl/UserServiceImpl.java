@@ -88,7 +88,8 @@ public class UserServiceImpl implements UserService {
         User worker = userRepository.findById(workerId).orElse(null);
         if (worker == null) return false;
         worker.setPatientId(patientId);
-        worker.setStatus("bound");
+        // 注意：不再修改 status 字段，status 应该用于表示 worker 的实际状态（active, inactive, pending 等）
+        // 绑定状态可以通过 patientId != null 来判断
         userRepository.save(worker);
         return true;
     }
@@ -98,7 +99,8 @@ public class UserServiceImpl implements UserService {
         User manager = userRepository.findById(managerId).orElse(null);
         if (manager == null) return false;
         manager.setPatientId(patientId);
-        manager.setStatus("bound");
+        // 注意：不再修改 status 字段，status 应该用于表示 worker 的实际状态（active, inactive, pending 等）
+        // 绑定状态可以通过 patientId != null 来判断
         userRepository.save(manager);
         return true;
     }
@@ -108,6 +110,24 @@ public class UserServiceImpl implements UserService {
         User worker = userRepository.findById(userId).orElse(null);
         if (worker == null) return null;
         return worker.getPatientId();
+    }
+
+    @Override
+    public boolean bindWorkerToManager(String workerId, String managerId) {
+        User worker = userRepository.findById(workerId).orElse(null);
+        if (worker == null) return false;
+        // Verify that the target user is actually a WORKER
+        if (!"WORKER".equals(worker.getUserType())) {
+            return false;
+        }
+        // Verify that the manager exists and is a MANAGER
+        User manager = userRepository.findById(managerId).orElse(null);
+        if (manager == null || !"MANAGER".equals(manager.getUserType())) {
+            return false;
+        }
+        worker.setManagerId(managerId);
+        userRepository.save(worker);
+        return true;
     }
 
     @Override

@@ -22,6 +22,7 @@ public class User {
     private String userType;     // FM, POA, MANAGER, WORKER
     private String organizationId; // organization ID
     private String patientId;    // associated patient ID (for FM/POA)
+    private String managerId;    // manager ID (for WORKER userType)
     
     // Temporary field for registration (not persisted to database)
     @Transient
@@ -82,6 +83,9 @@ public class User {
 
     public String getPatientId() { return patientId; }
     public void setPatientId(String patientId) { this.patientId = patientId; }
+
+    public String getManagerId() { return managerId; }
+    public void setManagerId(String managerId) { this.managerId = managerId; }
 
     // Backward compatibility uname field
     public String getUname() { return uname; }
