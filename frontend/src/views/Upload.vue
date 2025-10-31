@@ -83,22 +83,61 @@ import { ref, onMounted } from 'vue'
 import { QuestionCircleOutlined } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
 import { getMe } from '@/services/userService'
-import { uploadWorkerPhoto } from '@/services/workerService'
+import { uploadFile, getAllFiles, updateFileComment } from '@/services/fileService'
 
 // Files list - loaded from API
 const files = ref([])
 
 const currentUser = ref(null)
 
-// Load user info on mount
+// Load user info and files on mount
 onMounted(async () => {
   try {
     const userInfo = await getMe()
     currentUser.value = userInfo?.data
+    // Load files from API
+    await loadFiles()
   } catch (error) {
     console.error('Failed to get user info:', error)
   }
 })
+
+// Helper function to get full file URL
+const getFullFileUrl = (fileUrl) => {
+  if (!fileUrl) return ''
+  // If already a full URL, return as is
+  if (fileUrl.startsWith('http://') || fileUrl.startsWith('https://')) {
+    return fileUrl
+  }
+  // Otherwise, prepend backend base URL
+  const API_BASE_URL = import.meta.env.MODE === "production"
+    ? "https://care-scheduling-app-e8951cd9f9c6.herokuapp.com"
+    : "http://localhost:8081"
+  return `${API_BASE_URL}${fileUrl}`
+}
+
+// Load files from API
+const loadFiles = async () => {
+  try {
+    const response = await getAllFiles()
+    if (response?.data) {
+      // Map backend FileRecord to frontend format
+      files.value = response.data.map(file => ({
+        id: file.id,
+        name: file.name,
+        category: file.category || 'General Upload',
+        uploadedBy: file.uploadedBy || 'Unknown',
+        time: file.createdAt ? new Date(file.createdAt).toLocaleDateString() : '',
+        comment: file.comment || '',
+        fileUrl: getFullFileUrl(file.fileUrl),
+        contentType: file.contentType,
+        size: file.size
+      }))
+    }
+  } catch (error) {
+    console.error('Failed to load files:', error)
+  }
+}
 
 // 表格
 const columns = [
@@ -120,29 +159,27 @@ const handleBeforeUpload = async (file) => {
       return false
     }
     
-    // Create FormData for file upload
-    const formData = new FormData()
-    formData.append('file', file)
-    formData.append('workerId', userInfo.data.id)
+    // Determine category based on user role
+    let category = 'General Upload'
+    if (userInfo.data.role === 'worker') {
+      category = 'Worker Upload'
+    } else if (userInfo.data.role === 'manager') {
+      category = 'Manager Upload'
+    } else if (userInfo.data.role === 'poa') {
+      category = 'POA Upload'
+    }
     
     // Upload file via API
-    const response = await uploadWorkerPhoto(userInfo.data.id, formData)
+    const uploadResponse = await uploadFile(file, {
+      category: category,
+      uploadedBy: userInfo.data.name || userInfo.data.email || 'Unknown',
+      comment: ''
+    })
     
-    if (response.data) {
-      // Add to local files list
-      const fileUrl = URL.createObjectURL(file)
-      files.value.push({
-        id: Date.now(),
-        name: file.name,
-        category: 'Worker Upload',
-        uploadedBy: userInfo.data.name || 'You',
-        time: new Date().toLocaleDateString(),
-        comment: '',
-        file: file,
-        fileUrl: fileUrl
-      })
-      
+    if (uploadResponse.data) {
       message.success('File uploaded successfully')
+      // Reload files list to show the new file
+      await loadFiles()
     }
   } catch (error) {
     console.error('Failed to upload file:', error)
@@ -163,9 +200,18 @@ const openCommentModal = (record) => {
   isCommentModalOpen.value = true
 }
 
-const saveComment = () => {
+const saveComment = async () => {
   if (currentFile.value) {
-    currentFile.value.comment = currentComment.value
+    try {
+      await updateFileComment(currentFile.value.id, currentComment.value)
+      currentFile.value.comment = currentComment.value
+      message.success('Comment updated successfully')
+      // Reload files to get updated data
+      await loadFiles()
+    } catch (error) {
+      console.error('Failed to update comment:', error)
+      message.error(error.message || 'Failed to update comment')
+    }
   }
   isCommentModalOpen.value = false
 }

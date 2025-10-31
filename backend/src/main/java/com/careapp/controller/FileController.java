@@ -4,11 +4,19 @@ import com.careapp.domain.FileRecord;
 import com.careapp.service.FileService;
 import com.careapp.utils.Result;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/files")
@@ -16,6 +24,68 @@ public class FileController {
 
     @Resource
     private FileService fileService;
+
+    /**
+     * Upload actual file (multipart/form-data)
+     * POST /api/files/upload
+     * @param file The file to upload
+     * @param category Optional category (e.g., "Worker Upload", "Admin Upload")
+     * @param uploadedBy Optional user ID who uploaded the file
+     * @param comment Optional comment
+     * @return FileRecord with file URL
+     */
+    @PostMapping(value = "/upload", consumes = "multipart/form-data")
+    public Result<FileRecord> uploadFileMultipart(
+            @RequestPart("file") MultipartFile file,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String uploadedBy,
+            @RequestParam(required = false) String comment) {
+        try {
+            System.out.println("uploadedBy received: " + uploadedBy);
+            if (file == null || file.isEmpty()) {
+                return Result.error("400", "Please select a file to upload!");
+            }
+
+            // Create upload directory
+            String uploadDir = "uploads/files/";
+            File directory = new File(uploadDir);
+            if (!directory.exists()) {
+                directory.mkdirs();
+            }
+
+            // Generate unique filename
+            String originalFilename = file.getOriginalFilename();
+            String fileExtension = "";
+            if (originalFilename != null && originalFilename.contains(".")) {
+                fileExtension = originalFilename.substring(originalFilename.lastIndexOf("."));
+            }
+            String newFilename = UUID.randomUUID().toString() + fileExtension;
+
+            // Save file
+            Path filePath = Paths.get(uploadDir + newFilename);
+            Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+
+            // Generate access URL
+            String fileUrl = "/uploads/files/" + newFilename;
+
+            // Create FileRecord
+            FileRecord record = new FileRecord();
+            record.setName(originalFilename != null ? originalFilename : "uploaded_file" + fileExtension);
+            record.setCategory(category != null ? category : "General Upload");
+            record.setUploadedBy(uploadedBy != null ? uploadedBy : "unknown");
+            record.setFileUrl(fileUrl);
+            record.setContentType(file.getContentType());
+            record.setSize(file.getSize());
+            record.setComment(comment != null ? comment : "");
+
+            FileRecord saved = fileService.save(record);
+            return Result.success(saved, "File uploaded successfully!");
+        } catch (IOException e) {
+            return Result.error("500", "Failed to save file: " + e.getMessage());
+        } catch (Exception e) {
+            return Result.error("500", "Failed to upload file: " + e.getMessage());
+        }
+    }
 
     // Upload metadata (front-end already generates preview URL locally; here we accept URL and metadata)
     @PostMapping
