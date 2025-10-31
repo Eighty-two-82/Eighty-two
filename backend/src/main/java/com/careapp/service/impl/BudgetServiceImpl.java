@@ -3,6 +3,7 @@ package com.careapp.service.impl;
 import com.careapp.domain.Budget;
 import com.careapp.domain.BudgetCategory;
 import com.careapp.domain.BudgetSubElement;
+import com.careapp.domain.Notification;
 import com.careapp.domain.Patient;
 import com.careapp.domain.User;
 import com.careapp.repository.BudgetRepository;
@@ -10,6 +11,7 @@ import com.careapp.repository.PatientRepository;
 import com.careapp.repository.UserRepository;
 import com.careapp.service.BudgetCalculationService;
 import com.careapp.service.BudgetService;
+import com.careapp.service.NotificationService;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -40,6 +42,9 @@ public class BudgetServiceImpl implements BudgetService {
     
     @Resource
     private UserRepository userRepository;
+    
+    @Resource
+    private NotificationService notificationService;
 
     @Override
     public Budget createBudget(Budget budget) {
@@ -195,13 +200,16 @@ public class BudgetServiceImpl implements BudgetService {
             subElement.setId(UUID.randomUUID().toString());
         }
         
-        // Initialize subElements if null
-        if (category.getSubElements() == null) {
-            category.setSubElements(new java.util.ArrayList<>());
+        // Get subElements list - getter has lazy initialization to ensure it's never null
+        List<BudgetSubElement> subElementsList = category.getSubElements();
+        // Double check: if still null (edge case), explicitly initialize
+        if (subElementsList == null) {
+            subElementsList = new java.util.ArrayList<>();
+            category.setSubElements(subElementsList);
         }
         
         // Add sub-element to category
-        category.getSubElements().add(subElement);
+        subElementsList.add(subElement);
         budget.setUpdatedAt(LocalDateTime.now());
         
         // Save to database
@@ -473,10 +481,43 @@ public class BudgetServiceImpl implements BudgetService {
                 );
             }
             
-            // Send email if alert is needed
+            // Send email and create notification if alert is needed
             if (alertLevel != null) {
-                emailService.sendText(poaUser.getEmail(), subject, emailContent);
-                System.out.println("Budget alert email sent to " + poaUser.getEmail() + " for " + alertLevel + " level alert");
+                // Send email
+                try {
+                    emailService.sendText(poaUser.getEmail(), subject, emailContent);
+                    System.out.println("Budget alert email sent to " + poaUser.getEmail() + " for " + alertLevel + " level alert");
+                } catch (Exception emailError) {
+                    System.err.println("Failed to send budget alert email: " + emailError.getMessage());
+                }
+                
+                // Create notification for POA
+                try {
+                    Notification notification = new Notification();
+                    notification.setRecipientId(patient.getPoaId());
+                    notification.setType("BUDGET_ALERT");
+                    notification.setTitle(alertLevel.equals("CRITICAL") ? "🚨 Budget Exceeded!" : "⚠️ Budget Warning");
+                    notification.setMessage(
+                        String.format("Budget for '%s' in category '%s' has reached %.1f%% usage. %s",
+                            updatedSubElement.getName(),
+                            budget.getCategories().stream()
+                                .filter(cat -> cat.getSubElements().contains(updatedSubElement))
+                                .findFirst().map(BudgetCategory::getName).orElse("Unknown"),
+                            usagePercentage,
+                            alertLevel.equals("CRITICAL") ? "Budget has been exceeded!" : "Budget is approaching its limit."
+                        )
+                    );
+                    notification.setCategory("budget");
+                    notification.setPriority(alertLevel.equals("CRITICAL") ? "urgent" : "high");
+                    notification.setRelatedEntityType("budget");
+                    notification.setRelatedEntityId(budget.getId());
+                    notification.setActionUrl("/app/budget");
+                    
+                    notificationService.createNotification(notification);
+                    System.out.println("Budget alert notification created for POA: " + patient.getPoaId());
+                } catch (Exception notificationError) {
+                    System.err.println("Failed to create budget alert notification: " + notificationError.getMessage());
+                }
             }
             
         } catch (Exception e) {

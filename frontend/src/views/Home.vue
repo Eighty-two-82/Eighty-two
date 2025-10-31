@@ -312,6 +312,7 @@ import { QuestionCircleOutlined, CheckSquareOutlined, BarChartOutlined, SettingO
 import { getMe } from '@/services/userService'
 import { getBudgetByPatient, getBudgetCalculations, getBudgetCategories } from '@/services/budgetService'
 import { getTasksByPatient, getTasksByWorker, getAllTasks } from '@/services/taskService'
+import { getSchedulesByWorker } from '@/services/scheduleService'
 
 const userRole = ref('worker')
 
@@ -546,53 +547,68 @@ const communicationPreview = ref([
 
 // --- Worker Schedule Functions ---
 const loadWorkerSchedule = async (workerId) => {
-  // Mock data for now - in real implementation, this would call an API
-  const mockSchedule = [
-    {
-      id: 1,
-      date: '2024-01-15',
-      shift: 'Morning Shift',
-      time: '06:00 - 14:00',
-      duration: '8 hours',
-      notes: 'Regular morning care duties'
-    },
-    {
-      id: 2,
-      date: '2024-01-16',
-      shift: 'Afternoon Shift',
-      time: '14:00 - 22:00',
-      duration: '8 hours',
-      notes: 'Afternoon care and medication assistance'
-    },
-    {
-      id: 3,
-      date: '2024-01-17',
-      shift: 'Night Shift',
-      time: '22:00 - 06:00',
-      duration: '8 hours',
-      notes: 'Overnight monitoring and care'
-    },
-    {
-      id: 4,
-      date: '2024-01-18',
-      shift: 'Morning Shift',
-      time: '06:00 - 14:00',
-      duration: '8 hours',
-      notes: 'Morning care and breakfast assistance'
-    },
-    {
-      id: 5,
-      date: '2024-01-19',
-      shift: 'Afternoon Shift',
-      time: '14:00 - 22:00',
-      duration: '8 hours',
-      notes: 'Afternoon activities and dinner assistance'
+  try {
+    const response = await getSchedulesByWorker(workerId)
+    
+    if (response?.data && Array.isArray(response.data)) {
+      // Transform API data to frontend format
+      const transformedSchedules = response.data.map(schedule => {
+        // Map shift type from backend to frontend format
+        let shift = schedule.shiftType
+        if (shift === 'morning') {
+          shift = 'Morning Shift'
+        } else if (shift === 'evening' || shift === 'afternoon') {
+          shift = 'Afternoon Shift'
+        } else if (shift === 'night') {
+          shift = 'Night Shift'
+        } else if (shift === 'full-day') {
+          shift = 'Full Day Shift'
+        }
+        
+        // Format date from LocalDate to string
+        const date = schedule.scheduleDate || schedule.date || ''
+        
+        // Format time from start/end times
+        const time = schedule.shiftStartTime && schedule.shiftEndTime 
+          ? `${schedule.shiftStartTime} - ${schedule.shiftEndTime}`
+          : (schedule.time || '')
+        
+        // Calculate duration if possible
+        let duration = schedule.duration || '8 hours'
+        if (schedule.shiftStartTime && schedule.shiftEndTime) {
+          // Simple duration calculation (can be improved)
+          duration = '8 hours' // Default, can be calculated from times
+        }
+        
+        return {
+          id: schedule.id,
+          date: date,
+          shift: shift,
+          time: time,
+          duration: duration,
+          notes: schedule.notes || ''
+        }
+      })
+      
+      // Sort by date (ascending)
+      transformedSchedules.sort((a, b) => {
+        if (a.date < b.date) return -1
+        if (a.date > b.date) return 1
+        return 0
+      })
+      
+      allWorkerSchedules.value = transformedSchedules
+      // Show next 3 upcoming schedules in preview
+      workerSchedule.value = transformedSchedules.slice(0, 3)
+    } else {
+      allWorkerSchedules.value = []
+      workerSchedule.value = []
     }
-  ]
-  
-  allWorkerSchedules.value = mockSchedule
-  // Show next 3 upcoming schedules in preview
-  workerSchedule.value = mockSchedule.slice(0, 3)
+  } catch (error) {
+    console.error('Failed to load worker schedule:', error)
+    allWorkerSchedules.value = []
+    workerSchedule.value = []
+  }
 }
 
 const showScheduleModal = () => {
