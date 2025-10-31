@@ -1,47 +1,54 @@
 // src/services/communicationService.js
 import api from "./api";
 
-// Note: These are mock implementations since the backend doesn't have communication APIs yet
-// In a real application, these would connect to actual message/communication endpoints
+// Helper function to map backend Message to frontend format
+function mapMessage(message) {
+    return {
+        id: message.id,
+        subject: message.subject,
+        from: message.fromUserName || message.fromUserId || 'Unknown',
+        date: message.createdAt ? formatDate(message.createdAt) : '',
+        status: message.status || 'sent',
+        content: message.content || ''
+    };
+}
 
-// Get all messages for current user
+// Helper function to format date
+function formatDate(dateString) {
+    if (!dateString) return '';
+    try {
+        const date = new Date(dateString);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${year}-${month}-${day} ${hours}:${minutes}`;
+    } catch (e) {
+        return dateString;
+    }
+}
+
+// Get all messages for current user (both sent and received)
 export async function getAllMessages() {
     try {
-        // For now, return mock data since backend doesn't have communication API
-        // In the future, this would be: const response = await api.get('/messages');
+        // Get all messages for current user (sent and received)
+        const response = await api.get('/messages');
+        const result = response.data;
         
-        const mockMessages = [
-            {
-                id: 1,
-                subject: 'Patient P1 Health Update',
-                from: 'Manager',
-                date: '2025-01-15 10:30',
-                status: 'unread',
-                content: 'Dear Family Member,\n\nI wanted to update you on P1\'s current health status. The recent examination shows improvement in blood pressure levels. Please let me know if you have any questions.\n\nBest regards,\nManager'
-            },
-            {
-                id: 2,
-                subject: 'Budget Approval Request',
-                from: 'F1',
-                date: '2025-01-14 14:20',
-                status: 'replied',
-                content: 'Hello Manager,\n\nI would like to request approval for additional budget allocation for P1\'s medication. The current budget is insufficient for the new prescription.\n\nPlease review and approve.\n\nThank you,\nF1'
-            },
-            {
-                id: 3,
-                subject: 'Weekly Care Report',
-                from: 'Manager',
-                date: '2025-01-13 09:15',
-                status: 'read',
-                content: 'Weekly care report for P1 is now available. All scheduled tasks have been completed successfully. No issues to report.\n\nManager'
-            }
-        ];
-        
-        return {
-            data: mockMessages
-        };
+        if (result.code === "0" && result.data) {
+            const mappedMessages = result.data.map(mapMessage);
+            return {
+                data: mappedMessages
+            };
+        } else {
+            throw new Error(result.msg || 'Failed to get messages');
+        }
     } catch (error) {
         console.error('Failed to get messages:', error);
+        if (error.response?.data?.msg) {
+            throw new Error(error.response.data.msg);
+        }
         throw new Error('Failed to get messages');
     }
 }
@@ -49,26 +56,31 @@ export async function getAllMessages() {
 // Send a new message
 export async function sendMessage(messageData) {
     try {
-        // For now, simulate API call since backend doesn't have communication API
-        // In the future, this would be: const response = await api.post('/messages', messageData);
-        
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network delay
-        
-        const newMessage = {
-            id: Date.now(),
+        // Prepare request body
+        const requestBody = {
             subject: messageData.subject,
-            from: messageData.from || 'Current User',
-            date: new Date().toISOString().slice(0, 16).replace('T', ' '),
-            status: 'sent',
             content: messageData.content,
-            to: messageData.to
+            toUserId: messageData.to,
+            toUserName: messageData.toUserName || messageData.to,
+            fromUserName: messageData.from || 'Current User',
+            category: messageData.category || 'general'
         };
         
-        return {
-            data: newMessage
-        };
+        const response = await api.post('/messages', requestBody);
+        const result = response.data;
+        
+        if (result.code === "0" && result.data) {
+            return {
+                data: mapMessage(result.data)
+            };
+        } else {
+            throw new Error(result.msg || 'Failed to send message');
+        }
     } catch (error) {
         console.error('Failed to send message:', error);
+        if (error.response?.data?.msg) {
+            throw new Error(error.response.data.msg);
+        }
         throw new Error('Failed to send message');
     }
 }
@@ -76,27 +88,27 @@ export async function sendMessage(messageData) {
 // Reply to a message
 export async function replyToMessage(messageId, replyData) {
     try {
-        // For now, simulate API call since backend doesn't have communication API
-        // In the future, this would be: const response = await api.post(`/messages/${messageId}/reply`, replyData);
-        
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network delay
-        
-        const reply = {
-            id: Date.now(),
-            subject: `Re: ${replyData.originalSubject}`,
-            from: replyData.from || 'Current User',
-            date: new Date().toISOString().slice(0, 16).replace('T', ' '),
-            status: 'sent',
+        const requestBody = {
             content: replyData.content,
-            to: replyData.to,
-            originalMessageId: messageId
+            subject: replyData.subject || `Re: ${replyData.originalSubject}`,
+            fromUserName: replyData.from || 'Current User'
         };
         
-        return {
-            data: reply
-        };
+        const response = await api.post(`/messages/${messageId}/reply`, requestBody);
+        const result = response.data;
+        
+        if (result.code === "0" && result.data) {
+            return {
+                data: mapMessage(result.data)
+            };
+        } else {
+            throw new Error(result.msg || 'Failed to reply to message');
+        }
     } catch (error) {
         console.error('Failed to reply to message:', error);
+        if (error.response?.data?.msg) {
+            throw new Error(error.response.data.msg);
+        }
         throw new Error('Failed to reply to message');
     }
 }
@@ -104,16 +116,21 @@ export async function replyToMessage(messageId, replyData) {
 // Mark message as read
 export async function markMessageAsRead(messageId) {
     try {
-        // For now, simulate API call since backend doesn't have communication API
-        // In the future, this would be: const response = await api.put(`/messages/${messageId}/read`);
+        const response = await api.put(`/messages/${messageId}/read`);
+        const result = response.data;
         
-        await new Promise(resolve => setTimeout(resolve, 500)); // Simulate network delay
-        
-        return {
-            data: { success: true }
-        };
+        if (result.code === "0" && result.data) {
+            return {
+                data: { success: true }
+            };
+        } else {
+            throw new Error(result.msg || 'Failed to mark message as read');
+        }
     } catch (error) {
         console.error('Failed to mark message as read:', error);
+        if (error.response?.data?.msg) {
+            throw new Error(error.response.data.msg);
+        }
         throw new Error('Failed to mark message as read');
     }
 }
@@ -121,16 +138,21 @@ export async function markMessageAsRead(messageId) {
 // Delete a message
 export async function deleteMessage(messageId) {
     try {
-        // For now, simulate API call since backend doesn't have communication API
-        // In the future, this would be: const response = await api.delete(`/messages/${messageId}`);
+        const response = await api.delete(`/messages/${messageId}`);
+        const result = response.data;
         
-        await new Promise(resolve => setTimeout(resolve, 500)); // Simulate network delay
-        
-        return {
-            data: { success: true }
-        };
+        if (result.code === "0") {
+            return {
+                data: { success: true }
+            };
+        } else {
+            throw new Error(result.msg || 'Failed to delete message');
+        }
     } catch (error) {
         console.error('Failed to delete message:', error);
+        if (error.response?.data?.msg) {
+            throw new Error(error.response.data.msg);
+        }
         throw new Error('Failed to delete message');
     }
 }
@@ -138,26 +160,21 @@ export async function deleteMessage(messageId) {
 // Get message by ID
 export async function getMessageById(messageId) {
     try {
-        // For now, simulate API call since backend doesn't have communication API
-        // In the future, this would be: const response = await api.get(`/messages/${messageId}`);
+        const response = await api.get(`/messages/${messageId}`);
+        const result = response.data;
         
-        await new Promise(resolve => setTimeout(resolve, 500)); // Simulate network delay
-        
-        // Return mock message
-        const mockMessage = {
-            id: messageId,
-            subject: 'Sample Message',
-            from: 'Manager',
-            date: '2025-01-15 10:30',
-            status: 'unread',
-            content: 'This is a sample message content.'
-        };
-        
-        return {
-            data: mockMessage
-        };
+        if (result.code === "0" && result.data) {
+            return {
+                data: mapMessage(result.data)
+            };
+        } else {
+            throw new Error(result.msg || 'Failed to get message');
+        }
     } catch (error) {
         console.error('Failed to get message:', error);
+        if (error.response?.data?.msg) {
+            throw new Error(error.response.data.msg);
+        }
         throw new Error('Failed to get message');
     }
 }

@@ -1,6 +1,7 @@
 package com.careapp.domain;
 
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 @Document(collection = "users")
@@ -22,6 +23,10 @@ public class User {
     private String organizationId; // organization ID
     private String patientId;    // associated patient ID (for FM/POA)
     private String managerId;    // manager ID (for WORKER userType)
+    
+    // Temporary field for registration (not persisted to database)
+    @Transient
+    private String organizationName; // organization name (used during registration to generate organizationId)
     
     // keep uname field for backward compatibility
     private String uname;
@@ -129,4 +134,8 @@ public class User {
 
     public String getEveningShiftEnd() { return eveningShiftEnd; }
     public void setEveningShiftEnd(String eveningShiftEnd) { this.eveningShiftEnd = eveningShiftEnd; }
+    
+    // Organization name getter & setter (transient field)
+    public String getOrganizationName() { return organizationName; }
+    public void setOrganizationName(String organizationName) { this.organizationName = organizationName; }
 }

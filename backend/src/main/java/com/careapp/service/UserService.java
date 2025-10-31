@@ -52,5 +52,8 @@ public interface UserService {
     
     // Update manager shift time settings
     boolean updateShiftTimeSettings(String userId, String morningStart, String morningEnd, String afternoonStart, String afternoonEnd, String eveningStart, String eveningEnd);
+    
+    // Get user by organization ID and user type
+    User getUserByOrganizationAndType(String organizationId, String userType);
 
 }

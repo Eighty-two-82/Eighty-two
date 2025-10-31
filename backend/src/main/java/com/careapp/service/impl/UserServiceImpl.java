@@ -9,6 +9,7 @@ import org.springframework.util.StringUtils;
 import javax.annotation.Resource;
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.UUID;
 
 @Service
 public class UserServiceImpl implements UserService {
@@ -49,6 +50,22 @@ public class UserServiceImpl implements UserService {
         newUser.setStatus("active");
         newUser.setPasswordResetToken(null);
         newUser.setPasswordResetExpires(null);
+        
+        // Handle organizationId logic:
+        // 1. If organizationId is already provided, use it
+        // 2. If organizationName is provided, generate a unique organizationId
+        // 3. If neither is provided, set to "default-org"
+        if (!StringUtils.hasText(newUser.getOrganizationId())) {
+            if (StringUtils.hasText(newUser.getOrganizationName())) {
+                // Generate a unique organizationId based on organizationName
+                // Using UUID to ensure uniqueness
+                String generatedOrgId = "org-" + UUID.randomUUID().toString().replace("-", "");
+                newUser.setOrganizationId(generatedOrgId);
+            } else {
+                // No organizationName provided, set to default
+                newUser.setOrganizationId("default-org");
+            }
+        }
         
         User savedUser = userRepository.save(newUser);
         if (savedUser != null) {
@@ -346,6 +363,14 @@ public class UserServiceImpl implements UserService {
         
         userRepository.save(user);
         return true;
+    }
+    
+    @Override
+    public User getUserByOrganizationAndType(String organizationId, String userType) {
+        if (!StringUtils.hasText(organizationId) || !StringUtils.hasText(userType)) {
+            return null;
+        }
+        return userRepository.findFirstByOrganizationIdAndUserType(organizationId, userType);
     }
 
     private String generateToken() {
