@@ -860,6 +860,11 @@ import {
   approveTaskRequest,
   rejectTaskRequest
 } from '../services/taskService'
+import { 
+  getAllWorkers,
+  getWorkersByOrganization,
+  getWorkersByManagerId
+} from '../services/workerService'
 
 // Reactive data
 const selectedDate = ref(null)
@@ -1913,6 +1918,25 @@ const loadTasks = async () => {
     } else if (currentUser.value.role === 'manager') {
       // Load all tasks
       response = await getAllTasks()
+      
+      // Load available workers for task assignment
+      try {
+        console.log('🔍 Manager loading workers for task assignment - Manager ID:', currentUser.value.id)
+        const workersResponse = await getWorkersByManagerId(currentUser.value.id)
+        if (workersResponse && workersResponse.data) {
+          availableWorkers.value = workersResponse.data.filter(worker => 
+            worker.status === 'active' || worker.status === 'Active'
+          )
+          console.log('✅ Loaded available workers for task assignment:', availableWorkers.value.length)
+          console.log('📋 Available workers:', availableWorkers.value.map(w => ({ id: w.id, name: w.name, workerId: w.workerId })))
+        } else {
+          console.warn('⚠️ No workers data returned for manager')
+        }
+      } catch (error) {
+        console.error('❌ Failed to load workers for task assignment:', error)
+        // Fallback to empty array if loading fails
+        availableWorkers.value = []
+      }
       
       // Load pending change requests for manager
       try {

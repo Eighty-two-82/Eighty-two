@@ -1,14 +1,18 @@
 package com.careapp.service.impl;
 
 import com.careapp.domain.InviteCode;
+import com.careapp.domain.User;
+import com.careapp.domain.Worker;
 import com.careapp.repository.InviteCodeRepository;
 import com.careapp.service.InviteCodeService;
 import com.careapp.service.UserService;
+import com.careapp.service.WorkerService;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.Random;
 
 @Service
@@ -19,6 +23,9 @@ public class InviteCodeServiceImpl implements InviteCodeService {
     
     @Resource
     private UserService userService;
+    
+    @Resource
+    private WorkerService workerService;
 
     private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     private static final int CODE_LENGTH = 8;
@@ -130,10 +137,64 @@ public class InviteCodeServiceImpl implements InviteCodeService {
                 System.out.println("🔍 Worker token - Manager ID: " + managerId + ", Patient ID: " + patientId);
                 
                 if (managerId != null) {
-                    // Bind worker to manager using UserService
+                    // Bind worker to manager using UserService (for User entity)
                     boolean bindManagerSuccess = userService.bindWorkerToManager(usedBy, managerId);
                     if (bindManagerSuccess) {
-                        System.out.println("✅ Successfully bound worker " + usedBy + " to manager " + managerId);
+                        System.out.println("✅ Successfully bound worker " + usedBy + " to manager " + managerId + " in User entity");
+                        
+                        // Also bind in Worker entity (for Worker API queries)
+                        try {
+                            // First check if Worker entity exists
+                            Optional<Worker> existingWorker = workerService.getWorkerById(usedBy);
+                            Worker worker;
+                            
+                            if (existingWorker.isPresent()) {
+                                // Worker exists, just bind manager
+                                worker = workerService.bindWorkerToManager(usedBy, managerId);
+                                System.out.println("✅ Successfully bound existing worker " + usedBy + " to manager " + managerId + " in Worker entity");
+                            } else {
+                                // Worker doesn't exist, create it from User entity
+                                System.out.println("⚠️ Worker entity not found for ID: " + usedBy + ", creating from User entity...");
+                                User user = userService.getUserById(usedBy);
+                                if (user != null) {
+                                    // Create Worker entity from User info
+                                    Worker newWorker = new Worker();
+                                    newWorker.setId(usedBy); // Use same ID as User
+                                    newWorker.setName(user.getFirstName() + " " + (user.getLastName() != null ? user.getLastName() : ""));
+                                    newWorker.setEmail(user.getEmail());
+                                    newWorker.setOrganizationId(inviteCode.getOrganizationId() != null ? inviteCode.getOrganizationId() : user.getOrganizationId());
+                                    newWorker.setManagerId(managerId); // Set manager directly
+                                    newWorker.setStatus("active"); // Set status to active
+                                    
+                                    // Generate workerId if not exists (W001, W002, etc.)
+                                    if (newWorker.getWorkerId() == null) {
+                                        // Try to find a unique worker ID
+                                        String workerIdPrefix = "W";
+                                        int workerNumber = 1;
+                                        String workerId = workerIdPrefix + String.format("%03d", workerNumber);
+                                        while (workerService.getWorkerByWorkerId(workerId).isPresent()) {
+                                            workerNumber++;
+                                            workerId = workerIdPrefix + String.format("%03d", workerNumber);
+                                        }
+                                        newWorker.setWorkerId(workerId);
+                                    }
+                                    
+                                    worker = workerService.createWorker(newWorker);
+                                    System.out.println("✅ Created new Worker entity for " + usedBy + " and bound to manager " + managerId);
+                                } else {
+                                    System.out.println("❌ User entity not found for ID: " + usedBy);
+                                    worker = null;
+                                }
+                            }
+                            
+                            if (worker != null) {
+                                System.out.println("✅ Successfully bound worker " + usedBy + " to manager " + managerId + " in Worker entity");
+                            }
+                        } catch (Exception e) {
+                            System.err.println("⚠️ Failed to bind worker in Worker entity (User entity binding succeeded): " + e.getMessage());
+                            e.printStackTrace();
+                            // Don't fail if Worker entity creation fails
+                        }
                     } else {
                         System.out.println("❌ Failed to bind worker " + usedBy + " to manager " + managerId);
                     }
