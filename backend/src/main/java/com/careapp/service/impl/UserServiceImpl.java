@@ -327,6 +327,14 @@ public class UserServiceImpl implements UserService {
         userRepository.save(user);
         return true;
     }
+    
+    @Override
+    public User getUserByOrganizationAndType(String organizationId, String userType) {
+        if (!StringUtils.hasText(organizationId) || !StringUtils.hasText(userType)) {
+            return null;
+        }
+        return userRepository.findFirstByOrganizationIdAndUserType(organizationId, userType);
+    }
 
     private String generateToken() {
         byte[] bytes = new byte[24];

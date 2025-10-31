@@ -138,6 +138,7 @@ import {
   EditOutlined 
 } from '@ant-design/icons-vue'
 import { getMe } from '@/services/userService'
+import api from '@/services/api'
 import { 
   getAllMessages, 
   sendMessage as sendMessageAPI, 
@@ -147,11 +148,14 @@ import {
 } from '@/services/communicationService'
 
 const userRole = ref('worker')
+const currentUserId = ref('')
+const currentOrganizationId = ref('')
+const recipientUserId = ref('')
+const recipientUserName = ref('')
 const isComposeModalOpen = ref(false)
 const isViewModalOpen = ref(false)
 const isReplyModalOpen = ref(false)
 const currentMessage = ref(null)
-
 
 const messages = ref([])
 
@@ -180,18 +184,58 @@ const replyForm = reactive({
 
 // 可用的收件人
 const availableRecipients = computed(() => {
-  if (userRole.value === 'poa') {
-    return [{ value: 'manager', label: 'Manager' }]
-  } else if (userRole.value === 'manager') {
-    return [{ value: 'f1', label: 'F1 (Family Member)' }]
+  if (recipientUserId.value && recipientUserName.value) {
+    if (userRole.value === 'poa') {
+      return [{ value: recipientUserId.value, label: recipientUserName.value }]
+    } else if (userRole.value === 'manager') {
+      return [{ value: recipientUserId.value, label: recipientUserName.value }]
+    }
   }
   return []
 })
+
+// 获取收件人用户信息
+const loadRecipient = async () => {
+  try {
+    if (!currentOrganizationId.value) {
+      console.warn('No organization ID available')
+      return
+    }
+    
+    // 根据当前用户角色确定收件人类型
+    let targetUserType = ''
+    if (userRole.value === 'poa') {
+      targetUserType = 'MANAGER'
+    } else if (userRole.value === 'manager') {
+      targetUserType = 'POA'
+    } else {
+      return
+    }
+    
+    // 获取收件人用户信息
+    const response = await api.get(`/auth/organization/${currentOrganizationId.value}/userType/${targetUserType}`)
+    const result = response.data
+    
+    if (result.code === '0' && result.data) {
+      const user = result.data
+      recipientUserId.value = user.id
+      recipientUserName.value = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email || 'User'
+      console.log('Loaded recipient:', recipientUserId.value, recipientUserName.value)
+    }
+  } catch (error) {
+    console.error('Failed to load recipient:', error)
+  }
+}
 
 onMounted(async () => {
   try {
     const userInfo = await getMe()
     userRole.value = userInfo?.data?.role || 'worker'
+    currentUserId.value = userInfo?.data?.id || ''
+    currentOrganizationId.value = userInfo?.data?.organizationId || ''
+    
+    // Load recipient user info
+    await loadRecipient()
     
     // Load messages from API
     await loadMessages()
@@ -206,10 +250,11 @@ const loadMessages = async () => {
     const response = await getAllMessages()
     if (response?.data) {
       messages.value = response.data
+      console.log('Loaded messages:', messages.value.length)
     }
   } catch (error) {
     console.error('Failed to load messages:', error)
-    // Keep using mock data if API fails
+    message.error('Failed to load messages')
   }
 }
 
@@ -250,18 +295,29 @@ const sendMessage = async () => {
     return
   }
   
+  if (!recipientUserId.value) {
+    message.error('Recipient not found. Please try again.')
+    return
+  }
+  
   try {
+    const userInfo = await getMe()
+    const fromUserName = userInfo?.data?.name || userInfo?.data?.email || 'Current User'
+    
     const messageData = {
-      to: composeForm.to,
+      to: recipientUserId.value, // 使用实际的 userId
+      toUserName: recipientUserName.value,
       subject: composeForm.subject,
       content: composeForm.message,
-      from: userRole.value === 'poa' ? 'F1' : 'Manager'
+      from: fromUserName,
+      category: 'general'
     }
     
     const response = await sendMessageAPI(messageData)
     
     if (response.data) {
-      messages.value.unshift(response.data)
+      // 重新加载消息列表以确保显示最新消息
+      await loadMessages()
       message.success('Message sent successfully')
       isComposeModalOpen.value = false
       
@@ -285,11 +341,13 @@ const cancelCompose = () => {
 const viewMessage = async (record) => {
   currentMessage.value = record
   
-  // 标记为已读
-  if (record.status === 'unread') {
+  // 标记为已读（如果状态是 unread 或 sent）
+  if (record.status === 'unread' || record.status === 'sent') {
     try {
       await markMessageAsRead(record.id)
       record.status = 'read'
+      // 更新消息列表
+      await loadMessages()
     } catch (error) {
       console.error('Failed to mark message as read:', error)
     }
@@ -300,44 +358,53 @@ const viewMessage = async (record) => {
 
 // 回复消息
 const replyMessage = (record) => {
-  // 根据发送者确定收件人
-  if (record.from === 'Manager') {
-    replyForm.to = 'F1'
-  } else {
-    replyForm.to = 'Manager'
-  }
   replyForm.subject = `Re: ${record.subject}`
   replyForm.message = ''
+  replyForm.to = record.from // 显示收件人名称
   currentMessage.value = record
   isReplyModalOpen.value = true
 }
 
 // 发送回复
-const sendReply = () => {
-  if (!replyForm.message) {
+const sendReply = async () => {
+  if (!replyForm.message || !currentMessage.value) {
     message.error('Please enter your reply message')
     return
   }
   
-  // 添加回复消息
-  const replyMessage = {
-    id: Date.now(),
-    subject: replyForm.subject,
-    from: userRole.value === 'poa' ? 'F1' : 'Manager',
-    date: new Date().toLocaleString(),
-    status: 'unread',
-    content: replyForm.message
+  try {
+    const userInfo = await getMe()
+    const fromUserName = userInfo?.data?.name || userInfo?.data?.email || 'Current User'
+    
+    // 确定收件人（原消息的发送者）
+    // 需要从原消息中获取发送者的 userId
+    // 由于前端只显示了 fromUserName，我们需要通过 API 获取完整的消息信息
+    const originalMessageId = currentMessage.value.id
+    
+    const replyData = {
+      content: replyForm.message,
+      subject: replyForm.subject,
+      originalSubject: currentMessage.value.subject,
+      from: fromUserName
+    }
+    
+    const response = await replyToMessage(originalMessageId, replyData)
+    
+    if (response.data) {
+      // 重新加载消息列表以确保显示最新回复
+      await loadMessages()
+      message.success('Reply sent successfully')
+      isReplyModalOpen.value = false
+      
+      // Reset form
+      replyForm.message = ''
+      replyForm.subject = ''
+      replyForm.to = ''
+    }
+  } catch (error) {
+    console.error('Failed to send reply:', error)
+    message.error(error.message || 'Failed to send reply')
   }
-  
-  messages.value.unshift(replyMessage)
-  
-  // 更新原消息状态为已回复
-  if (currentMessage.value) {
-    currentMessage.value.status = 'replied'
-  }
-  
-  message.success('Reply sent successfully')
-  isReplyModalOpen.value = false
 }
 
 // 取消回复
