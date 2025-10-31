@@ -90,6 +90,24 @@ public class BudgetController {
         }
     }
 
+    /**
+     * Delete budget by budget ID (frontend compatibility)
+     * DELETE /api/budget/{budgetId}
+     */
+    @DeleteMapping("/{budgetId}")
+    public Result<String> deleteBudgetById(@PathVariable String budgetId) {
+        try {
+            boolean deleted = budgetService.deleteBudgetById(budgetId);
+            if (deleted) {
+                return Result.success("Budget deleted", "Budget deleted successfully!");
+            } else {
+                return Result.error("404", "Budget not found");
+            }
+        } catch (Exception e) {
+            return Result.error("400", "Failed to delete budget: " + e.getMessage());
+        }
+    }
+
     // Budget adjustment operations
 
     /**

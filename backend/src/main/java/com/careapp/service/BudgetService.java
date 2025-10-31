@@ -41,6 +41,13 @@ public interface BudgetService {
      */
     boolean deleteBudget(String patientId);
     
+    /**
+     * Delete budget by budget ID
+     * @param budgetId Budget document ID
+     * @return true if deleted successfully
+     */
+    boolean deleteBudgetById(String budgetId);
+    
     // Budget adjustment operations
     
     /**

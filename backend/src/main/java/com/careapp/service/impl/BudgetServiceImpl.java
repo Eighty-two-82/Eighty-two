@@ -133,6 +133,18 @@ public class BudgetServiceImpl implements BudgetService {
     }
 
     @Override
+    public boolean deleteBudgetById(String budgetId) {
+        if (budgetId == null || budgetId.isEmpty()) {
+            return false;
+        }
+        if (budgetRepository.existsById(budgetId)) {
+            budgetRepository.deleteById(budgetId);
+            return true;
+        }
+        return false;
+    }
+
+    @Override
     public Budget adjustTotalBudget(String patientId, double newTotalBudget, String reason) {
         Budget budget = getBudgetByPatientId(patientId);
         

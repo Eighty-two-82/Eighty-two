@@ -413,6 +413,58 @@ public class WorkerController {
             return Result.error("500", "Failed to upload worker photo: " + e.getMessage());
         }
     }
+
+    /**
+     * Upload worker photo (multipart form-data, part name 'photo')
+     * POST /api/workers/{id}/photo
+     * @param id Worker ID
+     * @param photo Multipart file with form field name 'photo'
+     * @return Updated worker
+     */
+    @PostMapping(value = "/{id}/photo", consumes = "multipart/form-data")
+    public Result<Worker> uploadWorkerPhotoMultipart(
+            @PathVariable String id,
+            @RequestPart("photo") MultipartFile photo) {
+        try {
+            if (photo == null || photo.isEmpty()) {
+                return Result.error("400", "Please select a photo to upload!");
+            }
+
+            String contentType = photo.getContentType();
+            if (contentType == null || !contentType.startsWith("image/")) {
+                return Result.error("400", "Only image files are allowed for photo upload!");
+            }
+
+            String uploadDir = "uploads/worker-photos/";
+            File directory = new File(uploadDir);
+            if (!directory.exists()) {
+                directory.mkdirs();
+            }
+
+            String originalFilename = photo.getOriginalFilename();
+            String fileExtension = "";
+            if (originalFilename != null && originalFilename.contains(".")) {
+                fileExtension = originalFilename.substring(originalFilename.lastIndexOf("."));
+            }
+            String newFilename = id + "_" + java.util.UUID.randomUUID().toString() + fileExtension;
+
+            Path filePath = Paths.get(uploadDir + newFilename);
+            Files.copy(photo.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+
+            String fileUrl = "/uploads/worker-photos/" + newFilename;
+
+            Worker worker = workerService.uploadWorkerPhotoSimple(id, fileUrl);
+            if (worker != null) {
+                return Result.success(worker, "Worker photo uploaded successfully!");
+            } else {
+                return Result.error("404", "Worker not found!");
+            }
+        } catch (IOException e) {
+            return Result.error("500", "Failed to save file: " + e.getMessage());
+        } catch (Exception e) {
+            return Result.error("500", "Failed to upload worker photo: " + e.getMessage());
+        }
+    }
     
     /**
      * Batch upload worker photos
