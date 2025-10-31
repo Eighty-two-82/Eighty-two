@@ -146,7 +146,21 @@ public class BudgetServiceImpl implements BudgetService {
 
     @Override
     public Budget adjustTotalBudget(String patientId, double newTotalBudget, String reason) {
-        Budget budget = getBudgetByPatientId(patientId);
+        // Find budget by patient ID
+        Optional<Budget> budgetOpt = budgetRepository.findByPatientId(patientId);
+        Budget budget;
+        
+        if (!budgetOpt.isPresent()) {
+            // 创建一个新预算防止崩溃（防御式修复）
+            budget = new Budget();
+            budget.setPatientId(patientId);
+            budget.setTotalBudget(0);
+            budget.setCreatedAt(LocalDateTime.now());
+            budget.setUpdatedAt(LocalDateTime.now());
+            budgetRepository.save(budget);
+        } else {
+            budget = budgetOpt.get();
+        }
         
         // Validate new budget amount
         if (newTotalBudget < 0) {
