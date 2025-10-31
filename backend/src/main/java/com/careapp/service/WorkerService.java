@@ -67,14 +67,29 @@ public class WorkerService {
         Optional<Worker> optionalWorker = workerRepository.findById(id);
         if (optionalWorker.isPresent()) {
             Worker existingWorker = optionalWorker.get();
-            existingWorker.setName(workerDetails.getName());
-            existingWorker.setEmail(workerDetails.getEmail());
-            existingWorker.setPhone(workerDetails.getPhone());
-            existingWorker.setStatus(workerDetails.getStatus());
-            existingWorker.setNotes(workerDetails.getNotes());
+            // Only update fields that are provided (not null)
+            if (workerDetails.getName() != null && !workerDetails.getName().isEmpty()) {
+                existingWorker.setName(workerDetails.getName());
+            }
+            if (workerDetails.getEmail() != null && !workerDetails.getEmail().isEmpty()) {
+                existingWorker.setEmail(workerDetails.getEmail());
+            }
+            if (workerDetails.getPhone() != null) {
+                existingWorker.setPhone(workerDetails.getPhone());
+            }
+            if (workerDetails.getStatus() != null && !workerDetails.getStatus().isEmpty()) {
+                existingWorker.setStatus(workerDetails.getStatus());
+            }
+            if (workerDetails.getNotes() != null) {
+                existingWorker.setNotes(workerDetails.getNotes());
+            }
             // 注意：移除了setAssignedPatients，因为不再直接分配Patient
-            existingWorker.setDailySchedule(workerDetails.getDailySchedule());
-            existingWorker.setSpecializations(workerDetails.getSpecializations());
+            if (workerDetails.getDailySchedule() != null) {
+                existingWorker.setDailySchedule(workerDetails.getDailySchedule());
+            }
+            if (workerDetails.getSpecializations() != null) {
+                existingWorker.setSpecializations(workerDetails.getSpecializations());
+            }
             existingWorker.setUpdatedAt(LocalDateTime.now());
             return workerRepository.save(existingWorker);
         }

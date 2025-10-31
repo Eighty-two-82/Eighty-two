@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
@@ -51,13 +50,26 @@ public class TaskController {
             @RequestHeader(value = "X-Organization-Id", required = false) String organizationId,
             @RequestHeader(value = "X-Patient-Id", required = false) String patientId) {
         try {
+            // Validate required fields
+            if (request.getTitle() == null || request.getTitle().isEmpty()) {
+                return Result.error("400", "title is required");
+            }
+            
             // Create Task object with automatic default values
             Task task = new Task();
             task.setTitle(request.getTitle());
-            task.setDescription(request.getDescription());
-            task.setAssignedTo(request.getAssignedTo());
-            task.setPriority(request.getPriority());
-            task.setDueDate(request.getDueDate());
+            if (request.getDescription() != null) {
+                task.setDescription(request.getDescription());
+            }
+            if (request.getAssignedTo() != null) {
+                task.setAssignedTo(request.getAssignedTo());
+            }
+            if (request.getPriority() != null) {
+                task.setPriority(request.getPriority());
+            }
+            if (request.getDueDate() != null) {
+                task.setDueDate(request.getDueDate());
+            }
             
             // Get user information from request headers, use defaults if not provided (backward compatibility)
             task.setPatientId(patientId != null ? patientId : "default-patient-001");

@@ -118,7 +118,16 @@ public class BudgetController {
     public Result<Budget> adjustTotalBudget(@RequestBody Map<String, Object> request) {
         try {
             String patientId = (String) request.get("patientId");
+            if (patientId == null || patientId.isEmpty()) {
+                return Result.error("400", "patientId is required");
+            }
+            if (request.get("newTotalBudget") == null) {
+                return Result.error("400", "newTotalBudget is required");
+            }
             Double newTotalBudget = Double.valueOf(request.get("newTotalBudget").toString());
+            if (newTotalBudget < 0) {
+                return Result.error("400", "newTotalBudget cannot be negative");
+            }
             String reason = (String) request.get("reason");
 
             Budget updatedBudget = budgetService.adjustTotalBudget(patientId, newTotalBudget, reason);
@@ -138,7 +147,22 @@ public class BudgetController {
             String patientId = (String) request.get("patientId");
             String fromCategoryId = (String) request.get("fromCategoryId");
             String toCategoryId = (String) request.get("toCategoryId");
+            if (patientId == null || patientId.isEmpty()) {
+                return Result.error("400", "patientId is required");
+            }
+            if (fromCategoryId == null || fromCategoryId.isEmpty()) {
+                return Result.error("400", "fromCategoryId is required");
+            }
+            if (toCategoryId == null || toCategoryId.isEmpty()) {
+                return Result.error("400", "toCategoryId is required");
+            }
+            if (request.get("amount") == null) {
+                return Result.error("400", "amount is required");
+            }
             Double amount = Double.valueOf(request.get("amount").toString());
+            if (amount <= 0) {
+                return Result.error("400", "amount must be positive");
+            }
             String reason = (String) request.get("reason");
 
             Budget updated = budgetService.reallocateBetweenCategories(patientId, fromCategoryId, toCategoryId, amount, reason);
@@ -159,7 +183,25 @@ public class BudgetController {
             String categoryId = (String) request.get("categoryId");
             String fromSubElementId = (String) request.get("fromSubElementId");
             String toSubElementId = (String) request.get("toSubElementId");
+            if (patientId == null || patientId.isEmpty()) {
+                return Result.error("400", "patientId is required");
+            }
+            if (categoryId == null || categoryId.isEmpty()) {
+                return Result.error("400", "categoryId is required");
+            }
+            if (fromSubElementId == null || fromSubElementId.isEmpty()) {
+                return Result.error("400", "fromSubElementId is required");
+            }
+            if (toSubElementId == null || toSubElementId.isEmpty()) {
+                return Result.error("400", "toSubElementId is required");
+            }
+            if (request.get("amount") == null) {
+                return Result.error("400", "amount is required");
+            }
             Double amount = Double.valueOf(request.get("amount").toString());
+            if (amount <= 0) {
+                return Result.error("400", "amount must be positive");
+            }
             String reason = (String) request.get("reason");
 
             Budget updated = budgetService.reallocateBetweenSubElements(patientId, categoryId, fromSubElementId, toSubElementId, amount, reason);
@@ -179,7 +221,22 @@ public class BudgetController {
             String patientId = (String) request.get("patientId");
             String categoryId = (String) request.get("categoryId");
             String subElementId = (String) request.get("subElementId");
+            if (patientId == null || patientId.isEmpty()) {
+                return Result.error("400", "patientId is required");
+            }
+            if (categoryId == null || categoryId.isEmpty()) {
+                return Result.error("400", "categoryId is required");
+            }
+            if (subElementId == null || subElementId.isEmpty()) {
+                return Result.error("400", "subElementId is required");
+            }
+            if (request.get("amount") == null) {
+                return Result.error("400", "amount is required");
+            }
             Double amount = Double.valueOf(request.get("amount").toString());
+            if (amount <= 0) {
+                return Result.error("400", "amount must be positive");
+            }
             String reason = (String) request.get("reason");
 
             Budget updated = budgetService.refundSubElement(patientId, categoryId, subElementId, amount, reason);
@@ -197,12 +254,25 @@ public class BudgetController {
     public Result<Budget> addCategory(@RequestBody Map<String, Object> request) {
         try {
             String patientId = (String) request.get("patientId");
+            if (patientId == null || patientId.isEmpty()) {
+                return Result.error("400", "patientId is required");
+            }
             
-            // Create BudgetCategory from request
+            // Create BudgetCategory from request with guards
             BudgetCategory category = new BudgetCategory();
-            category.setName((String) request.get("name"));
-            category.setDescription((String) request.get("description"));
-            category.setCategoryBudget(Double.valueOf(request.get("categoryBudget").toString()));
+            if (request.get("name") != null) {
+                category.setName(String.valueOf(request.get("name")));
+            }
+            if (request.get("description") != null) {
+                category.setDescription(String.valueOf(request.get("description")));
+            }
+            if (request.get("categoryBudget") != null) {
+                double cb = Double.valueOf(String.valueOf(request.get("categoryBudget")));
+                if (cb < 0) {
+                    return Result.error("400", "categoryBudget cannot be negative");
+                }
+                category.setCategoryBudget(cb);
+            }
 
             Budget updatedBudget = budgetService.addCategory(patientId, category);
             return Result.success(updatedBudget, "Category added successfully!");
@@ -220,12 +290,28 @@ public class BudgetController {
         try {
             String patientId = (String) request.get("patientId");
             String categoryId = (String) request.get("categoryId");
+            if (patientId == null || patientId.isEmpty()) {
+                return Result.error("400", "patientId is required");
+            }
+            if (categoryId == null || categoryId.isEmpty()) {
+                return Result.error("400", "categoryId is required");
+            }
             
-            // Create BudgetSubElement from request
+            // Create BudgetSubElement from request with guards
             BudgetSubElement subElement = new BudgetSubElement();
-            subElement.setName((String) request.get("name"));
-            subElement.setDescription((String) request.get("description"));
-            subElement.setSubElementBudget(Double.valueOf(request.get("subElementBudget").toString()));
+            if (request.get("name") != null) {
+                subElement.setName(String.valueOf(request.get("name")));
+            }
+            if (request.get("description") != null) {
+                subElement.setDescription(String.valueOf(request.get("description")));
+            }
+            if (request.get("subElementBudget") != null) {
+                double seb = Double.valueOf(String.valueOf(request.get("subElementBudget")));
+                if (seb < 0) {
+                    return Result.error("400", "subElementBudget cannot be negative");
+                }
+                subElement.setSubElementBudget(seb);
+            }
 
             Budget updatedBudget = budgetService.addSubElement(patientId, categoryId, subElement);
             return Result.success(updatedBudget, "Sub-element added successfully!");
@@ -244,8 +330,14 @@ public class BudgetController {
             String patientId = (String) request.get("patientId");
             String categoryId = (String) request.get("categoryId");
             String subElementId = (String) request.get("subElementId");
-            Integer month = Integer.valueOf(request.get("month").toString());
-            Double amount = Double.valueOf(request.get("amount").toString());
+            if (patientId == null || categoryId == null || subElementId == null) {
+                return Result.error("400", "patientId, categoryId and subElementId are required");
+            }
+            if (request.get("month") == null || request.get("amount") == null) {
+                return Result.error("400", "month and amount are required");
+            }
+            Integer month = Integer.valueOf(String.valueOf(request.get("month")));
+            Double amount = Double.valueOf(String.valueOf(request.get("amount")));
 
             Budget updatedBudget = budgetService.updateMonthlyUsage(patientId, categoryId, subElementId, month, amount);
             return Result.success(updatedBudget, "Monthly usage updated successfully!");
@@ -264,6 +356,9 @@ public class BudgetController {
             String patientId = (String) request.get("patientId");
             String categoryId = (String) request.get("categoryId");
             String subElementId = (String) request.get("subElementId");
+            if (patientId == null || categoryId == null || subElementId == null) {
+                return Result.error("400", "patientId, categoryId and subElementId are required");
+            }
             @SuppressWarnings("unchecked")
             List<Object> raw = (List<Object>) request.get("monthlyUsage");
             if (raw == null) {
@@ -400,9 +495,15 @@ public class BudgetController {
             if (budget != null && budget.getCategories() != null) {
                 for (BudgetCategory category : budget.getCategories()) {
                     if (category.getId().equals(categoryId)) {
-                        category.setName(categoryData.getName());
-                        category.setDescription(categoryData.getDescription());
-                        category.setCategoryBudget(categoryData.getCategoryBudget());
+                        if (categoryData.getName() != null && !categoryData.getName().isEmpty()) {
+                            category.setName(categoryData.getName());
+                        }
+                        if (categoryData.getDescription() != null) {
+                            category.setDescription(categoryData.getDescription());
+                        }
+                        if (categoryData.getCategoryBudget() > 0) {
+                            category.setCategoryBudget(categoryData.getCategoryBudget());
+                        }
                         
                         budgetService.updateBudget(budget);
                         return Result.success(category, "Budget category updated successfully!");
