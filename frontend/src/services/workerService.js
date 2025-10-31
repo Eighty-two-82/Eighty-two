@@ -269,7 +269,7 @@ export async function clearDailySchedule(organizationId, date) {
     }
 }
 
-// Upload worker photo
+// Upload worker photo (for worker profile photo)
 export async function uploadWorkerPhoto(workerId, photoData) {
     try {
         const formData = new FormData();
@@ -299,3 +299,4 @@ export async function uploadWorkerPhoto(workerId, photoData) {
         }
     }
 }
+
