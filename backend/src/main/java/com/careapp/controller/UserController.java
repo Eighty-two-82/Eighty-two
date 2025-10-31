@@ -314,5 +314,20 @@ public class UserController {
             return Result.error("500", "Shift time settings update failed: " + e.getMessage());
         }
     }
+    
+    // Get users by organization ID and user type (for communication)
+    @GetMapping("/organization/{organizationId}/userType/{userType}")
+    public Result<User> getUserByOrganizationAndType(@PathVariable String organizationId, @PathVariable String userType) {
+        try {
+            User user = userService.getUserByOrganizationAndType(organizationId, userType);
+            if (user != null) {
+                return Result.success(user, "User retrieved successfully!");
+            } else {
+                return Result.error("404", "User not found!");
+            }
+        } catch (Exception e) {
+            return Result.error("500", "Failed to retrieve user: " + e.getMessage());
+        }
+    }
 
 }
