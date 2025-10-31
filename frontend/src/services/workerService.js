@@ -300,3 +300,26 @@ export async function uploadWorkerPhoto(workerId, photoData) {
     }
 }
 
+// Get workers by manager ID
+export async function getWorkersByManagerId(managerId) {
+    try {
+        const response = await api.get(`/workers/manager/${managerId}`);
+        const result = response.data;
+        
+        if (result.code === "0" && result.data) {
+            return {
+                data: result.data
+            };
+        } else {
+            throw new Error(result.msg || 'Failed to get workers by manager ID');
+        }
+    } catch (error) {
+        if (error.response?.data?.msg) {
+            throw new Error(error.response.data.msg);
+        } else if (error.message) {
+            throw error;
+        } else {
+            throw new Error('Failed to get workers by manager ID');
+        }
+    }
+}
