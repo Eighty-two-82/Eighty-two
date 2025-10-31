@@ -9,6 +9,7 @@ import com.careapp.utils.Result;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -479,11 +480,39 @@ public class BudgetController {
                     if (category.getId().equals(categoryId) && category.getSubElements() != null) {
                         for (BudgetSubElement subElement : category.getSubElements()) {
                             if (subElement.getId().equals(subElementId)) {
-                                subElement.setName(subElementData.getName());
-                                subElement.setDescription(subElementData.getDescription());
-                                subElement.setSubElementBudget(subElementData.getSubElementBudget());
+                                // Only update fields that are provided (not null)
+                                if (subElementData.getName() != null && !subElementData.getName().isEmpty()) {
+                                    subElement.setName(subElementData.getName());
+                                }
+                                if (subElementData.getDescription() != null) {
+                                    subElement.setDescription(subElementData.getDescription());
+                                }
+                                // Note: getSubElementBudget() returns double (primitive), so we check if it's > 0 to determine if it's provided
+                                // For now, we only update if a new value is explicitly provided (non-zero)
+                                if (subElementData.getSubElementBudget() > 0) {
+                                    subElement.setSubElementBudget(subElementData.getSubElementBudget());
+                                }
                                 
-                                budgetService.updateBudget(budget);
+                                // Handle monthly usage update - if provided, use bulk update
+                                if (subElementData.getMonthlyUsage() != null && subElementData.getMonthlyUsage().size() == 12) {
+                                    budget = budgetService.updateMonthlyUsageBulk(patientId, categoryId, subElementId, subElementData.getMonthlyUsage());
+                                    // Re-find the updated sub-element
+                                    for (BudgetCategory updatedCategory : budget.getCategories()) {
+                                        if (updatedCategory.getId().equals(categoryId) && updatedCategory.getSubElements() != null) {
+                                            for (BudgetSubElement updatedSubElement : updatedCategory.getSubElements()) {
+                                                if (updatedSubElement.getId().equals(subElementId)) {
+                                                    return Result.success(updatedSubElement, "Budget sub-element updated successfully!");
+                                                }
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    // Update other fields if monthlyUsage is not provided
+                                    budget.setUpdatedAt(LocalDateTime.now());
+                                    budget = budgetCalculationService.calculateBudgetMetrics(budget);
+                                    budgetService.updateBudget(budget);
+                                }
+                                
                                 return Result.success(subElement, "Budget sub-element updated successfully!");
                             }
                         }

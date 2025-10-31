@@ -1170,6 +1170,16 @@ const handleMonthlyInput = async () => {
       return
     }
 
+    // Find the category that contains this sub-element
+    const category = budgetData.value.categories.find(cat => 
+      cat.subElements && cat.subElements.some(sub => sub.id === currentSubElement.value.id)
+    )
+    
+    if (!category || !category.id) {
+      message.error('Category not found for this sub-element')
+      return
+    }
+
     // Calculate total utilised amount
     const totalUsed = monthlyInputForm.value.monthlyData.reduce((sum, amount) => sum + (amount || 0), 0)
     
@@ -1178,11 +1188,15 @@ const handleMonthlyInput = async () => {
       id: currentSubElement.value.id,
       monthlyUsage: monthlyInputForm.value.monthlyData,
       totalUtilised: totalUsed,
-      balance: currentSubElement.value.subElementBudget - totalUsed,
-      patientId: userInfo.data.patientId
+      balance: currentSubElement.value.subElementBudget - totalUsed
     }
     
-    const response = await updateBudgetSubElement(subElementData)
+    const response = await updateBudgetSubElement(
+      userInfo.data.patientId,
+      category.id,
+      currentSubElement.value.id,
+      subElementData
+    )
     if (response?.data) {
       // Update the sub-element's monthly usage data
       currentSubElement.value.monthlyUsage = [...monthlyInputForm.value.monthlyData]
@@ -1255,15 +1269,29 @@ const handleRefund = async () => {
 
     const refundAmount = refundForm.value.amount
     
+    // Find the category that contains this sub-element
+    const category = budgetData.value.categories.find(cat => 
+      cat.subElements && cat.subElements.some(sub => sub.id === currentRefundItem.value.id)
+    )
+    
+    if (!category || !category.id) {
+      message.error('Category not found for this sub-element')
+      return
+    }
+    
     // Call backend API to update sub-element
     const subElementData = {
       id: currentRefundItem.value.id,
       totalUtilised: currentRefundItem.value.totalUtilised - refundAmount,
-      balance: currentRefundItem.value.balance + refundAmount,
-      patientId: userInfo.data.patientId
+      balance: currentRefundItem.value.balance + refundAmount
     }
     
-    const response = await updateBudgetSubElement(subElementData)
+    const response = await updateBudgetSubElement(
+      userInfo.data.patientId,
+      category.id,
+      currentRefundItem.value.id,
+      subElementData
+    )
     if (response?.data) {
       // Update used amount and balance
       currentRefundItem.value.totalUtilised -= refundAmount
