@@ -275,11 +275,8 @@ export async function uploadWorkerPhoto(workerId, photoData) {
         const formData = new FormData();
         formData.append('photo', photoData);
         
-        const response = await api.post(`/workers/${workerId}/photo`, formData, {
-            headers: {
-                'Content-Type': 'multipart/form-data'
-            }
-        });
+        // Don't set Content-Type header - let browser set it automatically with boundary
+        const response = await api.post(`/workers/${workerId}/photo`, formData);
         const result = response.data;
         
         if (result.code === "0" && result.data) {

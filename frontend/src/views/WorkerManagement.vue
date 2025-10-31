@@ -1732,27 +1732,44 @@ const confirmDailyManagement = async () => {
     
     // Handle photo upload if there are files
     if (fileList.value.length > 0 && selectedWorkerForPhoto.value) {
-      message.loading(`Uploading photo for ${selectedWorkerForPhoto.value.name}...`, 0)
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      
-      // Save the photo URL to the worker's data
-      const uploadedFile = fileList.value[0]
-      if (uploadedFile && uploadedFile.thumbUrl) {
-        // Update the worker's photo in the workers array
-        const workerIndex = workers.value.findIndex(w => w.id === selectedWorkerForPhoto.value.id)
-        if (workerIndex !== -1) {
-          workers.value[workerIndex].photo = uploadedFile.thumbUrl
+      try {
+        message.loading(`Uploading photo for ${selectedWorkerForPhoto.value.name}...`, 0)
+        
+        const uploadedFile = fileList.value[0]
+        const fileToUpload = uploadedFile.originFileObj || uploadedFile
+        
+        if (!fileToUpload) {
+          throw new Error('No file selected for upload')
         }
         
-        // Update the worker's photo in the dailyWorkers array if they are currently displayed
-        const dailyWorkerIndex = dailyWorkers.value.findIndex(w => w.id === selectedWorkerForPhoto.value.id)
-        if (dailyWorkerIndex !== -1) {
-          dailyWorkers.value[dailyWorkerIndex].photo = uploadedFile.thumbUrl
+        // Call API to upload photo
+        const response = await uploadWorkerPhotoAPI(selectedWorkerForPhoto.value.id, fileToUpload)
+        
+        if (response.data) {
+          const photoUrl = response.data.photoUrl || response.data.photo
+          
+          // Update the worker's photo in the workers array
+          const workerIndex = workers.value.findIndex(w => w.id === selectedWorkerForPhoto.value.id)
+          if (workerIndex !== -1) {
+            workers.value[workerIndex].photo = photoUrl
+          }
+          
+          // Update the worker's photo in the dailyWorkers array if they are currently displayed
+          const dailyWorkerIndex = dailyWorkers.value.findIndex(w => w.id === selectedWorkerForPhoto.value.id)
+          if (dailyWorkerIndex !== -1) {
+            dailyWorkers.value[dailyWorkerIndex].photo = photoUrl
+          }
+          
+          message.destroy()
+          message.success(`Successfully uploaded photo for ${selectedWorkerForPhoto.value.name}`)
+        } else {
+          throw new Error('Upload failed: No data returned')
         }
+      } catch (error) {
+        message.destroy()
+        console.error('Failed to upload photo:', error)
+        message.error(error.message || 'Failed to upload photo')
       }
-      
-      message.destroy()
-      message.success(`Successfully uploaded photo for ${selectedWorkerForPhoto.value.name}`)
     }
     
     message.success('Daily schedule updated successfully!')
