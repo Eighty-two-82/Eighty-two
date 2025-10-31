@@ -18,6 +18,11 @@ const api = axios.create({
 // Request interceptor to add auth token and user headers
 api.interceptors.request.use(
     (config) => {
+        // If data is FormData, delete Content-Type header to let browser set it with boundary
+        if (config.data instanceof FormData) {
+            delete config.headers['Content-Type'];
+        }
+        
         // Get token from sessionStorage only
         const token = sessionStorage.getItem('token');
         if (token) {
