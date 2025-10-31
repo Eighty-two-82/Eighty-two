@@ -443,10 +443,33 @@ public class WorkerService {
      * @return List of workers managed by the manager
      */
     public List<Worker> getWorkersByManagerId(String managerId) {
+        System.out.println("🔍 getWorkersByManagerId called with managerId: " + managerId);
         List<Worker> allWorkers = workerRepository.findAll();
-        return allWorkers.stream()
-            .filter(worker -> managerId.equals(worker.getManagerId()))
+        System.out.println("📊 Total workers in database: " + allWorkers.size());
+        
+        // Log all workers with their managerId for debugging
+        System.out.println("📋 All workers in database:");
+        for (Worker worker : allWorkers) {
+            System.out.println("   - Worker ID: " + worker.getId() + 
+                             ", Name: " + worker.getName() + 
+                             ", ManagerId: " + (worker.getManagerId() != null ? worker.getManagerId() : "NULL") +
+                             ", Email: " + worker.getEmail());
+        }
+        
+        List<Worker> filteredWorkers = allWorkers.stream()
+            .filter(worker -> {
+                boolean matches = managerId.equals(worker.getManagerId());
+                if (matches) {
+                    System.out.println("✅ Found matching worker: " + worker.getId() + ", name: " + worker.getName() + ", managerId: " + worker.getManagerId());
+                } else {
+                    System.out.println("   ⚠️ Worker " + worker.getId() + " has managerId: " + (worker.getManagerId() != null ? worker.getManagerId() : "NULL") + " (not matching)");
+                }
+                return matches;
+            })
             .collect(java.util.stream.Collectors.toList());
+        
+        System.out.println("✅ getWorkersByManagerId returning " + filteredWorkers.size() + " workers for manager " + managerId);
+        return filteredWorkers;
     }
 
     /**

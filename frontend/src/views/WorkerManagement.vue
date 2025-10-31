@@ -177,10 +177,10 @@
             <template v-if="column.key === 'photo'">
               <a-avatar
                 :size="40"
-                :src="record.photo"
+                :src="record.photo || record.photoUrl"
                 :alt="record.name"
               >
-                {{ record.name.charAt(0).toUpperCase() }}
+                {{ record.name?.charAt(0)?.toUpperCase() || 'W' }}
               </a-avatar>
             </template>
             
@@ -984,6 +984,7 @@ import { addRemovedWorker } from '@/services/userService'
 import { 
   getAllWorkers,
   getWorkersByOrganization, 
+  getWorkersByManagerId,
   createWorker, 
   updateWorker, 
   deleteWorker, 
@@ -1966,9 +1967,16 @@ onMounted(async () => {
 // Load workers from API
 const loadWorkers = async () => {
   try {
-    // Use organization-specific API if organizationId is available
+    // If user is a manager, get workers bound to this manager
     let response
-    if (organizationId.value && organizationId.value !== 'default-org') {
+    if (currentUser.value?.role === 'manager' && currentUser.value?.id) {
+      // Manager should see only workers bound to them
+      console.log('🔍 Manager loading workers - Manager ID:', currentUser.value.id, 'Role:', currentUser.value.role)
+      response = await getWorkersByManagerId(currentUser.value.id)
+      console.log('📥 API Response:', response)
+      console.log('📊 Workers data:', response.data)
+    } else if (organizationId.value && organizationId.value !== 'default-org') {
+      // For other roles (POA, etc.), use organization-specific API
       response = await getWorkersByOrganization(organizationId.value)
     } else {
       // Fallback to all workers if no organization ID
@@ -1977,16 +1985,21 @@ const loadWorkers = async () => {
     
     workers.value = response.data || []
     
-    // Initialize available workers (all active workers)
-    availableWorkers.value = workers.value.filter(worker => worker.status === 'active')
+    console.log('✅ Loaded workers array:', workers.value)
+    console.log('📈 Workers count:', workers.value.length)
+    console.log('📋 Workers details:', workers.value.map(w => ({ id: w.id, name: w.name, workerId: w.workerId, managerId: w.managerId, status: w.status })))
     
-    console.log('Loaded workers:', workers.value.length, 'for organization:', organizationId.value)
-    console.log('Available workers:', availableWorkers.value.length)
-    console.log('Available workers data:', availableWorkers.value)
+    // Initialize available workers (all active workers)
+    availableWorkers.value = workers.value.filter(worker => worker.status === 'active' || worker.status === 'Active')
+    
+    console.log('✅ Loaded workers:', workers.value.length, 'for user role:', currentUser.value?.role, 'organization:', organizationId.value)
+    console.log('✅ Available workers:', availableWorkers.value.length)
+    console.log('✅ Available workers data:', availableWorkers.value)
     
   } catch (error) {
-    console.error('Failed to load workers:', error)
-    message.error('Failed to load workers')
+    console.error('❌ Failed to load workers:', error)
+    console.error('❌ Error details:', error.response?.data || error.message)
+    message.error('Failed to load workers: ' + (error.message || 'Unknown error'))
   }
 }
 
