@@ -1153,37 +1153,60 @@ const workerColumns = [
 
 // Methods
 const generateInviteToken = async () => {
-  // Check if there's already a valid token stored
+  // Determine the token type based on current user role
+  // POA generates manager tokens, Manager generates worker tokens
+  const defaultTokenType = currentUser.value?.role === 'poa' ? 'manager' : 'worker'
+  
+  // Check if there's already a valid token created by current user for this target type
   try {
-    const { getPatientById } = await import('@/services/patientService')
+    if (!currentUser.value?.id) {
+      throw new Error('User not authenticated')
+    }
     
-    if (currentUser.value?.patientId) {
-      const patientData = await getPatientById(currentUser.value.patientId)
+    // Get all invite codes created by current user
+    const { getMyInviteCodes } = await import('@/services/inviteCodeService')
+    const myCodesResponse = await getMyInviteCodes(currentUser.value.id)
+    
+    if (myCodesResponse?.data && Array.isArray(myCodesResponse.data)) {
+      const targetType = defaultTokenType.toUpperCase() // 'manager' -> 'MANAGER', 'worker' -> 'WORKER'
+      const now = new Date()
       
-      if (patientData?.data?.inviteToken && patientData?.data?.tokenExpiration) {
-        const expirationDate = new Date(patientData.data.tokenExpiration)
-        const now = new Date()
-        
-        if (expirationDate > now) {
-          // Token is still valid, show existing token
-          console.log('✅ Found existing valid token, displaying it')
-          generatedToken.value = patientData.data.inviteToken
-          tokenForm.value.organizationName = patientData.data.organizationName || 'Worker'
-          
-          // Show token display modal directly
-          tokenDisplayModalVisible.value = true
-          return
-        } else {
-          console.log('⚠️ Existing token has expired, generating new one')
+      // Find valid token matching the target type
+      const validToken = myCodesResponse.data.find(code => {
+        if (!code.targetType || code.targetType !== targetType) {
+          return false // Not matching target type
         }
+        
+        // Check if token is not expired
+        if (code.expiresAt) {
+          const expirationDate = new Date(code.expiresAt)
+          return expirationDate > now
+        }
+        
+        return false
+      })
+      
+      if (validToken) {
+        // Found valid token for this target type, show it
+        console.log('✅ Found existing valid token for', targetType, ':', validToken.code)
+        generatedToken.value = validToken.code
+        tokenForm.value.tokenType = defaultTokenType
+        tokenForm.value.organizationName = 'Worker' // Default, user can change this later
+        
+        // Show token display modal directly
+        tokenDisplayModalVisible.value = true
+        return
+      } else {
+        console.log('⚠️ No valid token found for', targetType, '- showing form to generate new one')
       }
     }
   } catch (error) {
     console.log('No existing token found or error checking:', error)
   }
   
-  // Clear previous token and close display modal when opening form modal
+  // Clear previous token and set default token type
   generatedToken.value = null
+  tokenForm.value.tokenType = defaultTokenType
   tokenDisplayModalVisible.value = false
   tokenModalVisible.value = true
 }

@@ -76,6 +76,17 @@ public class UserController {
         }
     }
 
+    // Worker bind to manager
+    @PostMapping("/worker/{workerId}/bind-manager/{managerId}")
+    public Result<String> bindWorkerToManager(@PathVariable String workerId,
+                                               @PathVariable String managerId) {
+        boolean success = userService.bindWorkerToManager(workerId, managerId);
+        if (success) {
+            return Result.success("Worker bound to manager successfully!");
+        } else {
+            return Result.<String>error("400", "Failed to bind worker to manager! Worker or manager not found, or invalid user types.");
+        }
+    }
 
     // Change password with old password verification
     @PostMapping("/change-password")
