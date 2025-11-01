@@ -7,6 +7,11 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -50,7 +55,11 @@ public class FileController {
             String uploadDir = "uploads/files/";
             File directory = new File(uploadDir);
             if (!directory.exists()) {
-                directory.mkdirs();
+                boolean created = directory.mkdirs();
+                if (!created) {
+                    return Result.error("500", "Failed to create upload directory: " + directory.getAbsolutePath());
+                }
+                System.out.println("📁 Created upload directory: " + directory.getAbsolutePath());
             }
 
             // Generate unique filename
@@ -64,6 +73,13 @@ public class FileController {
             // Save file
             Path filePath = Paths.get(uploadDir + newFilename);
             Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+            
+            // Verify file was saved
+            File savedFile = filePath.toFile();
+            if (!savedFile.exists() || !savedFile.isFile()) {
+                return Result.error("500", "File was not saved correctly. Path: " + filePath.toAbsolutePath());
+            }
+            System.out.println("✅ File saved successfully: " + savedFile.getAbsolutePath() + " (Size: " + savedFile.length() + " bytes)");
 
             // Generate access URL
             String fileUrl = "/uploads/files/" + newFilename;
@@ -176,6 +192,47 @@ public class FileController {
             return Result.error("404", "File not found!");
         } catch (Exception e) {
             return Result.error("500", "Failed to delete file: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Serve file by URL path (fallback for static resource serving)
+     * GET /api/files/serve?path=/uploads/files/filename.pdf
+     */
+    @GetMapping("/serve")
+    public ResponseEntity<org.springframework.core.io.Resource> serveFile(@RequestParam String path) {
+        try {
+            // Remove leading slash if present and sanitize path
+            String cleanPath = path.startsWith("/") ? path.substring(1) : path;
+            
+            // Security check: ensure path is within uploads directory
+            if (!cleanPath.startsWith("uploads/")) {
+                return ResponseEntity.badRequest().build();
+            }
+            
+            File file = new File(cleanPath);
+            if (!file.exists() || !file.isFile()) {
+                System.out.println("❌ File not found: " + file.getAbsolutePath());
+                return ResponseEntity.notFound().build();
+            }
+            
+            FileSystemResource resource = new FileSystemResource(file);
+            
+            // Determine content type
+            String contentType = Files.probeContentType(file.toPath());
+            if (contentType == null) {
+                contentType = "application/octet-stream";
+            }
+            
+            return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType(contentType))
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + file.getName() + "\"")
+                    .body(resource);
+                    
+        } catch (Exception e) {
+            System.err.println("❌ Error serving file: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().build();
         }
     }
 }

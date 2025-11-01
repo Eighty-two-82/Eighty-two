@@ -56,22 +56,63 @@
     <a-modal
       v-model:open="isViewModalOpen"
       :title="currentViewFile?.name || 'View File'"
-      width="80%"
+      width="90%"
       :footer="null"
     >
-      <div v-if="currentViewFile" style="text-align: center;">
-        <!-- Image preview -->
-        <img 
-          v-if="isImageFile(currentViewFile.name)" 
-          :src="currentViewFile.fileUrl" 
-          style="max-width: 100%; max-height: 500px; border-radius: 8px;"
-          alt="Preview"
-        />
-        <!-- Other file types -->
-        <div v-else style="padding: 40px;">
+      <div v-if="currentViewFile">
+        <!-- 图片预览 -->
+        <div v-if="isImageFile(currentViewFile.name)" style="text-align: center;">
+          <img 
+            :src="currentViewFile.fileUrl" 
+            style="max-width: 100%; max-height: 70vh; border-radius: 8px;"
+            alt="Preview"
+          />
+        </div>
+        <!-- PDF预览 -->
+        <div v-else-if="isPdfFile(currentViewFile.name)" style="width: 100%; height: 70vh;">
+          <iframe
+            :src="currentViewFile.fileUrl"
+            style="width: 100%; height: 100%; border: none; border-radius: 8px;"
+            type="application/pdf"
+          ></iframe>
+        </div>
+        <!-- 其他文件类型 -->
+        <div v-else style="padding: 40px; text-align: center;">
           <div style="font-size: 48px; color: #1890ff; margin-bottom: 16px;">📄</div>
           <h3>{{ currentViewFile.name }}</h3>
           <p style="color: #666; margin: 16px 0;">This file type cannot be previewed in the browser.</p>
+          <a-button type="primary" @click="downloadFile(currentViewFile)" style="margin-top: 16px;">
+            <template #icon>
+              <DownloadOutlined />
+            </template>
+            Download File
+          </a-button>
+        </div>
+        
+        <!-- 文件信息和操作按钮 -->
+        <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center;">
+          <div style="color: #666; font-size: 14px;">
+            <span v-if="currentViewFile.size">
+              Size: {{ formatFileSize(currentViewFile.size) }}
+            </span>
+            <span v-if="currentViewFile.contentType" style="margin-left: 16px;">
+              Type: {{ currentViewFile.contentType }}
+            </span>
+          </div>
+          <a-space>
+            <a-button @click="downloadFile(currentViewFile)">
+              <template #icon>
+                <DownloadOutlined />
+              </template>
+              Download
+            </a-button>
+            <a-button type="primary" @click="openInNewTab(currentViewFile)">
+              <template #icon>
+                <ExportOutlined />
+              </template>
+              Open in New Tab
+            </a-button>
+          </a-space>
         </div>
       </div>
     </a-modal>
@@ -80,7 +121,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { QuestionCircleOutlined } from '@ant-design/icons-vue'
+import { QuestionCircleOutlined, DownloadOutlined, ExportOutlined } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
 import { getMe } from '@/services/userService'
 import { uploadFile, getAllFiles, updateFileComment } from '@/services/fileService'
@@ -103,16 +144,25 @@ onMounted(async () => {
 })
 
 // Helper function to get full file URL
+// If static resources fail, use the API endpoint as fallback
 const getFullFileUrl = (fileUrl) => {
   if (!fileUrl) return ''
   // If already a full URL, return as is
   if (fileUrl.startsWith('http://') || fileUrl.startsWith('https://')) {
     return fileUrl
   }
-  // Otherwise, prepend backend base URL
+  
   const API_BASE_URL = import.meta.env.MODE === "production"
     ? "https://care-scheduling-app-e8951cd9f9c6.herokuapp.com"
     : "http://localhost:8081"
+  
+  // Use API endpoint for serving files (more reliable than static resources)
+  // This ensures files are accessible even if static resource mapping fails
+  if (fileUrl.startsWith('/uploads/')) {
+    return `${API_BASE_URL}/api/files/serve?path=${encodeURIComponent(fileUrl)}`
+  }
+  
+  // Fallback to direct URL
   return `${API_BASE_URL}${fileUrl}`
 }
 
@@ -235,6 +285,43 @@ const isImageFile = (filename) => {
   const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg']
   const extension = filename.toLowerCase().substring(filename.lastIndexOf('.'))
   return imageExtensions.includes(extension)
+}
+
+// 判断是否为PDF文件
+const isPdfFile = (filename) => {
+  const extension = filename.toLowerCase().substring(filename.lastIndexOf('.'))
+  return extension === '.pdf'
+}
+
+// 下载文件
+const downloadFile = (file) => {
+  try {
+    const link = document.createElement('a')
+    link.href = file.fileUrl
+    link.download = file.name
+    link.target = '_blank'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    message.success('File download started')
+  } catch (error) {
+    console.error('Failed to download file:', error)
+    message.error('Failed to download file')
+  }
+}
+
+// 在新标签页打开文件
+const openInNewTab = (file) => {
+  window.open(file.fileUrl, '_blank')
+}
+
+// 格式化文件大小
+const formatFileSize = (bytes) => {
+  if (!bytes || bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
 }
 </script>
 

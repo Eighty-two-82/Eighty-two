@@ -284,7 +284,11 @@ public class ScheduleController {
             String uploadDir = "uploads/schedule-photos/";
             File directory = new File(uploadDir);
             if (!directory.exists()) {
-                directory.mkdirs();
+                boolean created = directory.mkdirs();
+                if (!created) {
+                    return Result.error("500", "Failed to create upload directory: " + directory.getAbsolutePath());
+                }
+                System.out.println("📁 Created upload directory: " + directory.getAbsolutePath());
             }
             
             // Generate unique filename
@@ -299,7 +303,14 @@ public class ScheduleController {
             Path filePath = Paths.get(uploadDir + newFilename);
             Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
             
-            // Generate access URL
+            // 验证文件是否保存成功
+            File savedFile = filePath.toFile();
+            if (!savedFile.exists() || !savedFile.isFile()) {
+                return Result.error("500", "File was not saved correctly. Path: " + filePath.toAbsolutePath());
+            }
+            System.out.println("✅ Schedule photo saved successfully: " + savedFile.getAbsolutePath() + " (Size: " + savedFile.length() + " bytes)");
+            
+            // 生成访问URL
             String photoUrl = "/uploads/schedule-photos/" + newFilename;
             
             // Update database

@@ -130,7 +130,7 @@
                 <div style="margin-top: 8px;">
                   <a-avatar
                     :size="50"
-                    :src="worker.photo"
+                    :src="worker.photo || worker.photoUrl"
                     :alt="worker.name"
                     style="border: 2px solid #f0f0f0;"
                   >
@@ -426,7 +426,7 @@
                 </template>
                 <template #option="{ value, label }">
                   <div style="display: flex; align-items: center; gap: 8px;">
-                    <a-avatar :size="20" :src="getWorkerById(value)?.photo">
+                    <a-avatar :size="20" :src="getWorkerById(value)?.photo || getWorkerById(value)?.photoUrl">
                       {{ getWorkerById(value)?.name?.charAt(0)?.toUpperCase() }}
                     </a-avatar>
                     <span>{{ label }}</span>
@@ -457,7 +457,7 @@
                 </template>
                 <template #option="{ value, label }">
                   <div style="display: flex; align-items: center; gap: 8px;">
-                    <a-avatar :size="20" :src="getWorkerById(value)?.photo">
+                    <a-avatar :size="20" :src="getWorkerById(value)?.photo || getWorkerById(value)?.photoUrl">
                       {{ getWorkerById(value)?.name?.charAt(0)?.toUpperCase() }}
                     </a-avatar>
                     <span>{{ label }}</span>
@@ -488,7 +488,7 @@
                 </template>
                 <template #option="{ value, label }">
                   <div style="display: flex; align-items: center; gap: 8px;">
-                    <a-avatar :size="20" :src="getWorkerById(value)?.photo">
+                    <a-avatar :size="20" :src="getWorkerById(value)?.photo || getWorkerById(value)?.photoUrl">
                       {{ getWorkerById(value)?.name?.charAt(0)?.toUpperCase() }}
                     </a-avatar>
                     <span>{{ label }}</span>
@@ -508,7 +508,7 @@
           <a-form-item label="Upload Photo for Selected Worker">
               <div v-if="selectedWorkerForPhoto" style="margin-bottom: 16px; padding: 12px; background: #f6ffed; border-radius: 6px;">
                 <div style="display: flex; align-items: center; gap: 12px;">
-                  <a-avatar :size="40" :src="selectedWorkerForPhoto.photo">
+                  <a-avatar :size="40" :src="selectedWorkerForPhoto.photo || selectedWorkerForPhoto.photoUrl">
                     {{ selectedWorkerForPhoto.name.charAt(0).toUpperCase() }}
                   </a-avatar>
                   <div>
@@ -663,11 +663,11 @@ ma a            :size="80"
           <h3 style="margin-bottom: 12px;">Recent Photos</h3>
           <div style="display: flex; gap: 12px; flex-wrap: wrap;">
             <div
-              v-if="selectedWorkerDetail.photo"
+              v-if="selectedWorkerDetail.photo || selectedWorkerDetail.photoUrl"
               style="position: relative; border: 1px solid #d9d9d9; border-radius: 6px; padding: 8px;"
             >
-              <img
-                :src="selectedWorkerDetail.photo"
+                <img
+                :src="selectedWorkerDetail.photo || selectedWorkerDetail.photoUrl"
                 :alt="selectedWorkerDetail.name"
                 style="width: 100px; height: 100px; object-fit: cover; border-radius: 4px;"
               />
@@ -1730,7 +1730,7 @@ const confirmDailyManagement = async () => {
       updateDailyWorkers(dateStr)
     }
     
-    // Handle photo upload if there are files
+    // Handle photo upload if there are files (do this BEFORE closing modal)
     if (fileList.value.length > 0 && selectedWorkerForPhoto.value) {
       try {
       message.loading(`Uploading photo for ${selectedWorkerForPhoto.value.name}...`, 0)
@@ -1742,33 +1742,74 @@ const confirmDailyManagement = async () => {
           throw new Error('No file selected for upload')
         }
         
+        console.log('📸 Starting photo upload for worker:', selectedWorkerForPhoto.value.id, selectedWorkerForPhoto.value.name)
+        console.log('📸 File to upload:', fileToUpload.name, fileToUpload.size, 'bytes')
+        
         // Call API to upload photo
         const response = await uploadWorkerPhotoAPI(selectedWorkerForPhoto.value.id, fileToUpload)
         
+        console.log('📸 Upload API response received:', response)
+        
         if (response.data) {
-          const photoUrl = response.data.photoUrl || response.data.photo
+          let photoUrl = response.data.photoUrl || response.data.photo
+          console.log('📸 Upload response:', response.data)
+          console.log('📸 Photo URL from response (raw):', photoUrl)
+          
+          // Convert relative path to full URL using API endpoint
+          if (photoUrl && photoUrl.startsWith('/uploads/')) {
+            const API_BASE_URL = import.meta.env.MODE === "production"
+              ? "https://care-scheduling-app-e8951cd9f9c6.herokuapp.com"
+              : "http://localhost:8081"
+            // Use API endpoint for more reliable file serving
+            photoUrl = `${API_BASE_URL}/api/files/serve?path=${encodeURIComponent(photoUrl)}`
+            console.log('📸 Photo URL converted to:', photoUrl)
+          }
           
         // Update the worker's photo in the workers array
         const workerIndex = workers.value.findIndex(w => w.id === selectedWorkerForPhoto.value.id)
         if (workerIndex !== -1) {
             workers.value[workerIndex].photo = photoUrl
-        }
-        
-        // Update the worker's photo in the dailyWorkers array if they are currently displayed
-        const dailyWorkerIndex = dailyWorkers.value.findIndex(w => w.id === selectedWorkerForPhoto.value.id)
-        if (dailyWorkerIndex !== -1) {
+            workers.value[workerIndex].photoUrl = photoUrl
+            console.log('📸 Updated worker in memory:', workers.value[workerIndex])
+          }
+          
+          // Update the worker's photo in the dailyWorkers array if they are currently displayed
+          const dailyWorkerIndex = dailyWorkers.value.findIndex(w => w.id === selectedWorkerForPhoto.value.id)
+          if (dailyWorkerIndex !== -1) {
             dailyWorkers.value[dailyWorkerIndex].photo = photoUrl
-      }
-      
-      message.destroy()
-      message.success(`Successfully uploaded photo for ${selectedWorkerForPhoto.value.name}`)
+            dailyWorkers.value[dailyWorkerIndex].photoUrl = photoUrl
+            console.log('📸 Updated dailyWorker in memory')
+          }
+          
+          // IMPORTANT: Reload workers from server AFTER successful upload to ensure data persistence
+          await loadWorkers()
+          
+          // Update dailyWorkers again after reload to ensure photo is displayed
+          if (dateStr === selectedDate.value?.format('YYYY-MM-DD')) {
+            const reloadedWorker = workers.value.find(w => w.id === selectedWorkerForPhoto.value.id)
+            if (reloadedWorker) {
+              const dailyWorkerIndex = dailyWorkers.value.findIndex(w => w.id === selectedWorkerForPhoto.value.id)
+              if (dailyWorkerIndex !== -1) {
+                dailyWorkers.value[dailyWorkerIndex].photo = reloadedWorker.photo || reloadedWorker.photoUrl
+                dailyWorkers.value[dailyWorkerIndex].photoUrl = reloadedWorker.photoUrl || reloadedWorker.photo
+              }
+            }
+          }
+          
+          message.destroy()
+          message.success(`Successfully uploaded photo for ${selectedWorkerForPhoto.value.name}`)
+          console.log('✅ Photo upload completed successfully')
         } else {
+          message.destroy()
           throw new Error('Upload failed: No data returned')
         }
       } catch (error) {
         message.destroy()
-        console.error('Failed to upload photo:', error)
-        message.error(error.message || 'Failed to upload photo')
+        console.error('❌ Failed to upload photo:', error)
+        console.error('Error details:', error.response || error.message)
+        message.error(`Failed to upload photo: ${error.message || 'Unknown error'}`)
+        // Don't close modal if photo upload fails
+        return
       }
     }
     
@@ -2000,11 +2041,43 @@ const loadWorkers = async () => {
       response = await getAllWorkers()
     }
     
-    workers.value = response.data || []
+    // Map backend photoUrl to frontend photo field for consistency
+    workers.value = (response.data || []).map(worker => {
+      // Ensure photo field is set from photoUrl if photo is not already set
+      if (!worker.photo && worker.photoUrl) {
+        worker.photo = worker.photoUrl
+      }
+      // Also ensure photoUrl is set from photo for backwards compatibility
+      if (!worker.photoUrl && worker.photo) {
+        worker.photoUrl = worker.photo
+      }
+      
+      // Convert photoUrl to full URL if it's a relative path
+      // Use API endpoint for more reliable file serving
+      if (worker.photoUrl && worker.photoUrl.startsWith('/uploads/')) {
+        const API_BASE_URL = import.meta.env.MODE === "production"
+          ? "https://care-scheduling-app-e8951cd9f9c6.herokuapp.com"
+          : "http://localhost:8081"
+        // Use API endpoint instead of direct static resource access
+        const fullPhotoUrl = `${API_BASE_URL}/api/files/serve?path=${encodeURIComponent(worker.photoUrl)}`
+        worker.photo = fullPhotoUrl
+        worker.photoUrl = fullPhotoUrl
+      }
+      
+      return worker
+    })
     
     console.log('✅ Loaded workers array:', workers.value)
     console.log('📈 Workers count:', workers.value.length)
-    console.log('📋 Workers details:', workers.value.map(w => ({ id: w.id, name: w.name, workerId: w.workerId, managerId: w.managerId, status: w.status })))
+    console.log('📋 Workers details:', workers.value.map(w => ({ 
+      id: w.id, 
+      name: w.name, 
+      workerId: w.workerId, 
+      managerId: w.managerId, 
+      status: w.status,
+      photo: w.photo,
+      photoUrl: w.photoUrl
+    })))
     
     // Initialize available workers (all active workers)
     availableWorkers.value = workers.value.filter(worker => worker.status === 'active' || worker.status === 'Active')
