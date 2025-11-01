@@ -1,13 +1,19 @@
 package com.careapp.service;
 
 import com.careapp.domain.Worker;
+import com.careapp.domain.Schedule;
+import com.careapp.domain.User;
 import com.careapp.dto.DailyScheduleRequest;
 import com.careapp.dto.WorkerPhotoUploadRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Autowired;
 import com.careapp.repository.WorkerRepository;
+import com.careapp.repository.ScheduleRepository;
+import com.careapp.repository.UserRepository;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 import java.util.ArrayList;
@@ -25,6 +31,12 @@ public class WorkerService {
 
     @Autowired
     private WorkerRepository workerRepository;
+    
+    @Autowired
+    private ScheduleRepository scheduleRepository;
+    
+    @Autowired
+    private UserRepository userRepository;
 
     // Create a new worker
     public Worker createWorker(Worker worker) {
@@ -229,6 +241,7 @@ public class WorkerService {
 
     /**
      * Create daily schedule for multiple workers
+     * This method both updates Worker objects and creates Schedule records in the database
      * @param scheduleRequest The daily schedule request
      * @param allocatedBy The manager who is creating the schedule
      * @return List of updated workers
@@ -236,38 +249,163 @@ public class WorkerService {
     public List<Worker> createDailySchedule(DailyScheduleRequest scheduleRequest, String allocatedBy) {
         List<Worker> updatedWorkers = new ArrayList<>();
         
+        // Parse schedule date
+        LocalDate scheduleDate = LocalDate.parse(scheduleRequest.getScheduleDate(), DateTimeFormatter.ISO_DATE);
+        
+        // Get manager information for shift time settings
+        User manager = userRepository.findById(allocatedBy).orElse(null);
+        String organizationId = null;
+        if (manager != null) {
+            // Try to get organizationId from manager's patient
+            if (manager.getPatientId() != null) {
+                // We need to get patient to get organizationId, but for now use a default
+                // or get from worker if available
+            }
+        }
+        
         // Process morning shift workers (8:00-16:00)
-        if (scheduleRequest.getMorningShiftWorkerIds() != null) {
+        if (scheduleRequest.getMorningShiftWorkerIds() != null && !scheduleRequest.getMorningShiftWorkerIds().isEmpty()) {
             for (String workerId : scheduleRequest.getMorningShiftWorkerIds()) {
-                Worker.ShiftAllocation morningShift = new Worker.ShiftAllocation(
-                    scheduleRequest.getScheduleDate(),
-                    "08:00-16:00",
-                    null, // No specific patient assigned in this context
-                    allocatedBy
-                );
-                morningShift.setNotes(scheduleRequest.getScheduleNotes());
-                
-                Worker updatedWorker = allocateShift(workerId, morningShift);
-                if (updatedWorker != null) {
-                    updatedWorkers.add(updatedWorker);
+                Optional<Worker> workerOpt = workerRepository.findById(workerId);
+                if (workerOpt.isPresent()) {
+                    Worker worker = workerOpt.get();
+                    
+                    // Get organizationId from worker
+                    if (organizationId == null && worker.getOrganizationId() != null) {
+                        organizationId = worker.getOrganizationId();
+                    }
+                    
+                    // Create ShiftAllocation for Worker
+                    Worker.ShiftAllocation morningShift = new Worker.ShiftAllocation(
+                        scheduleRequest.getScheduleDate(),
+                        "08:00-16:00",
+                        null, // No specific patient assigned in this context
+                        allocatedBy
+                    );
+                    morningShift.setNotes(scheduleRequest.getScheduleNotes());
+                    
+                    // Update Worker object
+                    Worker updatedWorker = allocateShift(workerId, morningShift);
+                    if (updatedWorker != null) {
+                        updatedWorkers.add(updatedWorker);
+                        
+                        // Create Schedule record and save to database
+                        Schedule schedule = new Schedule();
+                        schedule.setWorkerId(workerId);
+                        schedule.setWorkerName(worker.getName());
+                        schedule.setScheduleDate(scheduleDate);
+                        schedule.setShiftType("morning");
+                        schedule.setShiftStartTime(manager != null && manager.getMorningShiftStart() != null ? 
+                                                  manager.getMorningShiftStart() : "08:00");
+                        schedule.setShiftEndTime(manager != null && manager.getMorningShiftEnd() != null ? 
+                                                manager.getMorningShiftEnd() : "16:00");
+                        schedule.setOrganizationId(organizationId != null ? organizationId : 
+                                                 (worker.getOrganizationId() != null ? worker.getOrganizationId() : "org-001"));
+                        schedule.setManagerId(allocatedBy);
+                        schedule.setStatus("scheduled");
+                        schedule.setNotes(scheduleRequest.getScheduleNotes());
+                        schedule.setWorkerPhotoUrl(worker.getPhotoUrl());
+                        
+                        scheduleRepository.save(schedule);
+                    }
+                }
+            }
+        }
+        
+        // Process afternoon shift workers (12:00-20:00)
+        if (scheduleRequest.getAfternoonShiftWorkerIds() != null && !scheduleRequest.getAfternoonShiftWorkerIds().isEmpty()) {
+            for (String workerId : scheduleRequest.getAfternoonShiftWorkerIds()) {
+                Optional<Worker> workerOpt = workerRepository.findById(workerId);
+                if (workerOpt.isPresent()) {
+                    Worker worker = workerOpt.get();
+                    
+                    // Get organizationId from worker
+                    if (organizationId == null && worker.getOrganizationId() != null) {
+                        organizationId = worker.getOrganizationId();
+                    }
+                    
+                    // Create ShiftAllocation for Worker
+                    Worker.ShiftAllocation afternoonShift = new Worker.ShiftAllocation(
+                        scheduleRequest.getScheduleDate(),
+                        "12:00-20:00",
+                        null, // No specific patient assigned in this context
+                        allocatedBy
+                    );
+                    afternoonShift.setNotes(scheduleRequest.getScheduleNotes());
+                    
+                    // Update Worker object
+                    Worker updatedWorker = allocateShift(workerId, afternoonShift);
+                    if (updatedWorker != null) {
+                        updatedWorkers.add(updatedWorker);
+                        
+                        // Create Schedule record and save to database
+                        Schedule schedule = new Schedule();
+                        schedule.setWorkerId(workerId);
+                        schedule.setWorkerName(worker.getName());
+                        schedule.setScheduleDate(scheduleDate);
+                        schedule.setShiftType("afternoon");
+                        schedule.setShiftStartTime(manager != null && manager.getAfternoonShiftStart() != null ? 
+                                                  manager.getAfternoonShiftStart() : "12:00");
+                        schedule.setShiftEndTime(manager != null && manager.getAfternoonShiftEnd() != null ? 
+                                                manager.getAfternoonShiftEnd() : "20:00");
+                        schedule.setOrganizationId(organizationId != null ? organizationId : 
+                                                 (worker.getOrganizationId() != null ? worker.getOrganizationId() : "org-001"));
+                        schedule.setManagerId(allocatedBy);
+                        schedule.setStatus("scheduled");
+                        schedule.setNotes(scheduleRequest.getScheduleNotes());
+                        schedule.setWorkerPhotoUrl(worker.getPhotoUrl());
+                        
+                        scheduleRepository.save(schedule);
+                    }
                 }
             }
         }
         
         // Process evening shift workers (16:00-24:00)
-        if (scheduleRequest.getEveningShiftWorkerIds() != null) {
+        if (scheduleRequest.getEveningShiftWorkerIds() != null && !scheduleRequest.getEveningShiftWorkerIds().isEmpty()) {
             for (String workerId : scheduleRequest.getEveningShiftWorkerIds()) {
-                Worker.ShiftAllocation eveningShift = new Worker.ShiftAllocation(
-                    scheduleRequest.getScheduleDate(),
-                    "16:00-24:00",
-                    null, // No specific patient assigned in this context
-                    allocatedBy
-                );
-                eveningShift.setNotes(scheduleRequest.getScheduleNotes());
-                
-                Worker updatedWorker = allocateShift(workerId, eveningShift);
-                if (updatedWorker != null) {
-                    updatedWorkers.add(updatedWorker);
+                Optional<Worker> workerOpt = workerRepository.findById(workerId);
+                if (workerOpt.isPresent()) {
+                    Worker worker = workerOpt.get();
+                    
+                    // Get organizationId from worker
+                    if (organizationId == null && worker.getOrganizationId() != null) {
+                        organizationId = worker.getOrganizationId();
+                    }
+                    
+                    // Create ShiftAllocation for Worker
+                    Worker.ShiftAllocation eveningShift = new Worker.ShiftAllocation(
+                        scheduleRequest.getScheduleDate(),
+                        "16:00-24:00",
+                        null, // No specific patient assigned in this context
+                        allocatedBy
+                    );
+                    eveningShift.setNotes(scheduleRequest.getScheduleNotes());
+                    
+                    // Update Worker object
+                    Worker updatedWorker = allocateShift(workerId, eveningShift);
+                    if (updatedWorker != null) {
+                        updatedWorkers.add(updatedWorker);
+                        
+                        // Create Schedule record and save to database
+                        Schedule schedule = new Schedule();
+                        schedule.setWorkerId(workerId);
+                        schedule.setWorkerName(worker.getName());
+                        schedule.setScheduleDate(scheduleDate);
+                        schedule.setShiftType("evening");
+                        schedule.setShiftStartTime(manager != null && manager.getEveningShiftStart() != null ? 
+                                                  manager.getEveningShiftStart() : "16:00");
+                        schedule.setShiftEndTime(manager != null && manager.getEveningShiftEnd() != null ? 
+                                                manager.getEveningShiftEnd() : "24:00");
+                        schedule.setOrganizationId(organizationId != null ? organizationId : 
+                                                 (worker.getOrganizationId() != null ? worker.getOrganizationId() : "org-001"));
+                        schedule.setManagerId(allocatedBy);
+                        schedule.setStatus("scheduled");
+                        schedule.setNotes(scheduleRequest.getScheduleNotes());
+                        schedule.setWorkerPhotoUrl(worker.getPhotoUrl());
+                        
+                        scheduleRepository.save(schedule);
+                    }
                 }
             }
         }
@@ -302,40 +440,138 @@ public class WorkerService {
 
     /**
      * Get daily schedule for a specific date
+     * This method retrieves schedules from Schedule collection and converts them to Worker format
      * @param organizationId The organization ID
      * @param date The date in YYYY-MM-DD format
      * @return List of workers with their shifts for the date
      */
     public List<Worker> getDailySchedule(String organizationId, String date) {
-        return getWorkersWithShiftsForDate(organizationId, date);
+        try {
+            // Parse the date
+            LocalDate scheduleDate = LocalDate.parse(date, DateTimeFormatter.ISO_DATE);
+            
+            // Get schedules from Schedule collection
+            List<Schedule> schedules = scheduleRepository.findByOrganizationIdAndScheduleDate(organizationId, scheduleDate);
+            
+            // Group schedules by workerId and convert to Worker format
+            java.util.Map<String, Worker> workerMap = new java.util.HashMap<>();
+            
+            for (Schedule schedule : schedules) {
+                String workerId = schedule.getWorkerId();
+                Worker worker = workerMap.get(workerId);
+                
+                // If worker not in map, get it from database
+                if (worker == null) {
+                    Optional<Worker> workerOpt = workerRepository.findById(workerId);
+                    if (workerOpt.isPresent()) {
+                        worker = workerOpt.get();
+                        // Initialize shiftAllocations if null
+                        if (worker.getShiftAllocations() == null) {
+                            worker.setShiftAllocations(new ArrayList<>());
+                        }
+                        workerMap.put(workerId, worker);
+                    } else {
+                        // If worker doesn't exist, create a basic worker object from schedule
+                        worker = new Worker();
+                        worker.setId(workerId);
+                        worker.setName(schedule.getWorkerName());
+                        worker.setOrganizationId(organizationId);
+                        worker.setShiftAllocations(new ArrayList<>());
+                        workerMap.put(workerId, worker);
+                    }
+                }
+                
+                // Create ShiftAllocation from Schedule
+                Worker.ShiftAllocation shiftAllocation = new Worker.ShiftAllocation(
+                    schedule.getScheduleDate().toString(),
+                    schedule.getShiftStartTime() + "-" + schedule.getShiftEndTime(),
+                    null, // No patient assigned
+                    schedule.getManagerId()
+                );
+                shiftAllocation.setNotes(schedule.getNotes());
+                shiftAllocation.setStatus(schedule.getStatus());
+                
+                // Add to worker's shiftAllocations if not already present
+                boolean exists = worker.getShiftAllocations().stream()
+                    .anyMatch(sa -> sa.getShiftDate().equals(shiftAllocation.getShiftDate()) 
+                                && sa.getShiftTime().equals(shiftAllocation.getShiftTime()));
+                
+                if (!exists) {
+                    worker.getShiftAllocations().add(shiftAllocation);
+                }
+            }
+            
+            return new ArrayList<>(workerMap.values());
+        } catch (Exception e) {
+            // If there's an error, fall back to old method
+            System.err.println("Error getting schedule from Schedule collection: " + e.getMessage());
+            return getWorkersWithShiftsForDate(organizationId, date);
+        }
     }
 
     /**
      * Remove all shift allocations for a specific date
+     * This method removes both from Worker objects and from Schedule collection
      * @param organizationId The organization ID
      * @param date The date in YYYY-MM-DD format
      * @return Number of workers updated
      */
     public int clearDailySchedule(String organizationId, String date) {
-        List<Worker> workers = workerRepository.findByOrganizationId(organizationId);
-        int updatedCount = 0;
-        
-        for (Worker worker : workers) {
-            List<Worker.ShiftAllocation> allocations = worker.getShiftAllocations();
-            if (allocations != null) {
-                boolean hasChanges = allocations.removeIf(allocation -> 
-                    allocation.getShiftDate().equals(date));
-                
-                if (hasChanges) {
-                    worker.setShiftAllocations(allocations);
-                    worker.setUpdatedAt(LocalDateTime.now());
-                    workerRepository.save(worker);
-                    updatedCount++;
+        try {
+            // Parse the date
+            LocalDate scheduleDate = LocalDate.parse(date, DateTimeFormatter.ISO_DATE);
+            
+            // Delete schedules from Schedule collection
+            List<Schedule> schedules = scheduleRepository.findByOrganizationIdAndScheduleDate(organizationId, scheduleDate);
+            int scheduleDeletedCount = schedules.size();
+            for (Schedule schedule : schedules) {
+                scheduleRepository.deleteById(schedule.getId());
+            }
+            
+            // Also remove from Worker objects (for backward compatibility)
+            List<Worker> workers = workerRepository.findByOrganizationId(organizationId);
+            int workerUpdatedCount = 0;
+            
+            for (Worker worker : workers) {
+                List<Worker.ShiftAllocation> allocations = worker.getShiftAllocations();
+                if (allocations != null) {
+                    boolean hasChanges = allocations.removeIf(allocation -> 
+                        allocation.getShiftDate().equals(date));
+                    
+                    if (hasChanges) {
+                        worker.setShiftAllocations(allocations);
+                        worker.setUpdatedAt(LocalDateTime.now());
+                        workerRepository.save(worker);
+                        workerUpdatedCount++;
+                    }
                 }
             }
+            
+            // Return the count from Schedule collection as it's the source of truth
+            return scheduleDeletedCount;
+        } catch (Exception e) {
+            System.err.println("Error clearing schedule from Schedule collection: " + e.getMessage());
+            // Fall back to old method
+            List<Worker> workers = workerRepository.findByOrganizationId(organizationId);
+            int updatedCount = 0;
+            
+            for (Worker worker : workers) {
+                List<Worker.ShiftAllocation> allocations = worker.getShiftAllocations();
+                if (allocations != null) {
+                    boolean hasChanges = allocations.removeIf(allocation -> 
+                        allocation.getShiftDate().equals(date));
+                    
+                    if (hasChanges) {
+                        worker.setShiftAllocations(allocations);
+                        worker.setUpdatedAt(LocalDateTime.now());
+                        workerRepository.save(worker);
+                        updatedCount++;
+                    }
+                }
+            }
+            
+            return updatedCount;
         }
-        
-        return updatedCount;
     }
     
     /**

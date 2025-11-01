@@ -49,16 +49,36 @@ public class GlobalCorsConfig {
                     uploadsPath += File.separator;
                 }
                 
+                // Normalize path: replace backslashes with forward slashes for cross-platform compatibility
+                String normalizedPath = uploadsPath.replace("\\", "/");
+                // Ensure path starts with file:// (without triple slash on Unix-like systems)
+                String resourceLocation = normalizedPath.startsWith("/") 
+                    ? "file:" + normalizedPath 
+                    : "file:/" + normalizedPath;
+                
                 // Map /uploads/** URLs to the uploads directory
-                // Use file:// prefix for absolute path
                 registry.addResourceHandler("/uploads/**")
-                        .addResourceLocations("file:///" + uploadsPath.replace("\\", "/"))
+                        .addResourceLocations(resourceLocation)
                         .resourceChain(false);
                 
-                System.out.println("📁 Static resources configured for: file:///" + uploadsPath.replace("\\", "/"));
+                System.out.println("📁 Static resources configured for: " + resourceLocation);
                 System.out.println("📁 Uploads directory exists: " + uploadsDir.exists());
                 if (uploadsDir.exists()) {
                     System.out.println("📁 Uploads directory absolute path: " + uploadsPath);
+                    // List subdirectories for debugging
+                    File[] subdirs = uploadsDir.listFiles(File::isDirectory);
+                    if (subdirs != null && subdirs.length > 0) {
+                        System.out.println("📁 Uploads subdirectories: " + java.util.Arrays.toString(
+                            java.util.Arrays.stream(subdirs).map(File::getName).toArray()));
+                    }
+                } else {
+                    System.err.println("⚠️ WARNING: Uploads directory does not exist! Creating it...");
+                    boolean created = uploadsDir.mkdirs();
+                    if (created) {
+                        System.out.println("✅ Created uploads directory: " + uploadsPath);
+                    } else {
+                        System.err.println("❌ Failed to create uploads directory: " + uploadsPath);
+                    }
                 }
             }
         };
