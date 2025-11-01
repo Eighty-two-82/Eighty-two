@@ -6,7 +6,10 @@ import axios from "axios";
 const getApiBaseUrl = () => {
     // Check for explicit environment variable (highest priority)
     if (import.meta.env.VITE_API_BASE_URL) {
-        const url = import.meta.env.VITE_API_BASE_URL;
+        let url = import.meta.env.VITE_API_BASE_URL.trim();
+        // Remove trailing slash if present
+        url = url.replace(/\/+$/, '');
+        // Add /api suffix if not already present
         const finalUrl = url.endsWith('/api') ? url : `${url}/api`;
         console.log('🔧 API Base URL from VITE_API_BASE_URL:', finalUrl);
         return finalUrl;
