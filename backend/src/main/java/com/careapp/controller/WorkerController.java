@@ -43,6 +43,22 @@ public class WorkerController {
         }
     }
 
+    /**
+     * Get workers by manager ID
+     * GET /api/workers/manager/{managerId}
+     * @param managerId Manager ID
+     * @return List of workers managed by the manager
+     */
+    @GetMapping("/manager/{managerId}")
+    public Result<List<Worker>> getWorkersByManagerId(@PathVariable String managerId) {
+        try {
+            List<Worker> workers = workerService.getWorkersByManagerId(managerId);
+            return Result.success(workers, "Workers retrieved successfully!");
+        } catch (Exception e) {
+            return Result.error("500", "Failed to retrieve workers: " + e.getMessage());
+        }
+    }
+
     // Get worker by ID
     @GetMapping("/{id}")
     public Result<Worker> getWorkerById(@PathVariable String id) {
@@ -486,22 +502,6 @@ public class WorkerController {
             }
         } catch (Exception e) {
             return Result.error("500", "Failed to unbind worker from manager: " + e.getMessage());
-        }
-    }
-
-    /**
-     * Get workers by manager ID
-     * GET /api/workers/manager/{managerId}
-     * @param managerId Manager ID
-     * @return List of workers managed by the manager
-     */
-    @GetMapping("/manager/{managerId}")
-    public Result<List<Worker>> getWorkersByManagerId(@PathVariable String managerId) {
-        try {
-            List<Worker> workers = workerService.getWorkersByManagerId(managerId);
-            return Result.success(workers, "Workers retrieved successfully!");
-        } catch (Exception e) {
-            return Result.error("500", "Failed to retrieve workers: " + e.getMessage());
         }
     }
 
