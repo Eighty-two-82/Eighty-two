@@ -23,8 +23,8 @@ public interface WorkerRepository extends MongoRepository<Worker, String> {
     Optional<Worker> findByEmail(String email);
     
     
-    // 注意：移除了findByAssignedPatientsContaining方法
-    // 因为不再直接分配Patient给Worker
+    // Note: Removed findByAssignedPatientsContaining method
+    // because we no longer directly assign Patients to Workers
     
     // Find workers by organization and status
     List<Worker> findByOrganizationIdAndStatus(String organizationId, String status);

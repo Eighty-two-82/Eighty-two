@@ -330,7 +330,7 @@
       // On error, don't show the modal to avoid annoying users
     }
   }
-  
+
   // Show guide manually (from Guide button)
   const showGuide = () => {
     if (guideRef.value) {

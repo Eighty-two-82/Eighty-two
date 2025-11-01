@@ -151,7 +151,7 @@ public class BudgetServiceImpl implements BudgetService {
         Budget budget;
         
         if (!budgetOpt.isPresent()) {
-            // 创建一个新预算防止崩溃（防御式修复）
+            // Create a new budget to prevent crash (defensive fix)
             budget = new Budget();
             budget.setPatientId(patientId);
             budget.setTotalBudget(0);
@@ -512,9 +512,12 @@ public class BudgetServiceImpl implements BudgetService {
                 // Send email
                 try {
                     emailService.sendText(poaUser.getEmail(), subject, emailContent);
-                    System.out.println("Budget alert email sent to " + poaUser.getEmail() + " for " + alertLevel + " level alert");
+                    System.out.println("✅ Budget alert email sent to " + poaUser.getEmail() + " for " + alertLevel + " level alert");
+                } catch (IllegalStateException e) {
+                    System.err.println("⚠️ Email service not configured: " + e.getMessage());
+                    System.err.println("💡 To enable email sending, set SENDGRID_API_KEY environment variable");
                 } catch (Exception emailError) {
-                    System.err.println("Failed to send budget alert email: " + emailError.getMessage());
+                    System.err.println("❌ Failed to send budget alert email to " + poaUser.getEmail() + ": " + emailError.getMessage());
                 }
                 
                 // Create notification for POA

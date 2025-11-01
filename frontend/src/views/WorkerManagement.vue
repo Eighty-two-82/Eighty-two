@@ -1733,9 +1733,9 @@ const confirmDailyManagement = async () => {
     // Handle photo upload if there are files (do this BEFORE closing modal)
     if (fileList.value.length > 0 && selectedWorkerForPhoto.value) {
       try {
-        message.loading(`Uploading photo for ${selectedWorkerForPhoto.value.name}...`, 0)
-        
-        const uploadedFile = fileList.value[0]
+      message.loading(`Uploading photo for ${selectedWorkerForPhoto.value.name}...`, 0)
+      
+      const uploadedFile = fileList.value[0]
         const fileToUpload = uploadedFile.originFileObj || uploadedFile
         
         if (!fileToUpload) {
@@ -1765,9 +1765,9 @@ const confirmDailyManagement = async () => {
             console.log('📸 Photo URL converted to:', photoUrl)
           }
           
-          // Update the worker's photo in the workers array
-          const workerIndex = workers.value.findIndex(w => w.id === selectedWorkerForPhoto.value.id)
-          if (workerIndex !== -1) {
+        // Update the worker's photo in the workers array
+        const workerIndex = workers.value.findIndex(w => w.id === selectedWorkerForPhoto.value.id)
+        if (workerIndex !== -1) {
             workers.value[workerIndex].photo = photoUrl
             workers.value[workerIndex].photoUrl = photoUrl
             console.log('📸 Updated worker in memory:', workers.value[workerIndex])

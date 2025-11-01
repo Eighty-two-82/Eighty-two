@@ -93,8 +93,8 @@ public class UserServiceImpl implements UserService {
         }
         System.out.println("🔍 bindWorkerToPatient - Worker found: " + worker.getEmail() + ", Current patientId: " + worker.getPatientId());
         worker.setPatientId(patientId);
-        // 注意：不再修改 status 字段，status 应该用于表示 worker 的实际状态（active, inactive, pending 等）
-        // 绑定状态可以通过 patientId != null 来判断
+        // Note: We no longer modify the status field. Status should be used to represent the worker's actual state (active, inactive, pending, etc.)
+        // Binding status can be determined by checking if patientId != null
         User savedWorker = userRepository.save(worker);
         if (savedWorker != null) {
             System.out.println("✅ bindWorkerToPatient - Worker saved successfully, patientId: " + savedWorker.getPatientId());
@@ -118,8 +118,8 @@ public class UserServiceImpl implements UserService {
         User manager = userRepository.findById(managerId).orElse(null);
         if (manager == null) return false;
         manager.setPatientId(patientId);
-        // 注意：不再修改 status 字段，status 应该用于表示 worker 的实际状态（active, inactive, pending 等）
-        // 绑定状态可以通过 patientId != null 来判断
+        // Note: We no longer modify the status field. Status should be used to represent the worker's actual state (active, inactive, pending, etc.)
+        // Binding status can be determined by checking if patientId != null
         userRepository.save(manager);
         return true;
     }
@@ -224,12 +224,25 @@ public class UserServiceImpl implements UserService {
             );
             
             emailService.sendText(user.getEmail(), subject, emailContent);
+            System.out.println("✅ Password reset email sent successfully to: " + user.getEmail());
+            return true;
+        } catch (IllegalStateException e) {
+            // Email service not configured
+            System.err.println("⚠️ Email service not configured: " + e.getMessage());
+            System.err.println("📧 Password reset token generated (email NOT sent): " + token);
+            System.err.println("💡 To enable email sending, set SENDGRID_API_KEY environment variable");
+            // Log error but still return true for backward compatibility
+            // In production, you might want to return false or throw exception
             return true;
         } catch (Exception e) {
-            // Log error but don't fail the token generation for testing
-            System.err.println("Failed to send password reset email: " + e.getMessage());
-            System.err.println("Token generated for testing: " + token);
-            // For testing purposes, return true even if email fails
+            // Other email sending errors
+            System.err.println("❌ Failed to send password reset email to " + user.getEmail());
+            System.err.println("    Error: " + e.getMessage());
+            System.err.println("📧 Password reset token generated (email NOT sent): " + token);
+            // Log full exception for debugging
+            e.printStackTrace();
+            // Return true to allow token usage even if email fails
+            // This helps in testing scenarios where email service might not be fully configured
             return true;
         }
     }

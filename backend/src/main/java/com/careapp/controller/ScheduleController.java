@@ -259,7 +259,7 @@ public class ScheduleController {
     }
 
     /**
-     * Upload worker photo FILE for a schedule (真正的文件上传 - Swagger会显示Choose File按钮)
+     * Upload worker photo FILE for a schedule (actual file upload - Swagger will show Choose File button)
      * POST /api/schedules/{id}/upload-photo-file
      * @param id The schedule ID
      * @param file Photo file
@@ -274,13 +274,13 @@ public class ScheduleController {
                 return Result.error("400", "Please select a file to upload!");
             }
             
-            // 验证文件类型
+            // Validate file type
             String contentType = file.getContentType();
             if (contentType == null || !contentType.startsWith("image/")) {
                 return Result.error("400", "Only image files are allowed!");
             }
             
-            // 创建上传目录
+            // Create upload directory
             String uploadDir = "uploads/schedule-photos/";
             File directory = new File(uploadDir);
             if (!directory.exists()) {
@@ -291,7 +291,7 @@ public class ScheduleController {
                 System.out.println("📁 Created upload directory: " + directory.getAbsolutePath());
             }
             
-            // 生成唯一文件名
+            // Generate unique filename
             String originalFilename = file.getOriginalFilename();
             String fileExtension = "";
             if (originalFilename != null && originalFilename.contains(".")) {
@@ -299,7 +299,7 @@ public class ScheduleController {
             }
             String newFilename = "schedule_" + id + "_" + UUID.randomUUID().toString() + fileExtension;
             
-            // 保存文件
+            // Save file
             Path filePath = Paths.get(uploadDir + newFilename);
             Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
             
@@ -313,7 +313,7 @@ public class ScheduleController {
             // 生成访问URL
             String photoUrl = "/uploads/schedule-photos/" + newFilename;
             
-            // 更新数据库
+            // Update database
             Schedule updatedSchedule = scheduleService.uploadWorkerPhoto(id, photoUrl);
             if (updatedSchedule != null) {
                 return Result.success(updatedSchedule, "Worker photo uploaded successfully! URL: " + photoUrl);
@@ -328,7 +328,7 @@ public class ScheduleController {
     }
     
     /**
-     * Upload worker photo URL for a schedule (通过URL上传 - 接收JSON)
+     * Upload worker photo URL for a schedule (upload via URL - receives JSON)
      * POST /api/schedules/{id}/upload-photo
      * @param id The schedule ID
      * @param body A map containing the photo URL
