@@ -1269,6 +1269,10 @@ const handleRefund = async () => {
 
     const refundAmount = refundForm.value.amount
     
+    // Save old values before updating (for logging)
+    const oldUsed = currentRefundItem.value.totalUtilised
+    const oldBalance = currentRefundItem.value.balance
+    
     // Find the category that contains this sub-element
     const category = budgetData.value.categories.find(cat => 
       cat.subElements && cat.subElements.some(sub => sub.id === currentRefundItem.value.id)
@@ -1292,58 +1296,73 @@ const handleRefund = async () => {
       currentRefundItem.value.id,
       subElementData
     )
+    
     if (response?.data) {
       // Update used amount and balance
       currentRefundItem.value.totalUtilised -= refundAmount
       currentRefundItem.value.balance += refundAmount
-  
-  // Update warning level
-  const newPercentage = currentRefundItem.value.subElementBudget > 0 ? (currentRefundItem.value.totalUtilised / currentRefundItem.value.subElementBudget) * 100 : 0
-  if (newPercentage >= 100) {
-    currentRefundItem.value.warningLevel = 'critical'
-  } else if (newPercentage >= 80) {
-    currentRefundItem.value.warningLevel = 'warning'
-  } else {
-    currentRefundItem.value.warningLevel = 'normal'
-  }
-  
-  // Create refund comment
-  const reasonText = {
-    'defective': 'Defective product',
-    'wrong_brand': 'Wrong brand',
-    'wrong_size': 'Wrong size',
-    'quality_issue': 'Quality issue',
-    'duplicate_order': 'Duplicate order',
-    'customer_request': 'Customer request',
-    'other': 'Other reason'
-  }[refundForm.value.reason] || refundForm.value.reason
-  
-  const refundComment = `Refund: $${refundAmount.toLocaleString()} - ${reasonText}${refundForm.value.comment ? ` (${refundForm.value.comment})` : ''}`
-  
-  // Update comments
-  if (currentRefundItem.value.comments && currentRefundItem.value.comments !== 'Newly added sub-element') {
-    currentRefundItem.value.comments += `; ${refundComment}`
-  } else {
-    currentRefundItem.value.comments = refundComment
-  }
-  
-  console.log('Refund processed:', {
-    subElement: currentRefundItem.value.name,
-    refundAmount,
-    oldUsed,
-    newUsed: currentRefundItem.value.totalUtilised,
-    oldBalance,
-    newBalance: currentRefundItem.value.balance,
-    reason: reasonText,
-    comment: refundForm.value.comment
-  })
-  
-  // Close modal
-  refundModalVisible.value = false
-  currentRefundItem.value = null
-  
-      // Show success message and ask about uploading receipt
+      
+      // Update warning level
+      const newPercentage = currentRefundItem.value.subElementBudget > 0 ? (currentRefundItem.value.totalUtilised / currentRefundItem.value.subElementBudget) * 100 : 0
+      if (newPercentage >= 100) {
+        currentRefundItem.value.warningLevel = 'critical'
+      } else if (newPercentage >= 80) {
+        currentRefundItem.value.warningLevel = 'warning'
+      } else {
+        currentRefundItem.value.warningLevel = 'normal'
+      }
+      
+      // Create refund comment
+      const reasonText = {
+        'defective': 'Defective product',
+        'wrong_brand': 'Wrong brand',
+        'wrong_size': 'Wrong size',
+        'quality_issue': 'Quality issue',
+        'duplicate_order': 'Duplicate order',
+        'customer_request': 'Customer request',
+        'other': 'Other reason'
+      }[refundForm.value.reason] || refundForm.value.reason
+      
+      const refundComment = `Refund: $${refundAmount.toLocaleString()} - ${reasonText}${refundForm.value.comment ? ` (${refundForm.value.comment})` : ''}`
+      
+      // Update comments
+      if (currentRefundItem.value.comments && currentRefundItem.value.comments !== 'Newly added sub-element') {
+        currentRefundItem.value.comments += `; ${refundComment}`
+      } else {
+        currentRefundItem.value.comments = refundComment
+      }
+      
+      console.log('Refund processed:', {
+        subElement: currentRefundItem.value.name,
+        refundAmount,
+        oldUsed,
+        newUsed: currentRefundItem.value.totalUtilised,
+        oldBalance,
+        newBalance: currentRefundItem.value.balance,
+        reason: reasonText,
+        comment: refundForm.value.comment
+      })
+      
+      // Close modal
+      refundModalVisible.value = false
+      currentRefundItem.value = null
+      
+      // Show success message
       message.success(`Refund of $${refundAmount.toLocaleString()} processed successfully!`)
+      
+      // Ask if user wants to upload refund receipt (only on success)
+      Modal.confirm({
+        title: 'Upload Refund Receipt?',
+        content: 'Would you like to upload the refund receipt for this transaction?',
+        okText: 'Yes, Upload',
+        cancelText: 'No, Thanks',
+        onOk() {
+          router.push('/app/upload')
+        },
+        onCancel() {
+          console.log('User chose not to upload receipt')
+        }
+      })
     } else {
       message.error('Failed to process refund')
     }
@@ -1351,20 +1370,6 @@ const handleRefund = async () => {
     console.error('Failed to process refund:', error)
     message.error('Failed to process refund. Please try again.')
   }
-  
-  // Ask if user wants to upload refund receipt
-  Modal.confirm({
-    title: 'Upload Refund Receipt?',
-    content: 'Would you like to upload the refund receipt for this transaction?',
-    okText: 'Yes, Upload',
-    cancelText: 'No, Thanks',
-    onOk() {
-      router.push('/app/upload')
-    },
-    onCancel() {
-      console.log('User chose not to upload receipt')
-    }
-  })
 }
 
 // Main table: Category summary (does not depend on totalUsed/totalBalance/usagePercentage written back in onMounted)
