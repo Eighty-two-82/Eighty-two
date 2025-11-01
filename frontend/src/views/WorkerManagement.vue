@@ -1733,9 +1733,9 @@ const confirmDailyManagement = async () => {
     // Handle photo upload if there are files
     if (fileList.value.length > 0 && selectedWorkerForPhoto.value) {
       try {
-        message.loading(`Uploading photo for ${selectedWorkerForPhoto.value.name}...`, 0)
-        
-        const uploadedFile = fileList.value[0]
+      message.loading(`Uploading photo for ${selectedWorkerForPhoto.value.name}...`, 0)
+      
+      const uploadedFile = fileList.value[0]
         const fileToUpload = uploadedFile.originFileObj || uploadedFile
         
         if (!fileToUpload) {
@@ -1748,20 +1748,20 @@ const confirmDailyManagement = async () => {
         if (response.data) {
           const photoUrl = response.data.photoUrl || response.data.photo
           
-          // Update the worker's photo in the workers array
-          const workerIndex = workers.value.findIndex(w => w.id === selectedWorkerForPhoto.value.id)
-          if (workerIndex !== -1) {
+        // Update the worker's photo in the workers array
+        const workerIndex = workers.value.findIndex(w => w.id === selectedWorkerForPhoto.value.id)
+        if (workerIndex !== -1) {
             workers.value[workerIndex].photo = photoUrl
-          }
-          
-          // Update the worker's photo in the dailyWorkers array if they are currently displayed
-          const dailyWorkerIndex = dailyWorkers.value.findIndex(w => w.id === selectedWorkerForPhoto.value.id)
-          if (dailyWorkerIndex !== -1) {
+        }
+        
+        // Update the worker's photo in the dailyWorkers array if they are currently displayed
+        const dailyWorkerIndex = dailyWorkers.value.findIndex(w => w.id === selectedWorkerForPhoto.value.id)
+        if (dailyWorkerIndex !== -1) {
             dailyWorkers.value[dailyWorkerIndex].photo = photoUrl
-          }
-          
-          message.destroy()
-          message.success(`Successfully uploaded photo for ${selectedWorkerForPhoto.value.name}`)
+      }
+      
+      message.destroy()
+      message.success(`Successfully uploaded photo for ${selectedWorkerForPhoto.value.name}`)
         } else {
           throw new Error('Upload failed: No data returned')
         }

@@ -91,7 +91,7 @@ public class WorkerService {
             if (workerDetails.getNotes() != null) {
                 existingWorker.setNotes(workerDetails.getNotes());
             }
-            // 注意：移除了setAssignedPatients，因为不再直接分配Patient
+            // Note: Removed setAssignedPatients because we no longer directly assign Patients
             if (workerDetails.getDailySchedule() != null) {
                 existingWorker.setDailySchedule(workerDetails.getDailySchedule());
             }

@@ -1,21 +1,21 @@
-# 密码重置邮件功能测试
+# Password Reset Email Feature Test
 
-## 功能说明
-现在密码重置功能已经更新，用户请求重置密码时会收到包含token的邮件，而不是直接返回token。
+## Feature Description
+The password reset feature has been updated. When a user requests a password reset, they will receive an email containing the token, instead of the token being returned directly.
 
-## 测试步骤
+## Test Steps
 
-### 1. 请求密码重置
-**端点**: `POST /api/auth/forgot-password`
+### 1. Request Password Reset
+**Endpoint**: `POST /api/auth/forgot-password`
 
-**请求体**:
+**Request Body**:
 ```json
 {
   "identifier": "user@example.com"
 }
 ```
 
-**预期响应**:
+**Expected Response**:
 ```json
 {
   "code": "200",
@@ -24,24 +24,24 @@
 }
 ```
 
-### 2. 检查邮箱
-用户应该收到一封来自 `caretrack3@gmail.com` 的邮件，包含：
-- 主题: "CareTrack - Password Reset Request"
-- 内容包含密码重置token
-- Token有效期15分钟
+### 2. Check Email
+The user should receive an email from `caretrack3@gmail.com` containing:
+- Subject: "CareTrack - Password Reset Request"
+- Content includes password reset token
+- Token validity: 15 minutes
 
-### 3. 使用token重置密码
-**端点**: `POST /api/auth/reset-password`
+### 3. Reset Password Using Token
+**Endpoint**: `POST /api/auth/reset-password`
 
-**请求体**:
+**Request Body**:
 ```json
 {
-  "token": "从邮件中复制的token",
+  "token": "token_copied_from_email",
   "newPassword": "newpassword123"
 }
 ```
 
-**预期响应**:
+**Expected Response**:
 ```json
 {
   "code": "200",
@@ -50,30 +50,30 @@
 }
 ```
 
-## 注意事项
-- 需要设置有效的 `SENDGRID_API_KEY` 环境变量
-- 发送方邮箱 `caretrack3@gmail.com` 需要在SendGrid中验证
-- Token有效期为15分钟
-- 如果用户不存在，返回404错误
-- 如果邮件发送失败，返回404错误（但token仍会生成）
+## Notes
+- A valid `SENDGRID_API_KEY` environment variable must be set
+- Sender email `caretrack3@gmail.com` must be verified in SendGrid
+- Token validity is 15 minutes
+- If user does not exist, returns 404 error
+- If email sending fails, returns 404 error (but token is still generated)
 
-## 测试用例
+## Test Cases
 
-### 测试用例1: 正常流程
-1. 使用存在的用户邮箱请求重置
-2. 检查邮箱收到邮件
-3. 使用邮件中的token重置密码
-4. 验证新密码可以登录
+### Test Case 1: Normal Flow
+1. Request reset using an existing user email
+2. Check email inbox for received email
+3. Use token from email to reset password
+4. Verify new password can be used to log in
 
-### 测试用例2: 用户不存在
-1. 使用不存在的邮箱请求重置
-2. 应该返回404错误
+### Test Case 2: User Does Not Exist
+1. Request reset using non-existent email
+2. Should return 404 error
 
-### 测试用例3: Token过期
-1. 请求重置密码
-2. 等待15分钟后使用token
-3. 应该返回400错误
+### Test Case 3: Token Expired
+1. Request password reset
+2. Wait 15 minutes, then use token
+3. Should return 400 error
 
-### 测试用例4: 无效token
-1. 使用无效token重置密码
-2. 应该返回400错误
+### Test Case 4: Invalid Token
+1. Use invalid token to reset password
+2. Should return 400 error

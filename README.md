@@ -45,8 +45,29 @@ npm run dev`
 http://localhost:5174/
 
 ### Environment Variables：
+
+**Backend SendGrid Configuration:**
+To enable email sending (for forget password and budget alerts), you need to set the SendGrid API key:
+```bash
+export SENDGRID_API_KEY=SG.your_actual_api_key_here
+```
+
+Or add it to your shell profile (`~/.bashrc`, `~/.zshrc`, etc.):
+```bash
+echo 'export SENDGRID_API_KEY=SG.your_actual_api_key_here' >> ~/.bashrc
+source ~/.bashrc
+```
+
+**Email Features:**
+- **Forget Password**: When a user requests password reset, an email with reset token will be sent to their registered email address.
+- **Budget Alerts**: When budget usage reaches 80% (warning) or 100% (critical), an email alert will be sent to the POA (Power of Attorney) user.
+
+**Test Email Configuration:**
+- Check email service status: `GET http://localhost:8081/api/mail/status`
+- Send test email: `POST http://localhost:8081/api/mail/test?to=your-email@example.com`
+
 **Frontend .env.example**
-VITE_API_BASE=http://localhost:8080
+VITE_API_BASE=http://localhost:8081
 **.env is ignored in .gitignore and should not be committed**
 **Modify .env locally to point to different backend endpoints*
 

@@ -32,19 +32,19 @@ public class DebugController {
     @Resource
     private AuthorizationService authorizationService;
     
-    // 查看所有用户数据
+    // View all user data
     @GetMapping("/users")
     public Result<List<User>> getAllUsers() {
         try {
-            // 这里需要添加一个getAllUsers方法到UserService
-            // 暂时返回空列表
+            // Need to add a getAllUsers method to UserService
+            // Temporarily return empty list
             return Result.success(List.of(), "Users retrieved successfully!");
         } catch (Exception e) {
             return Result.error("500", "Failed to retrieve users: " + e.getMessage());
         }
     }
     
-    // 查看所有患者数据
+    // View all patient data
     @GetMapping("/patients")
     public Result<List<Patient>> getAllPatients() {
         try {
@@ -55,7 +55,7 @@ public class DebugController {
         }
     }
     
-    // 查看所有任务数据
+    // View all task data
     @GetMapping("/tasks")
     public Result<List<Task>> getAllTasks() {
         try {
@@ -66,33 +66,33 @@ public class DebugController {
         }
     }
     
-    // 查看所有授权关系
+    // View all authorization relationships
     @GetMapping("/authorizations")
     public Result<List<Authorization>> getAllAuthorizations() {
         try {
-            // 这里需要添加一个getAllAuthorizations方法到AuthorizationService
-            // 暂时返回空列表
+            // Need to add a getAllAuthorizations method to AuthorizationService
+            // Temporarily return empty list
             return Result.success(List.of(), "Authorizations retrieved successfully!");
         } catch (Exception e) {
             return Result.error("500", "Failed to retrieve authorizations: " + e.getMessage());
         }
     }
     
-    // 查看数据库概览
+    // View database overview
     @GetMapping("/overview")
     public Result<Map<String, Object>> getDatabaseOverview() {
         try {
             Map<String, Object> overview = new HashMap<>();
             
-            // 患者数量
+            // Patient count
             List<Patient> patients = patientService.getAllPatients();
             overview.put("patientCount", patients.size());
             
-            // 任务数量
+            // Task count
             List<Task> tasks = taskService.getAllTasks();
             overview.put("taskCount", tasks.size());
             
-            // 按组织分组的患者
+            // Patients grouped by organization
             Map<String, Long> patientsByOrg = new HashMap<>();
             for (Patient patient : patients) {
                 String orgId = patient.getOrganizationId() != null ? patient.getOrganizationId() : "null";
@@ -100,7 +100,7 @@ public class DebugController {
             }
             overview.put("patientsByOrganization", patientsByOrg);
             
-            // 按组织分组的任务
+            // Tasks grouped by organization
             Map<String, Long> tasksByOrg = new HashMap<>();
             for (Task task : tasks) {
                 String orgId = task.getOrganizationId() != null ? task.getOrganizationId() : "null";
@@ -108,7 +108,7 @@ public class DebugController {
             }
             overview.put("tasksByOrganization", tasksByOrg);
             
-            // 按分配状态分组的任务
+            // Tasks grouped by assignment status
             Map<String, Long> tasksByAssignment = new HashMap<>();
             for (Task task : tasks) {
                 String assignment = task.getAssignedToId() != null ? "assigned" : "unassigned";

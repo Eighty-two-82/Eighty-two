@@ -1,42 +1,42 @@
-# API 测试用例文档
+# API Test Cases Documentation
 
-## 访问 Swagger UI
-启动后端服务后，访问：
+## Access Swagger UI
+After starting the backend service, visit:
 ```
 http://localhost:8080/swagger-ui.html
 ```
 
 ---
 
-## 1. 日常排班管理功能测试
+## 1. Daily Schedule Management Feature Tests
 
-### 1.1 批量创建排班
-**接口**: `POST /api/schedules/batch-create`
+### 1.1 Batch Create Schedules
+**Endpoint**: `POST /api/schedules/batch-create`
 
-**请求头**:
+**Headers**:
 ```json
 X-Organization-Id: org-001
 X-User-Id: manager-001
 ```
 
-**请求体**:
+**Request Body**:
 ```json
 {
   "scheduleDate": "2025-01-20",
   "morningShiftWorkerIds": ["W001", "W002"],
   "eveningShiftWorkerIds": ["W003", "W004"],
-  "scheduleNotes": "正常排班"
+  "scheduleNotes": "Regular schedule"
 }
 ```
 
-**预期结果**: 返回创建的4个排班记录
+**Expected Result**: Returns 4 created schedule records
 
 ---
 
-### 1.2 批量更新排班状态
-**接口**: `PUT /api/schedules/batch-update-status`
+### 1.2 Batch Update Schedule Status
+**Endpoint**: `PUT /api/schedules/batch-update-status`
 
-**请求体**:
+**Request Body**:
 ```json
 {
   "scheduleIds": ["schedule_id_1", "schedule_id_2"],
@@ -44,20 +44,20 @@ X-User-Id: manager-001
 }
 ```
 
-**预期结果**: 返回更新后的排班列表
+**Expected Result**: Returns updated schedule list
 
 ---
 
-### 1.3 复制排班
-**接口**: `POST /api/schedules/copy`
+### 1.3 Copy Schedule
+**Endpoint**: `POST /api/schedules/copy`
 
-**请求头**:
+**Headers**:
 ```json
 X-Organization-Id: org-001
 X-User-Id: manager-001
 ```
 
-**请求体**:
+**Request Body**:
 ```json
 {
   "sourceDate": "2025-01-20",
@@ -67,53 +67,53 @@ X-User-Id: manager-001
 }
 ```
 
-**预期结果**: 将2025-01-20的排班复制到2025-01-21
+**Expected Result**: Copies schedule from 2025-01-20 to 2025-01-21
 
 ---
 
-### 1.4 获取周排班
-**接口**: `GET /api/schedules/weekly?startDate=2025-01-20&organizationId=org-001`
+### 1.4 Get Weekly Schedule
+**Endpoint**: `GET /api/schedules/weekly?startDate=2025-01-20&organizationId=org-001`
 
-**预期结果**: 返回从2025-01-20开始的一周排班
-
----
-
-### 1.5 验证排班冲突
-**接口**: `GET /api/schedules/validate?workerId=W001&date=2025-01-20&shiftType=morning`
-
-**预期结果**: 返回true（无冲突）或false（有冲突）
+**Expected Result**: Returns weekly schedule starting from 2025-01-20
 
 ---
 
-### 1.6 删除指定日期的所有排班
-**接口**: `DELETE /api/schedules/date/2025-01-20?organizationId=org-001`
+### 1.5 Validate Schedule Conflict
+**Endpoint**: `GET /api/schedules/validate?workerId=W001&date=2025-01-20&shiftType=morning`
 
-**预期结果**: 返回删除的排班数量
+**Expected Result**: Returns true (no conflict) or false (conflict exists)
 
 ---
 
-## 2. 员工照片上传功能测试
+### 1.6 Delete All Schedules for a Date
+**Endpoint**: `DELETE /api/schedules/date/2025-01-20?organizationId=org-001`
 
-### 2.1 简化上传照片接口
-**接口**: `POST /api/workers/{workerId}/photo`
+**Expected Result**: Returns number of deleted schedules
 
-**路径参数**: `workerId = W001`
+---
 
-**请求体**:
+## 2. Worker Photo Upload Feature Tests
+
+### 2.1 Upload Photo Endpoint
+**Endpoint**: `POST /api/workers/{workerId}/photo`
+
+**Path Parameter**: `workerId = W001`
+
+**Request Body**:
 ```json
 {
   "photoUrl": "https://example.com/photos/worker1.jpg"
 }
 ```
 
-**预期结果**: 返回更新后的员工信息，包含照片URL
+**Expected Result**: Returns updated worker information including photo URL
 
 ---
 
-### 2.2 批量上传照片
-**接口**: `POST /api/workers/batch-upload-photos`
+### 2.2 Batch Upload Photos
+**Endpoint**: `POST /api/workers/batch-upload-photos`
 
-**请求体**:
+**Request Body**:
 ```json
 {
   "W001": "https://example.com/photos/worker1.jpg",
@@ -122,119 +122,119 @@ X-User-Id: manager-001
 }
 ```
 
-**预期结果**: 返回3个更新后的员工信息
+**Expected Result**: Returns 3 updated worker records
 
 ---
 
-### 2.3 删除员工照片
-**接口**: `DELETE /api/workers/W001/photo`
+### 2.3 Delete Worker Photo
+**Endpoint**: `DELETE /api/workers/W001/photo`
 
-**预期结果**: 返回更新后的员工信息，photoUrl为null
-
----
-
-### 2.4 获取没有照片的员工
-**接口**: `GET /api/workers/organization/org-001/without-photos`
-
-**预期结果**: 返回没有上传照片的员工列表
+**Expected Result**: Returns updated worker information with photoUrl set to null
 
 ---
 
-## 3. 通知功能测试
+### 2.4 Get Workers Without Photos
+**Endpoint**: `GET /api/workers/organization/org-001/without-photos`
 
-### 3.1 获取我的通知
-**接口**: `GET /api/notifications/my`
+**Expected Result**: Returns list of workers who have not uploaded photos
 
-**请求头**:
+---
+
+## 3. Notification Feature Tests
+
+### 3.1 Get My Notifications
+**Endpoint**: `GET /api/notifications/my`
+
+**Headers**:
 ```json
 X-User-Id: user-001
 ```
 
-**预期结果**: 返回当前用户的所有通知
+**Expected Result**: Returns all notifications for the current user
 
 ---
 
-### 3.2 获取未读通知
-**接口**: `GET /api/notifications/unread`
+### 3.2 Get Unread Notifications
+**Endpoint**: `GET /api/notifications/unread`
 
-**请求头**:
+**Headers**:
 ```json
 X-User-Id: user-001
 ```
 
-**预期结果**: 返回未读通知列表
+**Expected Result**: Returns list of unread notifications
 
 ---
 
-### 3.3 获取未读通知数量
-**接口**: `GET /api/notifications/unread/count`
+### 3.3 Get Unread Notification Count
+**Endpoint**: `GET /api/notifications/unread/count`
 
-**请求头**:
+**Headers**:
 ```json
 X-User-Id: user-001
 ```
 
-**预期结果**: 返回未读通知数量
+**Expected Result**: Returns count of unread notifications
 
 ---
 
-### 3.4 标记通知为已读
-**接口**: `PUT /api/notifications/{notificationId}/read`
+### 3.4 Mark Notification as Read
+**Endpoint**: `PUT /api/notifications/{notificationId}/read`
 
-**预期结果**: 返回更新后的通知，isRead=true
+**Expected Result**: Returns updated notification with isRead=true
 
 ---
 
-### 3.5 标记所有通知为已读
-**接口**: `PUT /api/notifications/read-all`
+### 3.5 Mark All Notifications as Read
+**Endpoint**: `PUT /api/notifications/read-all`
 
-**请求头**:
+**Headers**:
 ```json
 X-User-Id: user-001
 ```
 
-**预期结果**: 返回标记为已读的通知数量
+**Expected Result**: Returns number of notifications marked as read
 
 ---
 
-### 3.6 创建任务分配通知
-**接口**: `POST /api/notifications/task-assigned`
+### 3.6 Create Task Assignment Notification
+**Endpoint**: `POST /api/notifications/task-assigned`
 
-**请求体**:
+**Request Body**:
 ```json
 {
   "workerId": "W001",
   "taskId": "task-001",
-  "taskTitle": "协助病人用餐",
+  "taskTitle": "Assist patient with meal",
   "assignedBy": "manager-001"
 }
 ```
 
-**预期结果**: 创建一个任务分配通知
+**Expected Result**: Creates a task assignment notification
 
 ---
 
-### 3.7 创建任务完成通知
-**接口**: `POST /api/notifications/task-completed`
+### 3.7 Create Task Completion Notification
+**Endpoint**: `POST /api/notifications/task-completed`
 
-**请求体**:
+**Request Body**:
 ```json
 {
   "managerId": "manager-001",
   "taskId": "task-001",
-  "taskTitle": "协助病人用餐",
+  "taskTitle": "Assist patient with meal",
   "completedBy": "W001"
 }
 ```
 
-**预期结果**: 创建一个任务完成通知
+**Expected Result**: Creates a task completion notification
 
 ---
 
-### 3.8 创建排班更新通知
-**接口**: `POST /api/notifications/schedule-updated`
+### 3.8 Create Schedule Update Notification
+**Endpoint**: `POST /api/notifications/schedule-updated`
 
-**请求体**:
+**Request Body**:
 ```json
 {
   "workerId": "W001",
@@ -244,298 +244,298 @@ X-User-Id: user-001
 }
 ```
 
-**预期结果**: 创建一个排班更新通知
+**Expected Result**: Creates a schedule update notification
 
 ---
 
-### 3.9 删除通知
-**接口**: `DELETE /api/notifications/{notificationId}`
+### 3.9 Delete Notification
+**Endpoint**: `DELETE /api/notifications/{notificationId}`
 
-**预期结果**: 通知被删除
+**Expected Result**: Notification is deleted
 
 ---
 
-### 3.10 按类别获取通知
-**接口**: `GET /api/notifications/category/task`
+### 3.10 Get Notifications by Category
+**Endpoint**: `GET /api/notifications/category/task`
 
-**请求头**:
+**Headers**:
 ```json
 X-User-Id: user-001
 ```
 
-**预期结果**: 返回任务类别的通知
+**Expected Result**: Returns notifications of task category
 
 ---
 
-## 4. 通信功能测试
+## 4. Communication Feature Tests
 
-### 4.1 发送消息
-**接口**: `POST /api/messages`
+### 4.1 Send Message
+**Endpoint**: `POST /api/messages`
 
-**请求头**:
+**Headers**:
 ```json
 X-User-Id: user-001
 X-Organization-Id: org-001
 ```
 
-**请求体**:
+**Request Body**:
 ```json
 {
-  "subject": "关于病人P1的护理计划",
-  "content": "您好，我想讨论一下P1的护理计划调整。",
+  "subject": "About Patient P1's Care Plan",
+  "content": "Hello, I would like to discuss adjustments to P1's care plan.",
   "toUserId": "user-002",
-  "toUserName": "张医生",
-  "fromUserName": "李护士",
+  "toUserName": "Dr. Smith",
+  "fromUserName": "Nurse Johnson",
   "category": "general"
 }
 ```
 
-**预期结果**: 消息发送成功，同时创建通知给接收者
+**Expected Result**: Message sent successfully, notification created for recipient
 
 ---
 
-### 4.2 获取收件箱
-**接口**: `GET /api/messages/inbox`
+### 4.2 Get Inbox
+**Endpoint**: `GET /api/messages/inbox`
 
-**请求头**:
+**Headers**:
 ```json
 X-User-Id: user-001
 ```
 
-**预期结果**: 返回用户接收的所有消息
+**Expected Result**: Returns all messages received by the user
 
 ---
 
-### 4.3 获取发件箱
-**接口**: `GET /api/messages/sent`
+### 4.3 Get Sent Messages
+**Endpoint**: `GET /api/messages/sent`
 
-**请求头**:
+**Headers**:
 ```json
 X-User-Id: user-001
 ```
 
-**预期结果**: 返回用户发送的所有消息
+**Expected Result**: Returns all messages sent by the user
 
 ---
 
-### 4.4 获取未读消息
-**接口**: `GET /api/messages/unread`
+### 4.4 Get Unread Messages
+**Endpoint**: `GET /api/messages/unread`
 
-**请求头**:
+**Headers**:
 ```json
 X-User-Id: user-001
 ```
 
-**预期结果**: 返回未读消息列表
+**Expected Result**: Returns list of unread messages
 
 ---
 
-### 4.5 获取未读消息数量
-**接口**: `GET /api/messages/unread/count`
+### 4.5 Get Unread Message Count
+**Endpoint**: `GET /api/messages/unread/count`
 
-**请求头**:
+**Headers**:
 ```json
 X-User-Id: user-001
 ```
 
-**预期结果**: 返回未读消息数量
+**Expected Result**: Returns count of unread messages
 
 ---
 
-### 4.6 回复消息
-**接口**: `POST /api/messages/{messageId}/reply`
+### 4.6 Reply to Message
+**Endpoint**: `POST /api/messages/{messageId}/reply`
 
-**请求头**:
+**Headers**:
 ```json
 X-User-Id: user-002
 X-Organization-Id: org-001
 ```
 
-**请求体**:
+**Request Body**:
 ```json
 {
-  "content": "好的，我们可以在明天上午10点讨论这个问题。",
-  "fromUserName": "张医生"
+  "content": "OK, we can discuss this issue tomorrow at 10 AM.",
+  "fromUserName": "Dr. Smith"
 }
 ```
 
-**预期结果**: 回复发送成功，subject自动添加"Re:"前缀
+**Expected Result**: Reply sent successfully, subject automatically prefixed with "Re:"
 
 ---
 
-### 4.7 标记消息为已读
-**接口**: `PUT /api/messages/{messageId}/read`
+### 4.7 Mark Message as Read
+**Endpoint**: `PUT /api/messages/{messageId}/read`
 
-**预期结果**: 消息标记为已读，status更新为"read"
-
----
-
-### 4.8 获取消息详情
-**接口**: `GET /api/messages/{messageId}`
-
-**预期结果**: 返回完整的消息信息
+**Expected Result**: Message marked as read, status updated to "read"
 
 ---
 
-### 4.9 归档消息
-**接口**: `PUT /api/messages/{messageId}/archive`
+### 4.8 Get Message Details
+**Endpoint**: `GET /api/messages/{messageId}`
 
-**预期结果**: 消息状态更新为"archived"
-
----
-
-### 4.10 删除消息
-**接口**: `DELETE /api/messages/{messageId}`
-
-**预期结果**: 消息标记为删除（软删除）
+**Expected Result**: Returns complete message information
 
 ---
 
-### 4.11 永久删除消息
-**接口**: `DELETE /api/messages/{messageId}/permanent`
+### 4.9 Archive Message
+**Endpoint**: `PUT /api/messages/{messageId}/archive`
 
-**预期结果**: 消息从数据库中永久删除
+**Expected Result**: Message status updated to "archived"
 
 ---
 
-### 4.12 获取对话记录
-**接口**: `GET /api/messages/conversation/user-002`
+### 4.10 Delete Message
+**Endpoint**: `DELETE /api/messages/{messageId}`
 
-**请求头**:
+**Expected Result**: Message marked as deleted (soft delete)
+
+---
+
+### 4.11 Permanently Delete Message
+**Endpoint**: `DELETE /api/messages/{messageId}/permanent`
+
+**Expected Result**: Message permanently deleted from database
+
+---
+
+### 4.12 Get Conversation
+**Endpoint**: `GET /api/messages/conversation/user-002`
+
+**Headers**:
 ```json
 X-User-Id: user-001
 ```
 
-**预期结果**: 返回user-001和user-002之间的所有消息
+**Expected Result**: Returns all messages between user-001 and user-002
 
 ---
 
-### 4.13 获取消息的回复
-**接口**: `GET /api/messages/{messageId}/replies`
+### 4.13 Get Message Replies
+**Endpoint**: `GET /api/messages/{messageId}/replies`
 
-**预期结果**: 返回该消息的所有回复
+**Expected Result**: Returns all replies to the message
 
 ---
 
-### 4.14 按类别获取消息
-**接口**: `GET /api/messages/category/urgent`
+### 4.14 Get Messages by Category
+**Endpoint**: `GET /api/messages/category/urgent`
 
-**请求头**:
+**Headers**:
 ```json
 X-User-Id: user-001
 ```
 
-**预期结果**: 返回紧急类别的消息
+**Expected Result**: Returns messages of urgent category
 
 ---
 
-## 5. 测试流程建议
+## 5. Recommended Test Workflows
 
-### 5.1 排班管理完整流程
-1. 创建员工（如果还没有）
-2. 批量创建排班 → 验证排班冲突
-3. 获取周排班查看结果
-4. 批量更新排班状态
-5. 复制排班到下一天
-6. 删除指定日期排班
+### 5.1 Complete Schedule Management Workflow
+1. Create workers (if not already done)
+2. Batch create schedules → Validate schedule conflicts
+3. Get weekly schedule to view results
+4. Batch update schedule status
+5. Copy schedule to next day
+6. Delete schedules for specific date
 
-### 5.2 员工照片管理完整流程
-1. 获取没有照片的员工列表
-2. 为单个员工上传照片
-3. 批量上传多个员工照片
-4. 验证照片已上传
-5. 删除某个员工的照片
+### 5.2 Complete Worker Photo Management Workflow
+1. Get list of workers without photos
+2. Upload photo for single worker
+3. Batch upload photos for multiple workers
+4. Verify photos have been uploaded
+5. Delete photo for a worker
 
-### 5.3 通知功能完整流程
-1. 创建任务分配通知
-2. 获取未读通知数量
-3. 获取未读通知列表
-4. 标记单个通知为已读
-5. 创建其他类型通知（排班更新、任务完成等）
-6. 按类别查询通知
-7. 标记所有通知为已读
-8. 删除通知
+### 5.3 Complete Notification Feature Workflow
+1. Create task assignment notification
+2. Get unread notification count
+3. Get unread notification list
+4. Mark single notification as read
+5. Create other notification types (schedule update, task completion, etc.)
+6. Query notifications by category
+7. Mark all notifications as read
+8. Delete notification
 
-### 5.4 通信功能完整流程
-1. 用户A发送消息给用户B
-2. 用户B获取未读消息数量
-3. 用户B查看收件箱
-4. 用户B阅读消息（标记为已读）
-5. 用户B回复消息
-6. 用户A获取对话记录
-7. 查看消息的所有回复
-8. 归档或删除消息
-
----
-
-## 6. 常见测试场景
-
-### 场景1: 管理员创建一周排班
-```
-1. POST /api/schedules/batch-create (创建周一排班)
-2. POST /api/schedules/copy (复制到周二)
-3. POST /api/schedules/copy (复制到周三)
-4. ... 重复到周日
-5. GET /api/schedules/weekly (查看整周排班)
-```
-
-### 场景2: 工作人员收到任务并完成
-```
-1. Manager: 创建任务 (自动触发任务分配通知)
-2. Worker: GET /api/notifications/unread (查看未读通知)
-3. Worker: PUT /api/notifications/{id}/read (标记通知为已读)
-4. Worker: 完成任务
-5. Worker: POST /api/notifications/task-completed (通知管理员)
-6. Manager: 收到任务完成通知
-```
-
-### 场景3: 用户之间的消息往来
-```
-1. User A: POST /api/messages (发送消息给User B)
-2. User B: GET /api/messages/unread/count (查看未读数量)
-3. User B: GET /api/messages/inbox (查看收件箱)
-4. User B: PUT /api/messages/{id}/read (标记为已读)
-5. User B: POST /api/messages/{id}/reply (回复消息)
-6. User A: GET /api/messages/conversation/{userB} (查看对话)
-```
+### 5.4 Complete Communication Feature Workflow
+1. User A sends message to User B
+2. User B gets unread message count
+3. User B views inbox
+4. User B reads message (marks as read)
+5. User B replies to message
+6. User A gets conversation history
+7. View all replies to message
+8. Archive or delete message
 
 ---
 
-## 7. 注意事项
+## 6. Common Test Scenarios
 
-1. **请求头**: 大部分接口需要 `X-User-Id` 和/或 `X-Organization-Id` 请求头
-2. **日期格式**: 使用 `yyyy-MM-dd` 格式 (如: 2025-01-20)
-3. **ID格式**: 员工ID使用 `W001`, `W002` 等格式
-4. **默认值**: 如果不提供请求头，系统会使用默认值（如 org-001, default-user-001）
-5. **关联功能**: 发送消息时会自动创建通知
+### Scenario 1: Administrator Creates Weekly Schedule
+```
+1. POST /api/schedules/batch-create (Create Monday schedule)
+2. POST /api/schedules/copy (Copy to Tuesday)
+3. POST /api/schedules/copy (Copy to Wednesday)
+4. ... Repeat until Sunday
+5. GET /api/schedules/weekly (View entire week schedule)
+```
+
+### Scenario 2: Worker Receives and Completes Task
+```
+1. Manager: Create task (automatically triggers task assignment notification)
+2. Worker: GET /api/notifications/unread (View unread notifications)
+3. Worker: PUT /api/notifications/{id}/read (Mark notification as read)
+4. Worker: Complete task
+5. Worker: POST /api/notifications/task-completed (Notify manager)
+6. Manager: Receives task completion notification
+```
+
+### Scenario 3: Message Exchange Between Users
+```
+1. User A: POST /api/messages (Send message to User B)
+2. User B: GET /api/messages/unread/count (View unread count)
+3. User B: GET /api/messages/inbox (View inbox)
+4. User B: PUT /api/messages/{id}/read (Mark as read)
+5. User B: POST /api/messages/{id}/reply (Reply to message)
+6. User A: GET /api/messages/conversation/{userB} (View conversation)
+```
 
 ---
 
-## 8. 快速测试数据
+## 7. Notes
 
-### 员工ID示例
+1. **Headers**: Most endpoints require `X-User-Id` and/or `X-Organization-Id` headers
+2. **Date Format**: Use `yyyy-MM-dd` format (e.g., 2025-01-20)
+3. **ID Format**: Worker IDs use format like `W001`, `W002`, etc.
+4. **Default Values**: If headers are not provided, system uses default values (e.g., org-001, default-user-001)
+5. **Related Features**: Sending messages automatically creates notifications
+
+---
+
+## 8. Quick Test Data
+
+### Sample Worker IDs
 ```
 W001, W002, W003, W004, W005
 ```
 
-### 用户ID示例
+### Sample User IDs
 ```
 manager-001, user-001, user-002, worker-001
 ```
 
-### 组织ID
+### Organization ID
 ```
 org-001
 ```
 
-### 日期示例
+### Sample Dates
 ```
 2025-01-20, 2025-01-21, 2025-01-22
 ```
 
 ---
 
-祝测试顺利！🚀
+Happy Testing! 🚀
 
 
 

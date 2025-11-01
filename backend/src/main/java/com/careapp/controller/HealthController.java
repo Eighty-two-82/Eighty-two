@@ -12,13 +12,13 @@ import java.util.Map;
 @RequestMapping("/")
 public class HealthController {
 
-    // 根路径，打开 Heroku 域名时不会 404
+    // Root path, prevents 404 when accessing Heroku domain
     @GetMapping
     public String index() {
         return "CareApp Backend is running!";
     }
 
-    // 健康检查接口，给前端/监控调用
+    // Health check endpoint, for frontend/monitoring calls
     @GetMapping("/api/health")
     public Map<String, Object> health() {
         Map<String, Object> status = new HashMap<>();

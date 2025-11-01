@@ -42,8 +42,8 @@ public class Worker {
     
     private String notes; // notes
     
-    // 注意：移除了assignedPatients字段
-    // 因为Worker应该通过Task分配来访问Patient数据
+    // Note: Removed assignedPatients field
+    // because Workers should access Patient data through Task assignments
     
     @Field("daily_schedule")
     private String dailySchedule; // daily schedule
@@ -175,7 +175,7 @@ public class Worker {
     public String getNotes() { return notes; }
     public void setNotes(String notes) { this.notes = notes; }
 
-    // 注意：移除了assignedPatients的getter和setter方法
+    // Note: Removed getter and setter methods for assignedPatients
 
     public String getDailySchedule() { return dailySchedule; }
     public void setDailySchedule(String dailySchedule) { this.dailySchedule = dailySchedule; }

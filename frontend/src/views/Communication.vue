@@ -17,7 +17,7 @@
         </div>
       </template>
 
-      <!-- 消息列表 -->
+      <!-- Message list -->
       <a-table 
         :columns="columns" 
         :data-source="messages" 
@@ -26,14 +26,14 @@
         :pagination="{ pageSize: 10 }"
       >
         <template #bodyCell="{ column, record }">
-          <!-- 状态列 -->
+          <!-- Status column -->
           <template v-if="column.dataIndex === 'status'">
             <a-tag :color="getStatusColor(record.status)">
               {{ record.status }}
             </a-tag>
           </template>
           
-          <!-- 操作按钮 -->
+          <!-- Action buttons -->
           <template v-else-if="column.dataIndex === 'actions'">
             <a-space>
               <a-button size="small" @click="viewMessage(record)">View</a-button>
@@ -44,7 +44,7 @@
       </a-table>
     </a-card>
 
-    <!-- 撰写消息弹窗 -->
+    <!-- Compose message modal -->
     <a-modal
       v-model:open="isComposeModalOpen"
       title="Compose Message"
@@ -79,7 +79,7 @@
       </a-form>
     </a-modal>
 
-    <!-- 查看消息弹窗 -->
+    <!-- View message modal -->
     <a-modal
       v-model:open="isViewModalOpen"
       :title="currentMessage?.subject || 'View Message'"
@@ -100,7 +100,7 @@
       </div>
     </a-modal>
 
-    <!-- 回复消息弹窗 -->
+    <!-- Reply message modal -->
     <a-modal
       v-model:open="isReplyModalOpen"
       title="Reply Message"
@@ -159,7 +159,7 @@ const currentMessage = ref(null)
 
 const messages = ref([])
 
-// 表格列定义
+// Table column definitions
 const columns = [
   { title: 'Subject', dataIndex: 'subject', width: '30%' },
   { title: 'From', dataIndex: 'from', width: '15%' },
@@ -168,21 +168,21 @@ const columns = [
   { title: 'Actions', dataIndex: 'actions', width: '20%' }
 ]
 
-// 撰写表单
+// Compose form
 const composeForm = reactive({
   to: '',
   subject: '',
   message: ''
 })
 
-// 回复表单
+// Reply form
 const replyForm = reactive({
   to: '',
   subject: '',
   message: ''
 })
 
-// 可用的收件人
+// Available recipients
 const availableRecipients = computed(() => {
   if (recipientUserId.value && recipientUserName.value) {
     if (userRole.value === 'poa') {
@@ -202,7 +202,7 @@ const loadRecipient = async () => {
       return
     }
     
-    // 根据当前用户角色确定收件人类型
+    // Determine recipient type based on current user role
     let targetUserType = ''
     if (userRole.value === 'poa') {
       targetUserType = 'MANAGER'
@@ -212,7 +212,7 @@ const loadRecipient = async () => {
       return
     }
     
-    // 获取收件人用户信息
+    // Get recipient user information
     const response = await api.get(`/auth/organization/${currentOrganizationId.value}/userType/${targetUserType}`)
     const result = response.data
     
@@ -258,7 +258,7 @@ const loadMessages = async () => {
   }
 }
 
-// 获取状态颜色
+// Get status color
 const getStatusColor = (status) => {
   switch (status) {
     case 'unread': return 'red'
@@ -268,7 +268,7 @@ const getStatusColor = (status) => {
   }
 }
 
-// 获取页面提示
+// Get page tooltip
 const getPageTooltip = () => {
   switch (userRole.value) {
     case 'manager':
@@ -280,7 +280,7 @@ const getPageTooltip = () => {
   }
 }
 
-// 显示撰写弹窗
+// Show compose modal
 const showComposeModal = () => {
   composeForm.to = ''
   composeForm.subject = ''
@@ -288,7 +288,7 @@ const showComposeModal = () => {
   isComposeModalOpen.value = true
 }
 
-// 发送消息
+// Send message
 const sendMessage = async () => {
   if (!composeForm.to || !composeForm.subject || !composeForm.message) {
     message.error('Please fill in all required fields')
@@ -305,7 +305,7 @@ const sendMessage = async () => {
     const fromUserName = userInfo?.data?.name || userInfo?.data?.email || 'Current User'
     
     const messageData = {
-      to: recipientUserId.value, // 使用实际的 userId
+      to: recipientUserId.value, // Use actual userId
       toUserName: recipientUserName.value,
       subject: composeForm.subject,
       content: composeForm.message,
@@ -316,7 +316,7 @@ const sendMessage = async () => {
     const response = await sendMessageAPI(messageData)
     
     if (response.data) {
-      // 重新加载消息列表以确保显示最新消息
+      // Reload message list to ensure latest messages are displayed
       await loadMessages()
       message.success('Message sent successfully')
       isComposeModalOpen.value = false
@@ -332,21 +332,21 @@ const sendMessage = async () => {
   }
 }
 
-// 取消撰写
+// Cancel compose
 const cancelCompose = () => {
   isComposeModalOpen.value = false
 }
 
-// 查看消息
+// View message
 const viewMessage = async (record) => {
   currentMessage.value = record
   
-  // 标记为已读（如果状态是 unread 或 sent）
+  // Mark as read (if status is unread or sent)
   if (record.status === 'unread' || record.status === 'sent') {
     try {
       await markMessageAsRead(record.id)
       record.status = 'read'
-      // 更新消息列表
+      // Update message list
       await loadMessages()
     } catch (error) {
       console.error('Failed to mark message as read:', error)
@@ -356,16 +356,16 @@ const viewMessage = async (record) => {
   isViewModalOpen.value = true
 }
 
-// 回复消息
+// Reply to message
 const replyMessage = (record) => {
   replyForm.subject = `Re: ${record.subject}`
   replyForm.message = ''
-  replyForm.to = record.from // 显示收件人名称
+  replyForm.to = record.from // Display recipient name
   currentMessage.value = record
   isReplyModalOpen.value = true
 }
 
-// 发送回复
+// Send reply
 const sendReply = async () => {
   if (!replyForm.message || !currentMessage.value) {
     message.error('Please enter your reply message')
@@ -376,9 +376,9 @@ const sendReply = async () => {
     const userInfo = await getMe()
     const fromUserName = userInfo?.data?.name || userInfo?.data?.email || 'Current User'
     
-    // 确定收件人（原消息的发送者）
-    // 需要从原消息中获取发送者的 userId
-    // 由于前端只显示了 fromUserName，我们需要通过 API 获取完整的消息信息
+    // Determine recipient (original message sender)
+    // Need to get sender's userId from original message
+    // Since frontend only shows fromUserName, we need to get complete message info via API
     const originalMessageId = currentMessage.value.id
     
     const replyData = {

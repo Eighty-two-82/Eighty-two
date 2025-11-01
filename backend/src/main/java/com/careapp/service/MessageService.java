@@ -1,9 +1,13 @@
 package com.careapp.service;
 
 import com.careapp.domain.Message;
+import com.careapp.domain.User;
 import com.careapp.repository.MessageRepository;
+import com.careapp.repository.UserRepository;
+import com.careapp.service.impl.EmailService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -17,6 +21,12 @@ public class MessageService {
     
     @Autowired
     private NotificationService notificationService;
+    
+    @Autowired
+    private UserRepository userRepository;
+    
+    @Autowired
+    private EmailService emailService;
     
     /**
      * Send a new message
@@ -50,6 +60,44 @@ public class MessageService {
         } catch (Exception e) {
             // Log error but don't fail the message sending
             System.err.println("Failed to create notification: " + e.getMessage());
+        }
+        
+        // Send email notification to recipient
+        try {
+            // Get recipient user information
+            Optional<User> recipientOpt = userRepository.findById(message.getToUserId());
+            if (recipientOpt.isPresent()) {
+                User recipient = recipientOpt.get();
+                if (StringUtils.hasText(recipient.getEmail())) {
+                    String subject = "📧 CareTrack - New Message: " + message.getSubject();
+                    String senderName = message.getFromUserName() != null ? message.getFromUserName() : "User";
+                    String emailContent = String.format(
+                        "Hello %s,\n\n" +
+                        "You have received a new message from %s on CareTrack.\n\n" +
+                        "Subject: %s\n\n" +
+                        "Message:\n%s\n\n" +
+                        "Please log in to CareTrack to view and reply to this message.\n\n" +
+                        "Best regards,\n" +
+                        "CareTrack Team",
+                        recipient.getFirstName() != null ? recipient.getFirstName() : recipient.getEmail(),
+                        senderName,
+                        message.getSubject(),
+                        message.getContent()
+                    );
+                    
+                    emailService.sendText(recipient.getEmail(), subject, emailContent);
+                    System.out.println("✅ Message notification email sent to " + recipient.getEmail());
+                }
+            }
+        } catch (IllegalStateException e) {
+            // Email service not configured
+            System.err.println("⚠️ Email service not configured: " + e.getMessage());
+            System.err.println("💡 To enable email notifications, set SENDGRID_API_KEY environment variable");
+        } catch (Exception e) {
+            // Other email sending errors
+            System.err.println("❌ Failed to send message notification email: " + e.getMessage());
+            // Log error but don't fail message sending
+            e.printStackTrace();
         }
         
         return savedMessage;

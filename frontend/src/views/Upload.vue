@@ -10,7 +10,7 @@
         </div>
       </template>
 
-      <!-- 上传按钮 -->
+      <!-- Upload button -->
       <div style="text-align: right; margin-bottom: 16px;">
         <a-upload
           :show-upload-list="false"
@@ -20,17 +20,17 @@
         </a-upload>
       </div>
 
-      <!-- 文件表格 -->
+      <!-- File table -->
       <a-table :columns="columns" :data-source="files" row-key="id" bordered>
         <template #bodyCell="{ column, record }">
-          <!-- 操作按钮 -->
+          <!-- Action buttons -->
           <template v-if="column.dataIndex === 'actions'">
             <a-space>
               <a-button size="small" @click="openCommentModal(record)">comment</a-button>
               <a-button size="small" @click="viewFile(record)">View</a-button>
             </a-space>
           </template>
-          <!-- 评论 -->
+          <!-- Comment -->
           <template v-else-if="column.dataIndex === 'comment'">
             <span>{{ record.comment || '-' }}</span>
           </template>
@@ -38,7 +38,7 @@
       </a-table>
     </a-card>
 
-    <!-- 评论弹窗 -->
+    <!-- Comment modal -->
     <a-modal
       v-model:open="isCommentModalOpen"
       title="Add Comment"
@@ -52,7 +52,7 @@
       />
     </a-modal>
 
-    <!-- 文件查看弹窗 -->
+    <!-- File view modal -->
     <a-modal
       v-model:open="isViewModalOpen"
       :title="currentViewFile?.name || 'View File'"
@@ -60,14 +60,14 @@
       :footer="null"
     >
       <div v-if="currentViewFile" style="text-align: center;">
-        <!-- 图片预览 -->
+        <!-- Image preview -->
         <img 
           v-if="isImageFile(currentViewFile.name)" 
           :src="currentViewFile.fileUrl" 
           style="max-width: 100%; max-height: 500px; border-radius: 8px;"
           alt="Preview"
         />
-        <!-- 其他文件类型 -->
+        <!-- Other file types -->
         <div v-else style="padding: 40px;">
           <div style="font-size: 48px; color: #1890ff; margin-bottom: 16px;">📄</div>
           <h3>{{ currentViewFile.name }}</h3>
@@ -139,7 +139,7 @@ const loadFiles = async () => {
   }
 }
 
-// 表格
+// Table
 const columns = [
   { title: 'File name', dataIndex: 'name' },
   { title: 'Category', dataIndex: 'category' },
@@ -149,7 +149,7 @@ const columns = [
   { title: 'Actions', dataIndex: 'actions' },
 ]
 
-// 上传文件
+// Upload file
 const handleBeforeUpload = async (file) => {
   try {
     // Get current user info
@@ -186,10 +186,10 @@ const handleBeforeUpload = async (file) => {
     message.error(error.message || 'Failed to upload file')
   }
   
-  return false // 阻止默认上传
+  return false // Prevent default upload
 }
 
-// 评论弹窗逻辑
+// Comment modal logic
 const isCommentModalOpen = ref(false)
 const currentFile = ref(null)
 const currentComment = ref('')
@@ -220,17 +220,17 @@ const cancelComment = () => {
   isCommentModalOpen.value = false
 }
 
-// 文件查看弹窗逻辑
+// File view modal logic
 const isViewModalOpen = ref(false)
 const currentViewFile = ref(null)
 
-// 查看文件
+// View file
 const viewFile = (record) => {
   currentViewFile.value = record
   isViewModalOpen.value = true
 }
 
-// 判断是否为图片文件
+// Check if file is an image
 const isImageFile = (filename) => {
   const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg']
   const extension = filename.toLowerCase().substring(filename.lastIndexOf('.'))
