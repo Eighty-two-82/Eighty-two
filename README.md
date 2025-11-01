@@ -83,7 +83,7 @@ Every push to the **`main`** branch automatically triggers a full build and depl
 
 | Component | URL | Description |
 |------------|-----|-------------|
-| **Frontend (Vue 3)** | 🌐 [https://scheduling-care-fe-2e2b70905622.herokuapp.com](https://scheduling-care-fe-2e2b70905622.herokuapp.com) | Public user interface |
+| **Frontend (Vue 3)** | 🌐 [https://care-track-e2ca875a8e53.herokuapp.com/login](https://care-track-e2ca875a8e53.herokuapp.com/login) | Public user interface |
 | **Backend (Spring Boot)** | 🌐 [https://care-scheduling-app-e8951cd9f9c6.herokuapp.com](https://care-scheduling-app-e8951cd9f9c6.herokuapp.com) | RESTful API for CareTrack |
 
 **Deployment Flow**
@@ -203,7 +203,7 @@ npm run test
 ## 🔗 Links
 
 - 🌐 **Live App**  
-  [Frontend](https://scheduling-care-fe-2e2b70905622.herokuapp.com) | [Backend](https://care-scheduling-app-e8951cd9f9c6.herokuapp.com)
+  [Frontend](https://care-track-e2ca875a8e53.herokuapp.com/login) | [Backend](https://care-scheduling-app-e8951cd9f9c6.herokuapp.com)
 
 - 🧭 **Documentation (Confluence)** – [project workspace](https://eighty-two.atlassian.net/wiki/spaces/EIGHTYTWOS/folder/38338574?atlOrigin=eyJpIjoiYmU5MjZkMjhkMzM4NDgzNGFmY2Y2N2U0N2ZhMDNkNTciLCJwIjoiYyJ9)
 
