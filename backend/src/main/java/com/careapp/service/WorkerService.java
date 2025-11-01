@@ -506,11 +506,15 @@ public class WorkerService {
                 "Only image, PDF, Excel and Word files are allowed!");
         }
 
-        // Create upload directory
+        // Create upload directory (use absolute path)
         String uploadDir = imageOnly ? "uploads/worker-photos/" : "uploads/worker-files/";
         File directory = new File(uploadDir);
         if (!directory.exists()) {
-            directory.mkdirs();
+            boolean created = directory.mkdirs();
+            if (!created) {
+                throw new IOException("Failed to create upload directory: " + directory.getAbsolutePath());
+            }
+            System.out.println("📁 Created upload directory: " + directory.getAbsolutePath());
         }
 
         // Generate unique filename
@@ -524,17 +528,42 @@ public class WorkerService {
         // Save file to disk
         Path filePath = Paths.get(uploadDir + newFilename);
         Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+        
+        // Verify file was saved
+        File savedFile = filePath.toFile();
+        if (!savedFile.exists() || !savedFile.isFile()) {
+            throw new IOException("File was not saved correctly. Path: " + filePath.toAbsolutePath());
+        }
+        System.out.println("✅ Photo saved successfully: " + savedFile.getAbsolutePath() + " (Size: " + savedFile.length() + " bytes)");
 
         // Build public url and persist to worker
         String fileUrl = (imageOnly ? "/uploads/worker-photos/" : "/uploads/worker-files/") + newFilename;
 
         Optional<Worker> optionalWorker = workerRepository.findById(workerId);
         if (optionalWorker.isEmpty()) {
+            System.out.println("❌ Worker not found for ID: " + workerId);
             return null;
         }
         Worker worker = optionalWorker.get();
+        System.out.println("📸 Updating worker photo - Worker ID: " + workerId + ", Worker Name: " + worker.getName());
+        System.out.println("📸 Old photoUrl: " + worker.getPhotoUrl());
+        System.out.println("📸 New photoUrl: " + fileUrl);
+        
         worker.setPhotoUrl(fileUrl);
         worker.setUpdatedAt(LocalDateTime.now());
-        return workerRepository.save(worker);
+        Worker savedWorker = workerRepository.save(worker);
+        
+        // Verify the save
+        Optional<Worker> verifyWorker = workerRepository.findById(workerId);
+        if (verifyWorker.isPresent() && verifyWorker.get().getPhotoUrl() != null && verifyWorker.get().getPhotoUrl().equals(fileUrl)) {
+            System.out.println("✅ Worker photo successfully saved to database. Verified photoUrl: " + verifyWorker.get().getPhotoUrl());
+        } else {
+            System.err.println("⚠️ WARNING: Worker photo may not have been saved correctly!");
+            if (verifyWorker.isPresent()) {
+                System.err.println("   Current photoUrl in DB: " + verifyWorker.get().getPhotoUrl());
+            }
+        }
+        
+        return savedWorker;
     }
 }
