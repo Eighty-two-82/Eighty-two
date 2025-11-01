@@ -125,6 +125,7 @@ import { QuestionCircleOutlined, DownloadOutlined, ExportOutlined } from '@ant-d
 import { message } from 'ant-design-vue'
 import { getMe } from '@/services/userService'
 import { uploadFile, getAllFiles, updateFileComment } from '@/services/fileService'
+import { getBaseUrl } from '@/services/api'
 
 // Files list - loaded from API
 const files = ref([])
@@ -152,9 +153,7 @@ const getFullFileUrl = (fileUrl) => {
     return fileUrl
   }
   
-  const API_BASE_URL = import.meta.env.MODE === "production"
-    ? "https://care-scheduling-app-e8951cd9f9c6.herokuapp.com"
-    : "http://localhost:8081"
+  const API_BASE_URL = getBaseUrl()
   
   // Use API endpoint for serving files (more reliable than static resources)
   // This ensures files are accessible even if static resource mapping fails

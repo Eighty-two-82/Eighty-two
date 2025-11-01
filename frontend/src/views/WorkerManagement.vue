@@ -998,6 +998,7 @@ import {
 } from '@/services/workerService'
 import { getMe } from '@/services/userService'
 import { generateInviteCode } from '@/services/inviteCodeService'
+import { getBaseUrl } from '@/services/api'
 
 // Reactive data
 const loading = ref(false)
@@ -1757,9 +1758,7 @@ const confirmDailyManagement = async () => {
           
           // Convert relative path to full URL using API endpoint
           if (photoUrl && photoUrl.startsWith('/uploads/')) {
-            const API_BASE_URL = import.meta.env.MODE === "production"
-              ? "https://care-scheduling-app-e8951cd9f9c6.herokuapp.com"
-              : "http://localhost:8081"
+            const API_BASE_URL = getBaseUrl()
             // Use API endpoint for more reliable file serving
             photoUrl = `${API_BASE_URL}/api/files/serve?path=${encodeURIComponent(photoUrl)}`
             console.log('📸 Photo URL converted to:', photoUrl)
@@ -2055,9 +2054,7 @@ const loadWorkers = async () => {
       // Convert photoUrl to full URL if it's a relative path
       // Use API endpoint for more reliable file serving
       if (worker.photoUrl && worker.photoUrl.startsWith('/uploads/')) {
-        const API_BASE_URL = import.meta.env.MODE === "production"
-          ? "https://care-scheduling-app-e8951cd9f9c6.herokuapp.com"
-          : "http://localhost:8081"
+        const API_BASE_URL = getBaseUrl()
         // Use API endpoint instead of direct static resource access
         const fullPhotoUrl = `${API_BASE_URL}/api/files/serve?path=${encodeURIComponent(worker.photoUrl)}`
         worker.photo = fullPhotoUrl

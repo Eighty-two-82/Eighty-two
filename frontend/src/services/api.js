@@ -70,8 +70,7 @@
 // src/services/api.js
 import axios from "axios";
 
-// Use .env variable for base URL
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL + '/api';
+
 
 const api = axios.create({
     baseURL: API_BASE_URL,
@@ -79,10 +78,7 @@ const api = axios.create({
     headers: { 'Content-Type': 'application/json' }
 });
 
-// Interceptors (保持不变)
-api.interceptors.request.use((config) => {
-    if (config.data instanceof FormData) {
-        delete config.headers['Content-Type'];
+
     }
     const token = sessionStorage.getItem('token');
     if (token) config.headers.Authorization = `Bearer ${token}`;
