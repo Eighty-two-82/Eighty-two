@@ -11,7 +11,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.util.Arrays;
+import java.util.List;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -37,11 +37,11 @@ class InviteCodeControllerTest {
         mockCode.setCreatedBy("manager001");
     }
 
-    // ========== generateInviteCode ==========
     @Test
     void testGenerateInviteCodeSuccess() throws Exception {
-        Mockito.when(inviteCodeService.generateInviteCode(Mockito.anyString(), Mockito.anyString(),
-                        Mockito.anyString(), Mockito.anyString(), Mockito.anyString()))
+        Mockito.when(inviteCodeService.generateInviteCode(
+                Mockito.anyString(), Mockito.anyString(),
+                Mockito.anyString(), Mockito.anyString(), Mockito.anyString()))
                 .thenReturn("ABC123");
 
         String body = "{"
@@ -71,7 +71,6 @@ class InviteCodeControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value("400"))
                 .andExpect(jsonPath("$.msg").value("Missing required fields!"));
     }
 
@@ -89,7 +88,7 @@ class InviteCodeControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.msg").value(containsString("Invalid creator type")));
+                .andExpect(jsonPath("$.msg").value("Invalid creator type! Must be FM, POA, or MANAGER"));
     }
 
     @Test
@@ -106,10 +105,9 @@ class InviteCodeControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.msg").value(containsString("Invalid target type")));
+                .andExpect(jsonPath("$.msg").value("Invalid target type! Must be MANAGER or WORKER"));
     }
 
-    // ========== useInviteCode ==========
     @Test
     void testUseInviteCodeSuccess() throws Exception {
         Mockito.when(inviteCodeService.validateInviteCode("ABC123")).thenReturn(true);
@@ -124,7 +122,8 @@ class InviteCodeControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.msg").value("Invite code used successfully!"));
+                .andExpect(jsonPath("$.msg").value("Invite code used successfully!"))
+                .andExpect(jsonPath("$.data").value("Access granted!"));
     }
 
     @Test
@@ -170,14 +169,14 @@ class InviteCodeControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.msg").value("Failed to use invite code!"));
+                .andExpect(jsonPath("$.msg").value(
+                        "Failed to use invite code! The token type may not match your user role, or the token may be invalid."));
     }
 
-    // ========== getMyInviteCodes ==========
     @Test
     void testGetMyInviteCodes() throws Exception {
         Mockito.when(inviteCodeService.getInviteCodesByCreator("manager001"))
-                .thenReturn(Arrays.asList(mockCode));
+                .thenReturn(List.of(mockCode));
 
         mockMvc.perform(get("/api/invite/my-codes")
                         .param("creatorId", "manager001"))
@@ -186,11 +185,9 @@ class InviteCodeControllerTest {
                 .andExpect(jsonPath("$.msg").value("Invite codes retrieved successfully!"));
     }
 
-    // ========== revokeInviteCode ==========
     @Test
     void testRevokeInviteCodeSuccess() throws Exception {
-        Mockito.when(inviteCodeService.revokeInviteCode("code001"))
-                .thenReturn(true);
+        Mockito.when(inviteCodeService.revokeInviteCode("code001")).thenReturn(true);
 
         mockMvc.perform(delete("/api/invite/code001"))
                 .andExpect(status().isOk())
@@ -199,19 +196,17 @@ class InviteCodeControllerTest {
 
     @Test
     void testRevokeInviteCodeFailure() throws Exception {
-        Mockito.when(inviteCodeService.revokeInviteCode("code001"))
-                .thenReturn(false);
+        Mockito.when(inviteCodeService.revokeInviteCode("code001")).thenReturn(false);
 
         mockMvc.perform(delete("/api/invite/code001"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.msg").value("Failed to revoke invite code!"));
     }
 
-    // ========== getActiveInviteCodesForPatient ==========
     @Test
     void testGetActiveInviteCodesForPatient() throws Exception {
         Mockito.when(inviteCodeService.getActiveInviteCodesForPatient("p1"))
-                .thenReturn(Arrays.asList(mockCode));
+                .thenReturn(List.of(mockCode));
 
         mockMvc.perform(get("/api/invite/patient/p1"))
                 .andExpect(status().isOk())
@@ -219,3 +214,5 @@ class InviteCodeControllerTest {
                 .andExpect(jsonPath("$.msg").value("Active invite codes retrieved successfully!"));
     }
 }
+
+

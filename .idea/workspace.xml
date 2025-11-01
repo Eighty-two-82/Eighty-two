@@ -5,18 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="e9a93c0b-d53e-4f71-b016-5f87bf26c31a" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/backend/src/test/java/com/careapp/controller/AuthorizationControllerTest.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/test/java/com/careapp/controller/BudgetControllerTest.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/test/java/com/careapp/controller/FileControllerTest.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/test/java/com/careapp/controller/InviteCodeControllerTest.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/test/java/com/careapp/controller/NotificationControllerTest.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/test/java/com/careapp/controller/PatientControllerTest.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/test/java/com/careapp/controller/ScheduleControllerTest.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/test/java/com/careapp/controller/TaskControllerTest.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/src/test/java/com/careapp/controller/WorkerControllerTest.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/test/java/com/careapp/CareAppApplicationTests.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/test/java/com/careapp/controller/UserControllerTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/test/java/com/careapp/controller/UserControllerTest.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -27,6 +16,8 @@
     <option name="RECENT_TEMPLATES">
       <list>
         <option value="Class" />
+        <option value="package.json" />
+        <option value="JavaScript File" />
       </list>
     </option>
   </component>
@@ -59,19 +50,26 @@
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
     "RunOnceActivity.git.unshallow": "true",
     "Spring Boot.SpringbootLoginDemoApplication.executor": "Run",
-    "git-widget-placeholder": "test/backend-unit-tests",
+    "git-widget-placeholder": "fix-test",
     "kotlin-language-version-configured": "true",
+    "last_opened_file_path": "/Users/yuanmengyi/Eighty-two/frontend/test",
     "node.js.detected.package.eslint": "true",
     "node.js.detected.package.tslint": "true",
     "node.js.selected.package.eslint": "(autodetect)",
     "node.js.selected.package.tslint": "(autodetect)",
     "nodejs_package_manager_path": "npm",
+    "project.structure.last.edited": "Modules",
+    "project.structure.proportion": "0.15",
+    "project.structure.side.proportion": "0.2",
     "settings.editor.selected.configurable": "project.propVCSSupport.DirectoryMappings",
     "ts.external.directory.path": "/Applications/IntelliJ IDEA.app/Contents/plugins/javascript-plugin/jsLanguageServicesImpl/external",
     "vue.rearranger.settings.migration": "true"
   }
 }]]></component>
   <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/frontend/test" />
+    </key>
     <key name="MoveFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/backend/src/test/java/com/careapp" />
       <recent name="$PROJECT_DIR$/backend/src/main/java/com/careapp" />
@@ -112,7 +110,15 @@
       <workItem from="1757175706849" duration="39000" />
       <workItem from="1757175748570" duration="11000" />
       <workItem from="1757175844761" duration="28646000" />
-      <workItem from="1760632746572" duration="725000" />
+      <workItem from="1760632746572" duration="726000" />
+      <workItem from="1760757349512" duration="1552000" />
+      <workItem from="1760786612793" duration="32000" />
+      <workItem from="1760786649964" duration="240000" />
+      <workItem from="1760786895890" duration="1412000" />
+      <workItem from="1760799090368" duration="11000" />
+      <workItem from="1760873458940" duration="1376000" />
+      <workItem from="1761461398301" duration="485000" />
+      <workItem from="1761461888191" duration="12340000" />
     </task>
     <servers />
   </component>
