@@ -639,7 +639,181 @@ const getShiftColor = (shift) => {
 
 <style scoped>
 .home-page {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
+  animation: fadeInUp 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 0 8px;
+}
+
+.home-page :deep(.ant-card) {
+  border-radius: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 0 1px rgba(102, 126, 234, 0.1);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-bottom: 28px;
+  position: relative;
+  overflow: hidden;
+}
+
+.home-page :deep(.ant-card)::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #667eea 0%, #764ba2 50%, #667eea 100%);
+  background-size: 200% 100%;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  animation: shimmer 3s infinite;
+}
+
+.home-page :deep(.ant-card):hover {
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12), 0 0 20px rgba(102, 126, 234, 0.15);
+  transform: translateY(-6px) scale(1.01);
+  border-color: rgba(102, 126, 234, 0.4);
+}
+
+.home-page :deep(.ant-card):hover::before {
+  opacity: 1;
+}
+
+.home-page :deep(.ant-card-head) {
+  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+  padding: 24px 28px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 252, 0.6) 100%);
+  border-radius: 20px 20px 0 0;
+}
+
+.home-page :deep(.ant-card-head-title) {
+  font-size: 20px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: 0.3px;
+}
+
+.home-page :deep(.ant-card-body) {
+  padding: 28px;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.home-page :deep(.ant-list-item) {
+  padding: 16px 20px;
+  border-radius: 12px;
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-bottom: 8px;
+  border: 1px solid transparent;
+}
+
+.home-page :deep(.ant-list-item):hover {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.05) 100%);
+  transform: translateX(6px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.1);
+  border-color: rgba(102, 126, 234, 0.2);
+}
+
+.home-page :deep(.ant-btn-link) {
+  color: #667eea;
+  font-weight: 600;
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+
+.home-page :deep(.ant-btn-link):hover {
+  color: #764ba2;
+  transform: translateX(4px);
+  background: rgba(102, 126, 234, 0.08);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
+}
+
+.home-page :deep(.ant-table) {
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.home-page :deep(.ant-table-thead > tr > th) {
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.95) 0%, rgba(241, 245, 249, 0.8) 100%);
+  font-weight: 700;
+  border-bottom: 2px solid rgba(226, 232, 240, 0.8);
+  color: #1e293b;
+  padding: 16px;
+  font-size: 14px;
+  letter-spacing: 0.3px;
+}
+
+.home-page :deep(.ant-table-tbody > tr) {
+  transition: all 0.25s ease;
+}
+
+.home-page :deep(.ant-table-tbody > tr:hover > td) {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.05) 100%);
+  transform: scale(1.005);
+}
+
+.home-page :deep(.ant-table-tbody > tr > td) {
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.5);
+}
+
+.home-page :deep(.ant-tag) {
+  border-radius: 16px;
+  padding: 4px 14px;
+  font-weight: 600;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+  font-size: 12px;
+  letter-spacing: 0.3px;
+}
+
+.home-page :deep(.ant-tag):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Empty state styling */
+.home-page :deep(.ant-empty) {
+  padding: 40px 0;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .home-page {
+    padding: 0;
+  }
+
+  .home-page :deep(.ant-card-body) {
+    padding: 16px;
+  }
 }
 </style>
