@@ -1,19 +1,17 @@
 <template>
-    <a-layout style="min-height: 100vh">
+    <a-layout style="min-height: 100vh; background: #f5f7fa;">
       <!-- left menu -->
-      <a-layout-sider :width="256" theme="light">
+      <a-layout-sider :width="280" theme="light" class="custom-sider">
         <!-- User Info Section -->
-        <div style="padding: 16px; border-bottom: 1px solid #f0f0f0; background: #fafafa;">
-          <div style="text-align: center;">
-            <a-avatar :size="48" style="margin-bottom: 8px;">
-              <template #icon><UserOutlined /></template>
+        <div class="user-info-section">
+          <div class="user-info-content">
+            <a-avatar :size="64" class="user-avatar" :style="{ background: getRoleGradient() }">
+              <template #icon><UserOutlined style="font-size: 32px;" /></template>
             </a-avatar>
-            <div style="font-size: 16px; font-weight: 600; color: #1890ff; margin-bottom: 4px;">
-              {{ userName }}
-            </div>
-            <div style="font-size: 12px; color: #666; text-transform: uppercase;">
+            <div class="user-name">{{ userName }}</div>
+            <a-tag :color="getRoleColor()" class="user-role-tag">
               {{ getRoleDisplayName() }}
-            </div>
+            </a-tag>
           </div>
         </div>
         
@@ -21,85 +19,85 @@
           v-model:selectedKeys="selectedKeys"
           mode="inline"
           @click="onMenuClick"
-          style="border: none; background: white;"
+          class="custom-menu"
         >
-          <a-menu-item key="home" style="color: #000; font-size: 14px;">
+          <a-menu-item key="home" class="menu-item">
             <template #icon><HomeOutlined /></template>
             <span>Home</span>
             <a-tooltip title="Return to main page, view system overview and quick actions" placement="right">
-              <QuestionCircleOutlined style="margin-left: 8px; color: #999; cursor: help;" />
+              <QuestionCircleOutlined class="menu-help-icon" />
             </a-tooltip>
           </a-menu-item>
           
           <!-- Manager and Worker Management -->
-          <a-menu-item v-if="userRole === 'manager'" key="worker-management" style="color: #000; font-size: 14px;">
+          <a-menu-item v-if="userRole === 'manager'" key="worker-management" class="menu-item">
             <template #icon><AppstoreOutlined /></template>
             <span>Worker Management</span>
             <a-tooltip title="Manage care staff, including inviting Workers to join the team" placement="right">
-              <QuestionCircleOutlined style="margin-left: 8px; color: #999; cursor: help;" />
+              <QuestionCircleOutlined class="menu-help-icon" />
             </a-tooltip>
           </a-menu-item>
           
           <!-- Manager and Power of Attorney/Family Member Budget -->
-          <a-menu-item v-if="userRole === 'manager' || userRole === 'poa'" key="budget" style="color: #000; font-size: 14px;">
+          <a-menu-item v-if="userRole === 'manager' || userRole === 'poa'" key="budget" class="menu-item">
             <template #icon><BarChartOutlined /></template>
             <span>Budget</span>
             <a-tooltip :title="getBudgetTooltip()" placement="right">
-              <QuestionCircleOutlined style="margin-left: 8px; color: #999; cursor: help;" />
+              <QuestionCircleOutlined class="menu-help-icon" />
             </a-tooltip>
           </a-menu-item>
           
           <!-- All roles Tasks -->
-          <a-menu-item key="tasks" style="color: #000; font-size: 14px;">
+          <a-menu-item key="tasks" class="menu-item">
             <template #icon><CheckSquareOutlined /></template>
             <span>Tasks</span>
             <a-tooltip :title="getTasksTooltip()" placement="right">
-              <QuestionCircleOutlined style="margin-left: 8px; color: #999; cursor: help;" />
+              <QuestionCircleOutlined class="menu-help-icon" />
             </a-tooltip>
           </a-menu-item>
           
           <!-- All roles Upload -->
-          <a-menu-item key="upload" style="color: #000; font-size: 14px;">
+          <a-menu-item key="upload" class="menu-item">
             <template #icon><SettingOutlined /></template>
             <span>Upload</span>
             <a-tooltip title="Upload and manage files, including documents, images and other materials" placement="right">
-              <QuestionCircleOutlined style="margin-left: 8px; color: #999; cursor: help;" />
+              <QuestionCircleOutlined class="menu-help-icon" />
             </a-tooltip>
           </a-menu-item>
           
           <!-- Manager and Power of Attorney/Family Member Communication -->
-          <a-menu-item v-if="userRole === 'manager' || userRole === 'poa'" key="communication" style="color: #000; font-size: 14px;">
+          <a-menu-item v-if="userRole === 'manager' || userRole === 'poa'" key="communication" class="menu-item">
             <template #icon><MessageOutlined /></template>
             <span>Communication</span>
             <a-tooltip :title="getCommunicationTooltip()" placement="right">
-              <QuestionCircleOutlined style="margin-left: 8px; color: #999; cursor: help;" />
+              <QuestionCircleOutlined class="menu-help-icon" />
             </a-tooltip>
           </a-menu-item>
           
           <!-- Power of Attorney/Family Member Carer Team -->
-          <a-menu-item v-if="userRole === 'poa'" key="carer-team" style="color: #000; font-size: 14px;">
+          <a-menu-item v-if="userRole === 'poa'" key="carer-team" class="menu-item">
             <template #icon><AppstoreOutlined /></template>
             <span>Carer Team</span>
             <a-tooltip title="View and manage care team information, invite organizations to join" placement="right">
-              <QuestionCircleOutlined style="margin-left: 8px; color: #999; cursor: help;" />
+              <QuestionCircleOutlined class="menu-help-icon" />
             </a-tooltip>
           </a-menu-item>
           
           <!-- All roles Setting -->
-          <a-menu-item key="setting" style="color: #000; font-size: 14px;">
+          <a-menu-item key="setting" class="menu-item">
             <template #icon><SettingOutlined /></template>
             <span>Setting</span>
             <a-tooltip :title="getSettingTooltip()" placement="right">
-              <QuestionCircleOutlined style="margin-left: 8px; color: #999; cursor: help;" />
+              <QuestionCircleOutlined class="menu-help-icon" />
             </a-tooltip>
           </a-menu-item>
           
           <!-- Logout -->
-          <a-menu-item key="logout" style="color: #ff4d4f; font-size: 14px;">
+          <a-menu-item key="logout" class="menu-item logout-item">
             <template #icon><LogoutOutlined /></template>
             <span>Logout</span>
             <a-tooltip title="Logout from the system" placement="right">
-              <QuestionCircleOutlined style="margin-left: 8px; color: #999; cursor: help;" />
+              <QuestionCircleOutlined class="menu-help-icon" />
             </a-tooltip>
           </a-menu-item>
         </a-menu>
@@ -108,19 +106,19 @@
       <!-- right content -->
       <a-layout>
         <!-- Header with help button, notifications and logout -->
-        <a-layout-header style="background: #fff; padding: 0 24px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f0f0f0;">
+        <a-layout-header class="custom-header">
           <!-- Left side - User info -->
-          <div style="display: flex; align-items: center; gap: 12px;">
-            <div style="font-size: 16px; font-weight: 600; color: #1890ff;">
-              Welcome, {{ userName }}
+          <div class="header-left">
+            <div class="welcome-text">
+              Welcome, <span class="user-name-highlight">{{ userName }}</span>
             </div>
-            <a-tag :color="getRoleColor()" style="margin: 0;">
+            <a-tag :color="getRoleColor()" class="header-role-tag">
               {{ getRoleDisplayName() }}
             </a-tag>
           </div>
           
           <!-- Right side - Actions -->
-          <div style="display: flex; align-items: center; gap: 16px;">
+          <div class="header-actions">
             <!-- Notification Bell -->
             <a-badge 
               :count="unreadNotificationsCount" 
@@ -128,23 +126,31 @@
               :show-zero="false"
             >
               <a-tooltip title="View notifications and alerts">
-                <a-button type="text" @click="showNotificationModal" style="color: #1890ff; position: relative;">
+                <a-button type="text" @click="showNotificationModal" class="header-action-btn">
                   <template #icon><BellOutlined /></template>
                 </a-button>
               </a-tooltip>
             </a-badge>
             
-            <!-- Help Button -->
-            <a-tooltip title="Click to get help information">
-              <a-button type="text" @click="showHelpModal" style="color: #1890ff;">
+            <!-- Guide Button -->
+            <a-tooltip title="View setup guide for your role">
+              <a-button type="text" @click="showGuide" class="header-action-btn">
                 <template #icon><QuestionCircleOutlined /></template>
+                Guide
+              </a-button>
+            </a-tooltip>
+            
+            <!-- Help Button (original help modal) -->
+            <a-tooltip title="View system help information">
+              <a-button type="text" @click="showHelpModal" class="header-action-btn">
+                <template #icon><InfoCircleOutlined /></template>
                 Help
               </a-button>
             </a-tooltip>
             
             <!-- Logout Button -->
             <a-tooltip title="Logout from the system">
-              <a-button type="text" @click="handleLogout" style="color: #ff4d4f;">
+              <a-button type="text" @click="handleLogout" class="header-action-btn logout-btn">
                 <template #icon><LogoutOutlined /></template>
                 Logout
               </a-button>
@@ -152,8 +158,8 @@
           </div>
         </a-layout-header>
         
-        <a-layout-content style="margin: 16px">
-          <div style="padding: 24px; background: #fff; min-height: 360px">
+        <a-layout-content class="custom-content">
+          <div class="content-wrapper">
             <router-view />
           </div>
         </a-layout-content>
@@ -186,26 +192,8 @@
       </div>
     </a-modal>
 
-    <!-- First Visit Modal -->
-    <a-modal
-      v-model:open="firstVisitModalVisible"
-      title="Welcome to Care App"
-      :footer="null"
-      :closable="false"
-      :maskClosable="false"
-      width="500px"
-    >
-      <div style="text-align: center; line-height: 1.6;">
-        <div style="font-size: 48px; color: #1890ff; margin-bottom: 16px;">👋</div>
-        <h3>Welcome to Care App!</h3>
-        <p style="margin: 16px 0; color: #666;">
-          <strong>💡 Tip:</strong> If you encounter any problems while using the system, please click the <strong>Help</strong> button in the top right corner to get help information.
-        </p>
-        <a-button type="primary" @click="closeFirstVisitModal" style="margin-top: 16px;">
-          Get Started
-        </a-button>
-      </div>
-    </a-modal>
+    <!-- Guide Component -->
+    <Guide ref="guideRef" />
 
     <!-- Notification Modal -->
     <a-modal
@@ -275,7 +263,7 @@
   import {
     HomeOutlined, CheckSquareOutlined, BarChartOutlined,
     SettingOutlined, MessageOutlined, AppstoreOutlined, UserOutlined,
-    QuestionCircleOutlined, BellOutlined, LogoutOutlined
+    QuestionCircleOutlined, BellOutlined, LogoutOutlined, InfoCircleOutlined
   } from '@ant-design/icons-vue'
   import { message } from 'ant-design-vue'
   import { getMe, logout } from '@/services/userService'
@@ -284,6 +272,7 @@
     markAsRead as markNotificationAsRead, 
     markAllAsRead as markAllNotificationsAsRead 
   } from '@/services/notificationService'
+  import Guide from './Guide.vue'
   
   const selectedKeys = ref(['home'])
   const userRole = ref('worker')
@@ -291,6 +280,7 @@
   const helpModalVisible = ref(false)
   const firstVisitModalVisible = ref(false)
   const notificationModalVisible = ref(false)
+  const guideRef = ref(null)
   
   onMounted(async () => {
     try {
@@ -302,7 +292,7 @@
       console.log('Set userRole to:', userRole.value)
       console.log('Set userName to:', userName.value)
       
-      // Check if this is the first visit
+      // Check if this is the first visit and show guide
       checkFirstVisit()
       
       // Load notifications from backend API
@@ -316,37 +306,35 @@
   const checkFirstVisit = async () => {
     try {
       const userInfo = await getMe()
-      const userId = userInfo?.data?.id || 'anonymous'
-      const appFirstVisitKey = `app_first_visit_${userId}`
+      const userRoleFromAPI = userInfo?.data?.role
       
-      // Check if user has visited the app before
-      const hasVisitedBefore = localStorage.getItem(appFirstVisitKey)
+      if (!userRoleFromAPI) {
+        return
+      }
       
-      if (!hasVisitedBefore) {
-        // First time visiting the app
-        firstVisitModalVisible.value = true
+      // Check if user has seen guide for their role
+      const seenGuides = JSON.parse(localStorage.getItem('user_guide_seen') || '{}')
+      const hasSeenGuide = seenGuides[userRoleFromAPI]
+      
+      // Only show guide once - on the first visit for this role
+      if (!hasSeenGuide) {
+        // First time seeing guide for this role - auto show
+        setTimeout(() => {
+          if (guideRef.value) {
+            guideRef.value.show(true) // true = autoShow
+          }
+        }, 500)
       }
     } catch (error) {
       console.error('Failed to check first visit:', error)
       // On error, don't show the modal to avoid annoying users
-      firstVisitModalVisible.value = false
     }
   }
-
-  // Close first visit modal and mark as visited
-  const closeFirstVisitModal = async () => {
-    firstVisitModalVisible.value = false
-    
-    try {
-      const userInfo = await getMe()
-      const userId = userInfo?.data?.id || 'anonymous'
-      const appFirstVisitKey = `app_first_visit_${userId}`
-      
-      // Mark that user has visited the app
-      localStorage.setItem(appFirstVisitKey, 'true')
-      console.log('App first visit marked as completed for user:', userId)
-    } catch (error) {
-      console.error('Failed to save first visit status:', error)
+  
+  // Show guide manually (from Guide button)
+  const showGuide = () => {
+    if (guideRef.value) {
+      guideRef.value.show()
     }
   }
   
@@ -386,6 +374,19 @@
         return 'green'
       default:
         return 'default'
+    }
+  }
+
+  const getRoleGradient = () => {
+    switch (userRole.value) {
+      case 'poa':
+        return 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+      case 'manager':
+        return 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)'
+      case 'worker':
+        return 'linear-gradient(135deg, #52c41a 0%, #389e0d 100%)'
+      default:
+        return 'linear-gradient(135deg, #8c8c8c 0%, #595959 100%)'
     }
   }
   
@@ -602,4 +603,380 @@
     }
   }
   </script>
+
+<style scoped>
+/* Custom Sider - Premium */
+.custom-sider {
+  box-shadow: 4px 0 20px rgba(0, 0, 0, 0.08), -2px 0 10px rgba(102, 126, 234, 0.1);
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-right: 1px solid rgba(226, 232, 240, 0.8);
+  position: relative;
+  z-index: 100;
+}
+
+.custom-sider::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 1px;
+  height: 100%;
+  background: linear-gradient(180deg, transparent 0%, rgba(102, 126, 234, 0.3) 50%, transparent 100%);
+}
+
+/* User Info Section - Premium */
+.user-info-section {
+  padding: 32px 24px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-bottom: none;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+}
+
+.user-info-section::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.15) 0%, transparent 70%);
+  animation: pulse 6s ease-in-out infinite;
+}
+
+.user-info-section::after {
+  content: '';
+  position: absolute;
+  bottom: -30%;
+  left: -30%;
+  width: 150%;
+  height: 150%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+  animation: pulse 8s ease-in-out infinite reverse;
+}
+
+@keyframes pulse {
+  0%, 100% { 
+    transform: scale(1) rotate(0deg); 
+    opacity: 0.4; 
+  }
+  50% { 
+    transform: scale(1.2) rotate(180deg); 
+    opacity: 0.8; 
+  }
+}
+
+.user-info-content {
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+.user-avatar {
+  margin-bottom: 20px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3), 0 0 20px rgba(255, 255, 255, 0.3);
+  border: 4px solid rgba(255, 255, 255, 0.4);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+
+.user-avatar::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  right: -4px;
+  bottom: -4px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.5), transparent);
+  z-index: -1;
+  animation: rotate 3s linear infinite;
+}
+
+@keyframes rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.user-name {
+  font-size: 20px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 12px;
+  text-shadow: 0 4px 8px rgba(0, 0, 0, 0.3), 0 0 20px rgba(255, 255, 255, 0.2);
+  letter-spacing: 0.5px;
+}
+
+.user-role-tag {
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(15px) saturate(180%);
+  -webkit-backdrop-filter: blur(15px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: #ffffff;
+  font-weight: 600;
+  padding: 6px 16px;
+  border-radius: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 11px;
+}
+
+/* Custom Menu - Premium */
+.custom-menu {
+  border: none;
+  background: transparent;
+  padding: 20px 12px;
+}
+
+.custom-menu :deep(.ant-menu-item) {
+  border-radius: 12px;
+  margin: 6px 0;
+  height: 52px;
+  line-height: 52px;
+  padding-left: 18px !important;
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.custom-menu :deep(.ant-menu-item)::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 0;
+  background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+  border-radius: 0 4px 4px 0;
+  transition: height 0.3s ease;
+}
+
+.custom-menu :deep(.ant-menu-item:hover) {
+  background: linear-gradient(90deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.05) 100%);
+  transform: translateX(6px);
+  box-shadow: 0 2px 12px rgba(102, 126, 234, 0.1);
+}
+
+.custom-menu :deep(.ant-menu-item:hover)::before {
+  height: 60%;
+}
+
+.custom-menu :deep(.ant-menu-item-selected) {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.1) 100%);
+  color: #667eea;
+  font-weight: 600;
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.2);
+  transform: translateX(4px);
+}
+
+.custom-menu :deep(.ant-menu-item-selected)::before {
+  height: 80%;
+}
+
+.custom-menu :deep(.ant-menu-item-selected::after) {
+  display: none;
+}
+
+.custom-menu :deep(.ant-menu-item-icon) {
+  font-size: 18px;
+  transition: all 0.3s ease;
+}
+
+.custom-menu :deep(.ant-menu-item:hover .ant-menu-item-icon) {
+  transform: scale(1.15);
+  color: #667eea;
+}
+
+.menu-item {
+  color: #262626;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+}
+
+.menu-help-icon {
+  margin-left: 8px;
+  color: #bfbfbf;
+  cursor: help;
+  transition: color 0.3s;
+}
+
+.menu-item:hover .menu-help-icon {
+  color: #1890ff;
+}
+
+.logout-item {
+  color: #ff4d4f;
+  margin-top: 8px;
+}
+
+.logout-item:hover {
+  background: #fff1f0 !important;
+  color: #ff7875 !important;
+}
+
+/* Custom Header - Premium */
+.custom-header {
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  padding: 0 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06), 0 0 1px rgba(102, 126, 234, 0.1);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  transition: all 0.3s ease;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.welcome-text {
+  font-size: 16px;
+  font-weight: 500;
+  color: #595959;
+}
+
+.user-name-highlight {
+  color: #667eea;
+  font-weight: 700;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: 0.3px;
+}
+
+.header-role-tag {
+  margin: 0;
+  font-weight: 500;
+  border-radius: 12px;
+  padding: 2px 12px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-action-btn {
+  color: #475569;
+  border-radius: 10px;
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  height: 44px;
+  padding: 0 18px;
+  font-weight: 600;
+  position: relative;
+  overflow: hidden;
+}
+
+.header-action-btn::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(102, 126, 234, 0.1);
+  transform: translate(-50%, -50%);
+  transition: width 0.4s, height 0.4s;
+}
+
+.header-action-btn:hover {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.05) 100%);
+  color: #667eea;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+}
+
+.header-action-btn:hover::before {
+  width: 200px;
+  height: 200px;
+}
+
+.header-action-btn.logout-btn:hover {
+  background: linear-gradient(135deg, rgba(255, 77, 79, 0.1) 0%, rgba(250, 173, 20, 0.05) 100%);
+  color: #ff4d4f;
+}
+
+.header-action-btn.logout-btn:hover::before {
+  background: rgba(255, 77, 79, 0.1);
+}
+
+/* Custom Content */
+.custom-content {
+  margin: 24px;
+  padding: 0;
+}
+
+.content-wrapper {
+  padding: 40px;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  min-height: calc(100vh - 120px);
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08), 0 0 1px rgba(102, 126, 234, 0.1);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.content-wrapper::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent 0%, rgba(102, 126, 234, 0.5) 50%, transparent 100%);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+.content-wrapper:hover::before {
+  opacity: 1;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .custom-sider {
+    width: 200px !important;
+  }
+
+  .custom-header {
+    padding: 0 16px;
+  }
+
+  .content-wrapper {
+    padding: 16px;
+    margin: 0;
+    border-radius: 0;
+  }
+
+  .header-actions {
+    gap: 4px;
+  }
+
+  .header-action-btn {
+    padding: 0 8px;
+    font-size: 12px;
+  }
+}
+</style>
   
