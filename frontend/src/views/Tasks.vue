@@ -1089,6 +1089,7 @@ const confirmCreateTask = async () => {
       title: createTaskForm.value.title,
       description: createTaskForm.value.description,
       assignedTo: createTaskForm.value.assignedTo || null,
+      assignedToId: createTaskForm.value.assignedTo || null, // Set assignedToId to worker user ID
       priority: createTaskForm.value.priority,
       dueDate: createTaskForm.value.dueDate.format('YYYY-MM-DD'),
       status: 'Pending',
@@ -1474,30 +1475,90 @@ const handleRequestConfirmation = async () => {
         }
       }
       
-      // If approved and it's a recurring task request, create the recurring task template
-      if (action === 'approve' && request.requestType === 'recurring') {
-        try {
-          const newRecurringTask = {
-            title: request.taskTitle,
-            description: request.reason || '',
-            assignedTo: 'A', // Default assignment, in real app this would be determined by manager
-            frequency: request.frequency,
-            frequencyNumber: request.frequencyNumber,
-            timeOfDay: request.timeOfDay,
-            dayOfWeek: request.dayOfWeek,
-            dayOfMonth: request.dayOfMonth,
-            month: request.month,
-            startDate: request.startDate,
-            endDate: request.endDate
+      // If approved, handle different request types
+      if (action === 'approve') {
+        // If it's a new task request, create the task
+        if (request.requestType === 'new') {
+          try {
+            const newTask = {
+              title: request.taskTitle,
+              description: request.reason || request.description || '',
+              priority: request.priority || 'normal',
+              dueDate: request.startDate || dayjs().format('YYYY-MM-DD'),
+              status: 'Pending',
+              patientId: currentUser.value?.patientId || null,
+              createdBy: currentUser.value?.id || null
+            }
+            const taskResponse = await createTask(newTask)
+            if (taskResponse?.data) {
+              // Task will be added when we reload the task list
+              console.log('Task created from approved request:', taskResponse.data)
+            }
+          } catch (error) {
+            console.error('Failed to create task from approved request:', error)
+            // Don't fail the whole operation if task creation fails
           }
-          const recurringResponse = await createRecurringTask(newRecurringTask)
-          if (recurringResponse?.data) {
-            recurringTasks.value.push(recurringResponse.data)
-          }
-        } catch (error) {
-          console.error('Failed to create recurring task:', error)
-          // Don't fail the whole operation if recurring task creation fails
         }
+        // If it's a recurring task request, create the recurring task template
+        else if (request.requestType === 'recurring') {
+          try {
+            const newRecurringTask = {
+              title: request.taskTitle,
+              description: request.reason || '',
+              assignedTo: null, // Manager can assign later
+              frequency: request.frequency,
+              frequencyNumber: request.frequencyNumber,
+              timeOfDay: request.timeOfDay,
+              dayOfWeek: request.dayOfWeek,
+              dayOfMonth: request.dayOfMonth,
+              month: request.month,
+              startDate: request.startDate,
+              endDate: request.endDate
+            }
+            const recurringResponse = await createRecurringTask(newRecurringTask)
+            if (recurringResponse?.data) {
+              recurringTasks.value.push(recurringResponse.data)
+            }
+          } catch (error) {
+            console.error('Failed to create recurring task:', error)
+            // Don't fail the whole operation if recurring task creation fails
+          }
+        }
+      }
+      
+      // Reload tasks and pending requests after approval/rejection
+      try {
+        await loadTasks()
+        // Reload pending requests for manager
+        if (isManager.value) {
+          try {
+            const pendingRequestsResponse = await getPendingTaskRequests()
+            if (pendingRequestsResponse && pendingRequestsResponse.data) {
+              changeRequests.value = pendingRequestsResponse.data.map(req => ({
+                id: req.id,
+                requester: req.requester,
+                taskTitle: req.taskTitle,
+                requestType: req.requestType,
+                frequency: req.frequency,
+                frequencyNumber: req.frequencyNumber,
+                reason: req.reason,
+                status: req.status,
+                approvalReason: req.approvalReason,
+                rejectionReason: req.rejectionReason,
+                timeOfDay: req.timeOfDay,
+                dayOfWeek: req.dayOfWeek,
+                dayOfMonth: req.dayOfMonth,
+                month: req.month,
+                startDate: req.startDate,
+                endDate: req.endDate
+              }))
+            }
+          } catch (error) {
+            console.error('Failed to reload pending requests:', error)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to reload tasks:', error)
       }
       
       message.destroy()

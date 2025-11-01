@@ -940,36 +940,249 @@
 .custom-content {
   margin: 24px;
   padding: 0;
+  position: relative;
 }
 
 .content-wrapper {
   padding: 40px;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.95) 100%);
+  backdrop-filter: blur(25px) saturate(180%);
+  -webkit-backdrop-filter: blur(25px) saturate(180%);
   min-height: calc(100vh - 120px);
-  border-radius: 20px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08), 0 0 1px rgba(102, 126, 234, 0.1);
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 24px;
+  box-shadow: 
+    0 20px 60px rgba(0, 0, 0, 0.08),
+    0 8px 32px rgba(102, 126, 234, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
-  overflow: hidden;
+  overflow: visible;
+  animation: contentFadeIn 0.6s ease-out;
 }
 
+@keyframes contentFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Top gradient border - subtle */
 .content-wrapper::before {
   content: '';
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, transparent 0%, rgba(102, 126, 234, 0.5) 50%, transparent 100%);
-  opacity: 0;
-  transition: opacity 0.4s ease;
+  height: 4px;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    rgba(102, 126, 234, 0.4) 25%,
+    rgba(118, 75, 162, 0.5) 50%,
+    rgba(102, 126, 234, 0.4) 75%,
+    transparent 100%);
+  background-size: 200% 100%;
+  opacity: 0.7;
+  animation: shimmerBorder 4s infinite;
+  border-radius: 24px 24px 0 0;
+  z-index: 1;
+}
+
+@keyframes shimmerBorder {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Subtle background glow effect - behind content */
+.content-wrapper::after {
+  content: '';
+  position: absolute;
+  top: -20%;
+  right: -10%;
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(102, 126, 234, 0.06) 0%, transparent 70%);
+  border-radius: 50%;
+  animation: gentlePulse 12s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+@keyframes gentlePulse {
+  0%, 100% {
+    transform: scale(1) translate(0, 0);
+    opacity: 0.4;
+  }
+  50% {
+    transform: scale(1.1) translate(20px, -20px);
+    opacity: 0.6;
+  }
+}
+
+.content-wrapper:hover {
+  box-shadow: 
+    0 24px 72px rgba(0, 0, 0, 0.1),
+    0 12px 40px rgba(102, 126, 234, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.98),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.9);
+  transform: translateY(-1px);
+  border-color: rgba(102, 126, 234, 0.25);
 }
 
 .content-wrapper:hover::before {
   opacity: 1;
+  animation-duration: 2s;
+}
+
+/* Ensure all content is above decoration layers */
+.content-wrapper > * {
+  position: relative;
+  z-index: 10;
+}
+
+/* Enhanced styling for cards inside content */
+.content-wrapper :deep(.ant-card) {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(15px);
+  border-radius: 16px;
+  box-shadow: 
+    0 4px 20px rgba(0, 0, 0, 0.06),
+    0 2px 8px rgba(102, 126, 234, 0.04);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-bottom: 24px;
+  position: relative;
+  z-index: 10;
+}
+
+.content-wrapper :deep(.ant-card:hover) {
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.1),
+    0 4px 16px rgba(102, 126, 234, 0.08);
+  transform: translateY(-2px);
+  border-color: rgba(102, 126, 234, 0.25);
+}
+
+.content-wrapper :deep(.ant-card-head) {
+  background: linear-gradient(180deg, 
+    rgba(255, 255, 255, 0.9) 0%, 
+    rgba(248, 250, 252, 0.7) 100%);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+  padding: 20px 24px;
+  border-radius: 16px 16px 0 0;
+}
+
+.content-wrapper :deep(.ant-card-head-title) {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a1a1a;
+  letter-spacing: 0.3px;
+}
+
+.content-wrapper :deep(.ant-card-body) {
+  padding: 24px;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+/* Enhanced table styling */
+.content-wrapper :deep(.ant-table) {
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.content-wrapper :deep(.ant-table-thead > tr > th) {
+  background: linear-gradient(180deg, 
+    rgba(248, 250, 252, 0.95) 0%, 
+    rgba(241, 245, 249, 0.9) 100%);
+  font-weight: 700;
+  border-bottom: 2px solid rgba(226, 232, 240, 0.8);
+  color: #1e293b;
+  padding: 16px;
+}
+
+.content-wrapper :deep(.ant-table-tbody > tr:hover > td) {
+  background: linear-gradient(135deg, 
+    rgba(102, 126, 234, 0.05) 0%, 
+    rgba(118, 75, 162, 0.03) 100%);
+}
+
+/* Enhanced buttons */
+.content-wrapper :deep(.ant-btn-primary) {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.25);
+  transition: all 0.3s ease;
+}
+
+.content-wrapper :deep(.ant-btn-primary:hover) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.35);
+  filter: brightness(1.05);
+}
+
+/* Enhanced tags */
+.content-wrapper :deep(.ant-tag) {
+  border-radius: 12px;
+  padding: 4px 12px;
+  font-weight: 500;
+  border: none;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  transition: all 0.3s ease;
+}
+
+.content-wrapper :deep(.ant-tag:hover) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Enhanced inputs */
+.content-wrapper :deep(.ant-input),
+.content-wrapper :deep(.ant-input-password),
+.content-wrapper :deep(.ant-select-selector) {
+  border-radius: 10px;
+  border: 2px solid rgba(226, 232, 240, 0.8);
+  transition: all 0.3s ease;
+}
+
+.content-wrapper :deep(.ant-input):focus,
+.content-wrapper :deep(.ant-input-password):focus,
+.content-wrapper :deep(.ant-select-focused .ant-select-selector) {
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+/* Enhanced lists */
+.content-wrapper :deep(.ant-list-item) {
+  padding: 16px 20px;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  margin-bottom: 8px;
+  border: 1px solid transparent;
+}
+
+.content-wrapper :deep(.ant-list-item):hover {
+  background: linear-gradient(135deg, 
+    rgba(102, 126, 234, 0.06) 0%, 
+    rgba(118, 75, 162, 0.04) 100%);
+  transform: translateX(4px);
+  border-color: rgba(102, 126, 234, 0.15);
+}
+
+/* Enhanced progress bars */
+.content-wrapper :deep(.ant-progress-bg) {
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
 }
 
 /* Responsive */

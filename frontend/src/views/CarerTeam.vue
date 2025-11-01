@@ -525,8 +525,49 @@ const updateDailyWorkers = (dateStr) => {
 
 const updateFilteredWorkers = () => {
   // Filter workers based on selected shift
+  // Check shiftAllocations to determine which shift the worker is assigned to
+  const dateStr = selectedDate.value ? selectedDate.value.format('YYYY-MM-DD') : null
+  
   filteredWorkers.value = dailyWorkers.value.filter(worker => {
-    return worker.shift === selectedShift.value
+    // If worker has shiftAllocations, check them for the selected date and shift
+    if (worker.shiftAllocations && Array.isArray(worker.shiftAllocations) && worker.shiftAllocations.length > 0) {
+      // Find shift allocation for the selected date
+      const allocationForDate = worker.shiftAllocations.find(allocation => {
+        if (!dateStr) return false
+        // Handle different date formats
+        const allocationDate = allocation.shiftDate || allocation.date || allocation.scheduleDate
+        if (!allocationDate) return false
+        // Normalize dates to compare (remove time if present)
+        const normalizedDateStr = dateStr
+        const normalizedAllocationDate = allocationDate.split('T')[0].split(' ')[0]
+        return normalizedAllocationDate === normalizedDateStr
+      })
+      
+      if (allocationForDate) {
+        // Check if the shift time matches the selected shift
+        const shiftTime = allocationForDate.shiftTime || allocationForDate.time
+        if (shiftTime) {
+          // Map shift time to shift name
+          // Morning shift: 08:00-16:00
+          // Afternoon shift: 16:00-22:00
+          // Night shift: 22:00-08:00
+          if (selectedShift.value === 'morning' && (shiftTime.includes('08:00') || shiftTime.includes('08:00-16:00'))) {
+            return true
+          } else if (selectedShift.value === 'afternoon' && (shiftTime.includes('16:00') || shiftTime.includes('16:00-22:00'))) {
+            return true
+          } else if (selectedShift.value === 'night' && (shiftTime.includes('22:00') || shiftTime.includes('22:00-08:00') || shiftTime.includes('22:00-06:00'))) {
+            return true
+          }
+        }
+      }
+    }
+    
+    // Fallback: Check direct shift field if shiftAllocations is not available
+    if (worker.shift === selectedShift.value) {
+      return true
+    }
+    
+    return false
   })
 }
 
@@ -1171,16 +1212,29 @@ const getRandomShift = () => {
 const loadDailySchedule = async (organizationId, dateStr) => {
   try {
     const response = await getDailySchedule(organizationId, dateStr)
-    if (response?.data) {
-      dailyWorkers.value = response.data
+    if (response?.data && Array.isArray(response.data) && response.data.length > 0) {
+      // Use workers from the schedule API response
+      // These workers should have shiftAllocations populated
+      dailyWorkers.value = response.data.map(worker => {
+        // Ensure shiftAllocations is properly set
+        if (!worker.shiftAllocations && worker.shifts) {
+          worker.shiftAllocations = worker.shifts
+        }
+        return worker
+      })
+      console.log('Loaded daily workers from schedule:', dailyWorkers.value.length)
     } else {
       // If no schedule exists, show all active workers
       dailyWorkers.value = workers.value.filter(worker => worker.status === 'Active')
+      console.log('No schedule found, showing all active workers:', dailyWorkers.value.length)
     }
+    // Update filtered workers after loading daily workers
+    updateFilteredWorkers()
   } catch (error) {
     console.error('Failed to load daily schedule:', error)
     // Fallback to mock data
     updateDailyWorkers(dateStr)
+    updateFilteredWorkers()
   }
 }
 </script>
