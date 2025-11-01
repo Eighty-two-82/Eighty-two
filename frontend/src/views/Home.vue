@@ -1,246 +1,378 @@
 <template>
   <div class="home-page">
-    <a-card style="margin-bottom: 16px;">
-      <template #title>
-        <div style="display: flex; align-items: center; gap: 8px; justify-content: space-between;">
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <h2 style="margin: 0;">Welcome to Care App</h2>
-            <a-tooltip title="This is the system main page, displaying system overview and quick action entries" placement="top">
-              <QuestionCircleOutlined style="color: #999; cursor: help;" />
-            </a-tooltip>
-          </div>
-          <a-tag color="blue" style="text-transform: uppercase;">{{ roleDisplay }}</a-tag>
+    <!-- Welcome Banner -->
+    <div class="welcome-banner">
+      <div class="banner-content">
+        <div class="banner-left">
+          <h1 class="welcome-title">
+            Welcome back, <span class="user-name">{{ userName || 'User' }}</span>!
+          </h1>
+          <p class="welcome-subtitle">Here's your dashboard overview</p>
         </div>
-      </template>
-      <div style="color:#666;">Choose a shortcut below to jump directly to a feature page.</div>
-    </a-card>
-
-    <!-- Worker: Schedule + Tasks (First Row) -->
-    <a-row v-if="userRole === 'worker'" :gutter="16" style="margin-bottom: 16px;">
-      <!-- Schedule Preview -->
-      <a-col :xs="24" :md="12">
-        <a-card>
-          <template #title>
-            <div style="display:flex;align-items:center;gap:8px;justify-content:space-between;">
-              <div style="display:flex;align-items:center;gap:8px;">
-                <ClockCircleOutlined />
-                <span style="color:#1890ff;">My Schedule</span>
-              </div>
-              <a-button type="link" @click="showScheduleModal">View all</a-button>
-            </div>
-          </template>
-
-          <div v-if="workerSchedule.length > 0">
-            <a-list :data-source="workerSchedule" bordered size="small">
-              <template #renderItem="{ item }">
-                <a-list-item>
-                  <a-list-item-meta>
-                    <template #title>
-                      <div style="display: flex; align-items: center; gap: 8px;">
-                        <span>{{ item.date }}</span>
-                        <a-tag :color="getShiftColor(item.shift)">{{ item.shift }}</a-tag>
-                      </div>
-                    </template>
-                    <template #description>
-                      <div style="font-size: 12px; color: #666;">
-                        {{ item.time }}
-                      </div>
-                    </template>
-                  </a-list-item-meta>
-                </a-list-item>
-              </template>
-            </a-list>
+        <div class="banner-right">
+          <div class="role-badge" :class="`role-${userRole}`">
+            <component :is="getRoleIcon()" class="role-icon" />
+            <span>{{ roleDisplay }}</span>
           </div>
-          <div v-else style="text-align: center; padding: 20px; color: #999;">
-            <ClockCircleOutlined style="font-size: 24px; margin-bottom: 8px;" />
-            <div>No schedule assigned</div>
+        </div>
+      </div>
+      <div class="banner-decoration">
+        <div class="decoration-circle circle-1"></div>
+        <div class="decoration-circle circle-2"></div>
+        <div class="decoration-circle circle-3"></div>
+      </div>
+    </div>
+
+    <!-- Stats Cards (for non-worker) -->
+    <a-row v-if="userRole !== 'worker'" :gutter="16" class="stats-row">
+      <a-col :xs="24" :sm="12" :md="8">
+        <div class="stat-card stat-budget">
+          <div class="stat-icon">
+            <DollarOutlined />
           </div>
-        </a-card>
+          <div class="stat-content">
+            <div class="stat-label">Total Budget</div>
+            <div class="stat-value">${{ totalBudget.toLocaleString() }}</div>
+          </div>
+        </div>
       </a-col>
-
-      <!-- Tasks Preview -->
-      <a-col :xs="24" :md="12">
-        <a-card>
-          <template #title>
-            <div style="display:flex;align-items:center;gap:8px;justify-content:space-between;">
-              <div style="display:flex;align-items:center;gap:8px;">
-                <CheckSquareOutlined />
-                <router-link to="/app/tasks" style="color:#1890ff;">Tasks Preview</router-link>
-              </div>
-              <router-link to="/app/tasks">
-                <a-button type="link">View all</a-button>
-              </router-link>
-            </div>
-          </template>
-
-          <a-table :columns="taskPreviewColumns" :data-source="taskPreview" :pagination="false" size="small">
-            <template #bodyCell="{ column, record }">
-              <template v-if="column.key === 'priority'">
-                <a-tag :color="getPriorityColor(record.priority)">{{ getPriorityText(record.priority) }}</a-tag>
-              </template>
-              <template v-else-if="column.key === 'status'">
-                <a-tag :color="getStatusColor(record.status)">{{ record.status }}</a-tag>
-              </template>
-            </template>
-          </a-table>
-        </a-card>
+      <a-col :xs="24" :sm="12" :md="8">
+        <div class="stat-card stat-used">
+          <div class="stat-icon">
+            <ShoppingCartOutlined />
+          </div>
+          <div class="stat-content">
+            <div class="stat-label">Total Used</div>
+            <div class="stat-value">${{ totalUsed.toLocaleString() }}</div>
+            <div class="stat-percentage">{{ totalUsagePct }}%</div>
+          </div>
+        </div>
+      </a-col>
+      <a-col :xs="24" :sm="12" :md="8">
+        <div class="stat-card stat-left" :class="{ 'stat-negative': totalLeft < 0 }">
+          <div class="stat-icon">
+            <WalletOutlined />
+          </div>
+          <div class="stat-content">
+            <div class="stat-label">Money Left</div>
+            <div class="stat-value">${{ totalLeft.toLocaleString() }}</div>
+          </div>
+        </div>
       </a-col>
     </a-row>
 
-    <!-- Worker: Upload (Second Row) -->
-    <a-row v-if="userRole === 'worker'" :gutter="16" style="margin-bottom: 16px;">
-      <!-- Upload Preview -->
-      <a-col :xs="24" :md="12">
-        <a-card>
-          <template #title>
-            <div style="display:flex;align-items:center;gap:8px;justify-content:space-between;">
-              <div style="display:flex;align-items:center;gap:8px;">
-                <UploadOutlined />
-                <router-link to="/app/upload" style="color:#1890ff;">Upload Preview</router-link>
-              </div>
-              <router-link to="/app/upload">
-                <a-button type="link">Open</a-button>
-              </router-link>
-            </div>
-          </template>
-
-          <a-list :data-source="uploadPreview" bordered size="small">
-            <template #renderItem="{ item }">
-              <a-list-item>
-                <a-list-item-meta :title="item.name" :description="item.size" />
-                <span style="color:#999; font-size:12px;">{{ item.time }}</span>
-              </a-list-item>
-            </template>
-          </a-list>
-        </a-card>
+    <!-- Worker Stats -->
+    <a-row v-if="userRole === 'worker'" :gutter="16" class="stats-row">
+      <a-col :xs="24" :sm="12" :md="8">
+        <div class="stat-card stat-tasks">
+          <div class="stat-icon">
+            <CheckSquareOutlined />
+          </div>
+          <div class="stat-content">
+            <div class="stat-label">Total Tasks</div>
+            <div class="stat-value">{{ taskPreview.length }}</div>
+          </div>
+        </div>
+      </a-col>
+      <a-col :xs="24" :sm="12" :md="8">
+        <div class="stat-card stat-schedule">
+          <div class="stat-icon">
+            <CalendarOutlined />
+          </div>
+          <div class="stat-content">
+            <div class="stat-label">Upcoming Shifts</div>
+            <div class="stat-value">{{ workerSchedule.length }}</div>
+          </div>
+        </div>
+      </a-col>
+      <a-col :xs="24" :sm="12" :md="8">
+        <div class="stat-card stat-upload">
+          <div class="stat-icon">
+            <FileTextOutlined />
+          </div>
+          <div class="stat-content">
+            <div class="stat-label">Recent Files</div>
+            <div class="stat-value">{{ uploadPreview.length }}</div>
+          </div>
+        </div>
       </a-col>
     </a-row>
 
-    <!-- Non-worker: Budget + Tasks -->
-    <a-row v-else :gutter="16" style="margin-bottom: 16px;">
-      <!-- Budget Preview -->
-      <a-col :xs="24" :md="12">
-        <a-card>
-          <template #title>
-            <div style="display:flex;align-items:center;gap:8px;justify-content:space-between;">
-              <div style="display:flex;align-items:center;gap:8px;">
+    <!-- Budget Preview (Non-Worker) -->
+    <a-row v-if="userRole !== 'worker'" :gutter="16" class="content-row">
+      <a-col :xs="24" :lg="14">
+        <div class="preview-card budget-card">
+          <div class="card-header">
+            <div class="header-left">
+              <div class="card-icon budget-icon">
                 <BarChartOutlined />
-                <router-link to="/app/budget" style="color:#1890ff;">Budget Preview</router-link>
               </div>
-              <a-tag :color="budgetUsageColor">{{ totalUsagePct }}% used</a-tag>
+              <div>
+                <h3 class="card-title">Budget Overview</h3>
+                <p class="card-subtitle">Track your spending and budget usage</p>
+              </div>
             </div>
-          </template>
-
-          <a-row :gutter="12">
-            <a-col :span="8">
-              <a-card size="small">
-                <div style="text-align:center;">
-                  <div style="font-size:12px;color:#666;margin-bottom:4px;">Total Budget</div>
-                  <div style="font-size:20px;font-weight:700;color:#1890ff;">${{ totalBudget.toLocaleString() }}</div>
-                </div>
-              </a-card>
-            </a-col>
-            <a-col :span="8">
-              <a-card size="small">
-                <div style="text-align:center;">
-                  <div style="font-size:12px;color:#666;margin-bottom:4px;">Used</div>
-                  <div style="font-size:20px;font-weight:700;color:#fa8c16;">${{ totalUsed.toLocaleString() }}</div>
-                </div>
-              </a-card>
-            </a-col>
-            <a-col :span="8">
-              <a-card size="small">
-                <div style="text-align:center;">
-                  <div style="font-size:12px;color:#666;margin-bottom:4px;">Money Left</div>
-                  <div :style="{fontSize:'20px',fontWeight:'700',color: totalLeft < 0 ? '#ff4d4f' : '#52c41a'}">${{ totalLeft.toLocaleString() }}</div>
-                </div>
-              </a-card>
-            </a-col>
-          </a-row>
-
-          <!-- Top categories (table) -->
-          <div style="margin-top:12px;">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-              <span style="font-weight:600;">Top Categories Near/Over Budget</span>
-            </div>
-            <a-table
-              :columns="topCategoryColumns"
-              :data-source="topCategoryWarnings"
-              :pagination="false"
-              size="small"
-              rowKey="category"
-            >
-              <template #bodyCell="{ column, record }">
-                <template v-if="column.key === 'usage'">
-                  <span style="white-space: nowrap;">${{ record.used.toLocaleString() }} / ${{ record.budget.toLocaleString() }}</span>
-                </template>
-                <template v-else-if="column.key === 'progress'">
-                  <div style="display:flex;align-items:center;gap:8px;">
-                    <a-progress :percent="record.pct" :stroke-color="record.pct >= 100 ? '#ff4d4f' : (record.pct >= 80 ? '#fa8c16' : '#52c41a')" :show-info="false" style="flex:1;" />
-                    <a-tag :color="record.pct >= 100 ? 'red' : (record.pct >= 80 ? 'orange' : 'green')">{{ record.pct }}%</a-tag>
-                  </div>
-                </template>
-              </template>
-            </a-table>
+            <router-link to="/app/budget">
+              <a-button type="primary" ghost class="view-all-btn">
+                View Details <RightOutlined />
+              </a-button>
+            </router-link>
           </div>
-        </a-card>
+
+          <div class="budget-progress">
+            <div class="progress-header">
+              <span>Overall Budget Usage</span>
+              <a-tag :color="budgetUsageColor" class="usage-tag">{{ totalUsagePct }}% used</a-tag>
+            </div>
+            <a-progress
+              :percent="totalUsagePct"
+              :stroke-color="budgetUsageColor === 'red' ? '#ff4d4f' : budgetUsageColor === 'orange' ? '#fa8c16' : '#52c41a'"
+              :show-info="false"
+              :stroke-width="12"
+              class="usage-progress"
+            />
+            <div class="progress-stats">
+              <div class="stat-item">
+                <span class="stat-label-small">Available</span>
+                <span class="stat-value-small" :class="{ 'text-danger': totalLeft < 0 }">
+                  ${{ totalLeft.toLocaleString() }}
+                </span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label-small">Used</span>
+                <span class="stat-value-small">${{ totalUsed.toLocaleString() }}</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label-small">Total</span>
+                <span class="stat-value-small">${{ totalBudget.toLocaleString() }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Top Categories -->
+          <div v-if="topCategoryWarnings.length > 0" class="top-categories">
+            <h4 class="section-title">
+              <ExclamationCircleOutlined /> Top Categories Near/Over Budget
+            </h4>
+            <div class="category-list">
+              <div
+                v-for="(category, index) in topCategoryWarnings"
+                :key="index"
+                class="category-item"
+              >
+                <div class="category-info">
+                  <span class="category-name">{{ category.category }}</span>
+                  <span class="category-usage">
+                    ${{ category.used.toLocaleString() }} / ${{ category.budget.toLocaleString() }}
+                  </span>
+                </div>
+                <div class="category-progress-wrapper">
+                  <a-progress
+                    :percent="category.pct"
+                    :stroke-color="category.pct >= 100 ? '#ff4d4f' : category.pct >= 80 ? '#fa8c16' : '#52c41a'"
+                    :show-info="false"
+                    :stroke-width="6"
+                  />
+                  <a-tag
+                    :color="category.pct >= 100 ? 'red' : category.pct >= 80 ? 'orange' : 'green'"
+                    class="category-tag"
+                  >
+                    {{ category.pct }}%
+                  </a-tag>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div v-else class="empty-state">
+            <BarChartOutlined class="empty-icon" />
+            <p>No budget data available</p>
+          </div>
+        </div>
       </a-col>
 
       <!-- Tasks Preview -->
-      <a-col :xs="24" :md="12">
-        <a-card>
-          <template #title>
-            <div style="display:flex;align-items:center;gap:8px;justify-content:space-between;">
-              <div style="display:flex;align-items:center;gap:8px;">
+      <a-col :xs="24" :lg="10">
+        <div class="preview-card tasks-card">
+          <div class="card-header">
+            <div class="header-left">
+              <div class="card-icon tasks-icon">
                 <CheckSquareOutlined />
-                <router-link to="/app/tasks" style="color:#1890ff;">Tasks Preview</router-link>
               </div>
-              <router-link to="/app/tasks">
-                <a-button type="link">View all</a-button>
-              </router-link>
+              <div>
+                <h3 class="card-title">Recent Tasks</h3>
+                <p class="card-subtitle">Your latest tasks and updates</p>
+              </div>
             </div>
-          </template>
+            <router-link to="/app/tasks">
+              <a-button type="link" class="view-link">View all</a-button>
+            </router-link>
+          </div>
 
-          <a-table :columns="taskPreviewColumns" :data-source="taskPreview" :pagination="false" size="small">
-            <template #bodyCell="{ column, record }">
-              <template v-if="column.key === 'priority'">
-                <a-tag :color="getPriorityColor(record.priority)">{{ getPriorityText(record.priority) }}</a-tag>
-              </template>
-              <template v-else-if="column.key === 'status'">
-                <a-tag :color="getStatusColor(record.status)">{{ record.status }}</a-tag>
-              </template>
-            </template>
-          </a-table>
-        </a-card>
+          <div v-if="taskPreview.length > 0" class="task-list">
+            <div
+              v-for="task in taskPreview"
+              :key="task.id"
+              class="task-item"
+              @click="$router.push('/app/tasks')"
+            >
+              <div class="task-main">
+                <div class="task-title-wrapper">
+                  <span class="task-title">{{ task.title }}</span>
+                  <a-tag :color="getPriorityColor(task.priority)" class="task-priority">
+                    {{ getPriorityText(task.priority) }}
+                  </a-tag>
+                </div>
+                <div class="task-meta">
+                  <span class="task-due">Due: {{ task.dueDate || 'N/A' }}</span>
+                  <a-tag :color="getStatusColor(task.status)">{{ task.status }}</a-tag>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div v-else class="empty-state">
+            <CheckSquareOutlined class="empty-icon" />
+            <p>No tasks available</p>
+          </div>
+        </div>
       </a-col>
     </a-row>
 
-    <!-- Communication Preview (only for non-worker) -->
-    <a-card v-if="userRole !== 'worker'">
-      <template #title>
-        <div style="display:flex;align-items:center;gap:8px;justify-content:space-between;">
-          <div style="display:flex;align-items:center;gap:8px;">
-            <MessageOutlined />
-            <router-link to="/app/communication" style="color:#1890ff;">Communication Preview</router-link>
-          </div>
-          <router-link to="/app/communication">
-            <a-button type="link">Open</a-button>
-          </router-link>
-        </div>
-      </template>
-
-      <a-list :data-source="communicationPreview" bordered size="small">
-        <template #renderItem="{ item }">
-          <a-list-item>
-            <a-list-item-meta :title="item.subject" :description="item.preview" />
-            <div style="display:flex;align-items:center;gap:12px;">
-              <a-tag :color="item.unread ? 'blue' : 'default'">{{ item.unread ? 'Unread' : 'Read' }}</a-tag>
-              <span style="color:#999; font-size:12px;">{{ item.time }}</span>
+    <!-- Worker: Schedule + Tasks -->
+    <a-row v-if="userRole === 'worker'" :gutter="16" class="content-row">
+      <!-- Schedule Preview -->
+      <a-col :xs="24" :lg="12">
+        <div class="preview-card schedule-card">
+          <div class="card-header">
+            <div class="header-left">
+              <div class="card-icon schedule-icon">
+                <ClockCircleOutlined />
+              </div>
+              <div>
+                <h3 class="card-title">My Schedule</h3>
+                <p class="card-subtitle">Upcoming shifts and assignments</p>
+              </div>
             </div>
-          </a-list-item>
-        </template>
-      </a-list>
-    </a-card>
+            <a-button type="link" @click="showScheduleModal" class="view-link">View all</a-button>
+          </div>
+
+          <div v-if="workerSchedule.length > 0" class="schedule-list">
+            <div
+              v-for="(item, index) in workerSchedule"
+              :key="index"
+              class="schedule-item"
+            >
+              <div class="schedule-date">
+                <div class="date-day">{{ getDayFromDate(item.date) }}</div>
+                <div class="date-month">{{ getMonthFromDate(item.date) }}</div>
+              </div>
+              <div class="schedule-info">
+                <div class="schedule-shift">
+                  <a-tag :color="getShiftColor(item.shift)" class="shift-tag">
+                    {{ item.shift }}
+                  </a-tag>
+                </div>
+                <div class="schedule-time">{{ item.time }}</div>
+              </div>
+            </div>
+          </div>
+          <div v-else class="empty-state">
+            <ClockCircleOutlined class="empty-icon" />
+            <p>No schedule assigned</p>
+            <p class="empty-hint">Your manager will assign shifts soon</p>
+          </div>
+        </div>
+      </a-col>
+
+      <!-- Tasks Preview -->
+      <a-col :xs="24" :lg="12">
+        <div class="preview-card tasks-card">
+          <div class="card-header">
+            <div class="header-left">
+              <div class="card-icon tasks-icon">
+                <CheckSquareOutlined />
+              </div>
+              <div>
+                <h3 class="card-title">My Tasks</h3>
+                <p class="card-subtitle">Tasks assigned to you</p>
+              </div>
+            </div>
+            <router-link to="/app/tasks">
+              <a-button type="link" class="view-link">View all</a-button>
+            </router-link>
+          </div>
+
+          <div v-if="taskPreview.length > 0" class="task-list">
+            <div
+              v-for="task in taskPreview"
+              :key="task.id"
+              class="task-item"
+              @click="$router.push('/app/tasks')"
+            >
+              <div class="task-main">
+                <div class="task-title-wrapper">
+                  <span class="task-title">{{ task.title }}</span>
+                  <a-tag :color="getPriorityColor(task.priority)" class="task-priority">
+                    {{ getPriorityText(task.priority) }}
+                  </a-tag>
+                </div>
+                <div class="task-meta">
+                  <span class="task-due">Due: {{ task.dueDate || 'N/A' }}</span>
+                  <a-tag :color="getStatusColor(task.status)">{{ task.status }}</a-tag>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div v-else class="empty-state">
+            <CheckSquareOutlined class="empty-icon" />
+            <p>No tasks assigned</p>
+          </div>
+        </div>
+      </a-col>
+    </a-row>
+
+    <!-- Communication Preview (Non-Worker) -->
+    <div v-if="userRole !== 'worker'" class="preview-card communication-card">
+      <div class="card-header">
+        <div class="header-left">
+          <div class="card-icon communication-icon">
+            <MessageOutlined />
+          </div>
+          <div>
+            <h3 class="card-title">Recent Communications</h3>
+            <p class="card-subtitle">Latest messages and notifications</p>
+          </div>
+        </div>
+        <router-link to="/app/communication">
+          <a-button type="primary" ghost class="view-all-btn">
+            Open <RightOutlined />
+          </a-button>
+        </router-link>
+      </div>
+
+      <div v-if="communicationPreview.length > 0" class="communication-list">
+        <div
+          v-for="item in communicationPreview"
+          :key="item.id"
+          class="communication-item"
+        >
+          <div class="comm-icon" :class="{ 'unread': item.unread }">
+            <MessageOutlined />
+          </div>
+          <div class="comm-content">
+            <div class="comm-subject">{{ item.subject }}</div>
+            <div class="comm-preview">{{ item.preview }}</div>
+          </div>
+          <div class="comm-meta">
+            <a-tag :color="item.unread ? 'blue' : 'default'">{{ item.unread ? 'Unread' : 'Read' }}</a-tag>
+            <span class="comm-time">{{ item.time }}</span>
+          </div>
+        </div>
+      </div>
+      <div v-else class="empty-state">
+        <MessageOutlined class="empty-icon" />
+        <p>No communications</p>
+      </div>
+    </div>
 
     <!-- Worker Schedule Modal -->
     <a-modal
@@ -249,6 +381,7 @@
       width="800px"
       :footer="null"
       @cancel="scheduleModalVisible = false"
+      class="schedule-modal"
     >
       <div v-if="userRole === 'worker'">
         <div style="margin-bottom: 16px;">
@@ -306,15 +439,31 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, h } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import dayjs from 'dayjs'
-import { QuestionCircleOutlined, CheckSquareOutlined, BarChartOutlined, SettingOutlined, AppstoreOutlined, MessageOutlined, HomeOutlined, TeamOutlined, UploadOutlined, ClockCircleOutlined, CalendarOutlined } from '@ant-design/icons-vue'
+import {
+  CheckSquareOutlined,
+  BarChartOutlined,
+  MessageOutlined,
+  ClockCircleOutlined,
+  CalendarOutlined,
+  DollarOutlined,
+  ShoppingCartOutlined,
+  WalletOutlined,
+  FileTextOutlined,
+  ExclamationCircleOutlined,
+  RightOutlined,
+  UserOutlined,
+  TeamOutlined,
+  SolutionOutlined
+} from '@ant-design/icons-vue'
 import { getMe } from '@/services/userService'
 import { getBudgetByPatient, getBudgetCalculations, getBudgetCategories } from '@/services/budgetService'
 import { getTasksByPatient, getTasksByWorker, getAllTasks } from '@/services/taskService'
 import { getSchedulesByWorker } from '@/services/scheduleService'
 
 const userRole = ref('worker')
+const userName = ref('')
 
 // Schedule related data
 const scheduleModalVisible = ref(false)
@@ -326,8 +475,8 @@ onMounted(async () => {
   try {
     const me = await getMe()
     userRole.value = me?.data?.role || 'worker'
+    userName.value = me?.data?.name || 'User'
     
-    // Load real data based on user role
     await loadHomeData()
   } catch (e) {
     // keep default
@@ -340,10 +489,9 @@ const loadHomeData = async () => {
     const userInfo = await getMe()
     if (!userInfo?.data) return
     
-    // Load budget data for non-worker roles - use same API as Budget page
+    // Load budget data for non-worker roles
     if (userRole.value !== 'worker' && userInfo.data.patientId) {
       try {
-        // Load budget calculations (includes totalBudget) - same as Budget page
         const calculationsResponse = await getBudgetCalculations(userInfo.data.patientId)
         if (calculationsResponse?.data) {
           budgetData.value = {
@@ -352,13 +500,11 @@ const loadHomeData = async () => {
           }
         }
         
-        // Load budget by patient (for budget data structure)
         const budgetResponse = await getBudgetByPatient(userInfo.data.patientId)
         if (budgetResponse?.data) {
           budgetData.value.totalBudget = budgetResponse.data.totalBudget || budgetData.value.totalBudget || 0
         }
         
-        // Load budget categories - same as Budget page
         const categoriesResponse = await getBudgetCategories(userInfo.data.patientId)
         if (categoriesResponse?.data) {
           budgetCategories.value = categoriesResponse.data
@@ -383,7 +529,7 @@ const loadHomeData = async () => {
       }
       
       if (taskResponse?.data) {
-        taskPreview.value = taskResponse.data.slice(0, 3).map(task => ({
+        taskPreview.value = taskResponse.data.slice(0, 5).map(task => ({
           id: task.id,
           title: task.title,
           priority: task.priority,
@@ -426,14 +572,22 @@ const roleDisplay = computed(() => {
   }
 })
 
-// --- Budget Preview - loaded from API (same as Budget page) ---
+const getRoleIcon = () => {
+  switch (userRole.value) {
+    case 'poa': return UserOutlined
+    case 'manager': return TeamOutlined
+    case 'worker': return SolutionOutlined
+    default: return UserOutlined
+  }
+}
+
+// --- Budget Preview ---
 const budgetCategories = ref([])
 const budgetData = ref({
   totalBudget: 0,
   categories: []
 })
 
-// Calculate total used (same logic as Budget page)
 const getTotalUsed = () => {
   if (!budgetData.value?.categories || !Array.isArray(budgetData.value.categories)) {
     return 0
@@ -450,11 +604,8 @@ const getTotalUsed = () => {
   }, 0)
 }
 
-// Use totalBudget from budgetData (same as Budget page)
 const totalBudget = computed(() => budgetData.value.totalBudget || 0)
-// Calculate total used using same method as Budget page
 const totalUsed = computed(() => getTotalUsed())
-// Calculate total left (same as Budget page getTotalBalance)
 const totalLeft = computed(() => totalBudget.value - totalUsed.value)
 const totalUsagePct = computed(() => {
   if (totalBudget.value === 0) {
@@ -468,7 +619,6 @@ const topCategoryWarnings = computed(() => {
   const categories = budgetData.value?.categories || budgetCategories.value || []
   const arr = categories
     .map(c => {
-      // Calculate used from subElements (same logic as Budget page)
       const used = c.subElements && c.subElements.length > 0 
         ? c.subElements.reduce((sum, se) => sum + (se.totalUtilised || 0), 0)
         : (c.used || 0)
@@ -485,21 +635,8 @@ const topCategoryWarnings = computed(() => {
   return arr
 })
 
-const topCategoryColumns = [
-  { title: 'Category', dataIndex: 'category', key: 'category' },
-  { title: 'Usage', key: 'usage' },
-  { title: 'Progress', key: 'progress', width: 160 }
-]
-
-// --- Tasks Preview - loaded from API ---
+// --- Tasks Preview ---
 const taskPreview = ref([])
-
-const taskPreviewColumns = [
-  { title: 'Title', dataIndex: 'title', key: 'title' },
-  { title: 'Priority', dataIndex: 'priority', key: 'priority' },
-  { title: 'Due', dataIndex: 'dueDate', key: 'dueDate' },
-  { title: 'Status', dataIndex: 'status', key: 'status' }
-]
 
 const getPriorityColor = (priority) => {
   switch (priority) {
@@ -531,14 +668,14 @@ const getStatusColor = (status) => {
   }
 }
 
-// --- Upload Preview (mock) ---
+// --- Upload Preview ---
 const uploadPreview = ref([
   { id: 'f1', name: 'receipt_2025-09-21.pdf', size: '234 KB', time: '1h ago' },
   { id: 'f2', name: 'care_plan_update.docx', size: '88 KB', time: 'Yesterday' },
   { id: 'f3', name: 'medication_photo.jpg', size: '1.2 MB', time: '2 days ago' }
 ])
 
-// --- Communication Preview (mock) ---
+// --- Communication Preview ---
 const communicationPreview = ref([
   { id: 101, subject: 'Budget alert acknowledged', preview: 'Thanks, we will adjust the category next week.', unread: true, time: '2h ago' },
   { id: 102, subject: 'New task request', preview: 'POA requested: Add Physical Therapy Session.', unread: true, time: '5h ago' },
@@ -551,9 +688,7 @@ const loadWorkerSchedule = async (workerId) => {
     const response = await getSchedulesByWorker(workerId)
     
     if (response?.data && Array.isArray(response.data)) {
-      // Transform API data to frontend format
       const transformedSchedules = response.data.map(schedule => {
-        // Map shift type from backend to frontend format
         let shift = schedule.shiftType
         if (shift === 'morning') {
           shift = 'Morning Shift'
@@ -565,20 +700,11 @@ const loadWorkerSchedule = async (workerId) => {
           shift = 'Full Day Shift'
         }
         
-        // Format date from LocalDate to string
         const date = schedule.scheduleDate || schedule.date || ''
-        
-        // Format time from start/end times
         const time = schedule.shiftStartTime && schedule.shiftEndTime 
           ? `${schedule.shiftStartTime} - ${schedule.shiftEndTime}`
           : (schedule.time || '')
-        
-        // Calculate duration if possible
-        let duration = schedule.duration || '8 hours'
-        if (schedule.shiftStartTime && schedule.shiftEndTime) {
-          // Simple duration calculation (can be improved)
-          duration = '8 hours' // Default, can be calculated from times
-        }
+        const duration = schedule.duration || '8 hours'
         
         return {
           id: schedule.id,
@@ -590,7 +716,6 @@ const loadWorkerSchedule = async (workerId) => {
         }
       })
       
-      // Sort by date (ascending)
       transformedSchedules.sort((a, b) => {
         if (a.date < b.date) return -1
         if (a.date > b.date) return 1
@@ -598,8 +723,7 @@ const loadWorkerSchedule = async (workerId) => {
       })
       
       allWorkerSchedules.value = transformedSchedules
-      // Show next 3 upcoming schedules in preview
-      workerSchedule.value = transformedSchedules.slice(0, 3)
+      workerSchedule.value = transformedSchedules.slice(0, 5)
     } else {
       allWorkerSchedules.value = []
       workerSchedule.value = []
@@ -635,161 +759,675 @@ const getShiftColor = (shift) => {
     default: return 'default'
   }
 }
+
+const getDayFromDate = (dateStr) => {
+  if (!dateStr) return ''
+  const date = new Date(dateStr)
+  return date.getDate()
+}
+
+const getMonthFromDate = (dateStr) => {
+  if (!dateStr) return ''
+  const date = new Date(dateStr)
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  return months[date.getMonth()]
+}
 </script>
 
 <style scoped>
 .home-page {
   max-width: 1400px;
   margin: 0 auto;
-  animation: fadeInUp 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-  padding: 0 8px;
+  padding: 0;
+  animation: fadeInUp 0.6s ease-out;
 }
 
-.home-page :deep(.ant-card) {
+/* Welcome Banner */
+.welcome-banner {
+  position: relative;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 24px;
+  padding: 48px 40px;
+  margin-bottom: 32px;
+  overflow: hidden;
+  box-shadow: 0 12px 40px rgba(102, 126, 234, 0.3);
+}
+
+.banner-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 24px;
+}
+
+.banner-left {
+  flex: 1;
+  min-width: 300px;
+}
+
+.welcome-title {
+  font-size: 36px;
+  font-weight: 700;
+  color: white;
+  margin: 0 0 8px;
+  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.2);
+}
+
+.user-name {
+  background: linear-gradient(135deg, #fff 0%, #f0f0f0 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.welcome-subtitle {
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.9);
+  margin: 0;
+}
+
+.role-badge {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(20px);
+  padding: 16px 24px;
+  border-radius: 16px;
+  color: white;
+  font-weight: 600;
+  font-size: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.role-icon {
+  font-size: 24px;
+}
+
+.banner-decoration {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+}
+
+.decoration-circle {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  opacity: 0.3;
+}
+
+.circle-1 {
+  width: 200px;
+  height: 200px;
+  background: rgba(255, 255, 255, 0.4);
+  top: -50px;
+  right: 100px;
+}
+
+.circle-2 {
+  width: 150px;
+  height: 150px;
+  background: rgba(255, 255, 255, 0.3);
+  bottom: -30px;
+  left: 50px;
+}
+
+.circle-3 {
+  width: 100px;
+  height: 100px;
+  background: rgba(255, 255, 255, 0.2);
+  top: 50%;
+  left: 50%;
+}
+
+/* Stats Row */
+.stats-row {
+  margin-bottom: 32px;
+}
+
+.stat-card {
+  background: white;
   border-radius: 20px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 0 1px rgba(102, 126, 234, 0.1);
+  padding: 32px 24px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   border: 1px solid rgba(226, 232, 240, 0.8);
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  margin-bottom: 28px;
+  transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
 }
 
-.home-page :deep(.ant-card)::before {
+.stat-card::before {
   content: '';
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, #667eea 0%, #764ba2 50%, #667eea 100%);
-  background-size: 200% 100%;
-  opacity: 0;
-  transition: opacity 0.4s ease;
-  animation: shimmer 3s infinite;
+  height: 4px;
+  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
 }
 
-.home-page :deep(.ant-card):hover {
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12), 0 0 20px rgba(102, 126, 234, 0.15);
-  transform: translateY(-6px) scale(1.01);
-  border-color: rgba(102, 126, 234, 0.4);
+.stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 32px rgba(102, 126, 234, 0.15);
 }
 
-.home-page :deep(.ant-card):hover::before {
-  opacity: 1;
+.stat-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  flex-shrink: 0;
 }
 
-.home-page :deep(.ant-card-head) {
-  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
-  padding: 24px 28px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 252, 0.6) 100%);
-  border-radius: 20px 20px 0 0;
+.stat-budget .stat-icon {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
 }
 
-.home-page :deep(.ant-card-head-title) {
+.stat-used .stat-icon {
+  background: linear-gradient(135deg, #fa8c16 0%, #faad14 100%);
+  color: white;
+}
+
+.stat-left .stat-icon {
+  background: linear-gradient(135deg, #52c41a 0%, #73d13d 100%);
+  color: white;
+}
+
+.stat-left.stat-negative .stat-icon {
+  background: linear-gradient(135deg, #ff4d4f 0%, #ff7875 100%);
+}
+
+.stat-tasks .stat-icon {
+  background: linear-gradient(135deg, #1890ff 0%, #40a9ff 100%);
+  color: white;
+}
+
+.stat-schedule .stat-icon {
+  background: linear-gradient(135deg, #722ed1 0%, #9254de 100%);
+  color: white;
+}
+
+.stat-upload .stat-icon {
+  background: linear-gradient(135deg, #13c2c2 0%, #36cfc9 100%);
+  color: white;
+}
+
+.stat-content {
+  flex: 1;
+}
+
+.stat-label {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1a1a1a;
+  line-height: 1.2;
+}
+
+.stat-percentage {
+  font-size: 14px;
+  color: #999;
+  margin-top: 4px;
+}
+
+/* Preview Cards */
+.content-row {
+  margin-bottom: 32px;
+}
+
+.preview-card {
+  background: white;
+  border-radius: 20px;
+  padding: 32px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  transition: all 0.3s ease;
+  height: 100%;
+}
+
+.preview-card:hover {
+  box-shadow: 0 8px 32px rgba(102, 126, 234, 0.12);
+  transform: translateY(-2px);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.card-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.budget-icon {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.tasks-icon {
+  background: linear-gradient(135deg, #1890ff 0%, #40a9ff 100%);
+  color: white;
+}
+
+.schedule-icon {
+  background: linear-gradient(135deg, #722ed1 0%, #9254de 100%);
+  color: white;
+}
+
+.communication-icon {
+  background: linear-gradient(135deg, #13c2c2 0%, #36cfc9 100%);
+  color: white;
+}
+
+.card-title {
   font-size: 20px;
   font-weight: 700;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  letter-spacing: 0.3px;
+  color: #1a1a1a;
+  margin: 0 0 4px;
 }
 
-.home-page :deep(.ant-card-body) {
-  padding: 28px;
-  background: rgba(255, 255, 255, 0.7);
+.card-subtitle {
+  font-size: 14px;
+  color: #666;
+  margin: 0;
 }
 
-.home-page :deep(.ant-list-item) {
-  padding: 16px 20px;
+.view-all-btn {
   border-radius: 12px;
-  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-  margin-bottom: 8px;
-  border: 1px solid transparent;
+  height: 40px;
+  padding: 0 20px;
+  font-weight: 600;
 }
 
-.home-page :deep(.ant-list-item):hover {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.05) 100%);
-  transform: translateX(6px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.1);
-  border-color: rgba(102, 126, 234, 0.2);
-}
-
-.home-page :deep(.ant-btn-link) {
+.view-link {
   color: #667eea;
   font-weight: 600;
-  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  padding: 4px 8px;
+  padding: 0;
+}
+
+/* Budget Progress */
+.budget-progress {
+  margin-bottom: 32px;
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.usage-progress {
+  margin-bottom: 16px;
+}
+
+.usage-progress :deep(.ant-progress-bg) {
   border-radius: 8px;
 }
 
-.home-page :deep(.ant-btn-link):hover {
-  color: #764ba2;
-  transform: translateX(4px);
-  background: rgba(102, 126, 234, 0.08);
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
+.progress-stats {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
 }
 
-.home-page :deep(.ant-table) {
-  border-radius: 12px;
-  overflow: hidden;
-  background: rgba(255, 255, 255, 0.6);
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.home-page :deep(.ant-table-thead > tr > th) {
-  background: linear-gradient(180deg, rgba(248, 250, 252, 0.95) 0%, rgba(241, 245, 249, 0.8) 100%);
-  font-weight: 700;
-  border-bottom: 2px solid rgba(226, 232, 240, 0.8);
-  color: #1e293b;
-  padding: 16px;
-  font-size: 14px;
-  letter-spacing: 0.3px;
-}
-
-.home-page :deep(.ant-table-tbody > tr) {
-  transition: all 0.25s ease;
-}
-
-.home-page :deep(.ant-table-tbody > tr:hover > td) {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.05) 100%);
-  transform: scale(1.005);
-}
-
-.home-page :deep(.ant-table-tbody > tr > td) {
-  padding: 14px 16px;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.5);
-}
-
-.home-page :deep(.ant-tag) {
-  border-radius: 16px;
-  padding: 4px 14px;
-  font-weight: 600;
-  border: none;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  transition: all 0.3s ease;
+.stat-label-small {
   font-size: 12px;
-  letter-spacing: 0.3px;
+  color: #999;
 }
 
-.home-page :deep(.ant-tag):hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+.stat-value-small {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
 }
 
-/* Empty state styling */
-.home-page :deep(.ant-empty) {
-  padding: 40px 0;
+.text-danger {
+  color: #ff4d4f;
 }
 
+/* Top Categories */
+.top-categories {
+  margin-top: 32px;
+  padding-top: 32px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.category-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.category-item {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.category-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.category-name {
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.category-usage {
+  font-size: 14px;
+  color: #666;
+}
+
+.category-progress-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.category-progress-wrapper :deep(.ant-progress) {
+  flex: 1;
+}
+
+.category-progress-wrapper :deep(.ant-progress-bg) {
+  border-radius: 4px;
+}
+
+.category-tag {
+  min-width: 50px;
+  text-align: center;
+  border-radius: 8px;
+}
+
+/* Task List */
+.task-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.task-item {
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 12px;
+  border: 1px solid #e9ecef;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.task-item:hover {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.05) 100%);
+  border-color: rgba(102, 126, 234, 0.3);
+  transform: translateX(4px);
+}
+
+.task-main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.task-title-wrapper {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.task-title {
+  font-weight: 600;
+  color: #1a1a1a;
+  flex: 1;
+}
+
+.task-priority {
+  flex-shrink: 0;
+  border-radius: 8px;
+}
+
+.task-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.task-due {
+  font-size: 13px;
+  color: #666;
+}
+
+/* Schedule List */
+.schedule-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.schedule-item {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 12px;
+  border: 1px solid #e9ecef;
+  transition: all 0.3s ease;
+}
+
+.schedule-item:hover {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.05) 100%);
+  border-color: rgba(102, 126, 234, 0.3);
+  transform: translateX(4px);
+}
+
+.schedule-date {
+  width: 64px;
+  height: 64px;
+  background: linear-gradient(135deg, #722ed1 0%, #9254de 100%);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  flex-shrink: 0;
+}
+
+.date-day {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.date-month {
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+.schedule-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.schedule-shift {
+  display: flex;
+  align-items: center;
+}
+
+.shift-tag {
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+.schedule-time {
+  font-size: 14px;
+  color: #666;
+}
+
+/* Communication List */
+.communication-card {
+  margin-bottom: 32px;
+}
+
+.communication-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.communication-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 12px;
+  border: 1px solid #e9ecef;
+  transition: all 0.3s ease;
+}
+
+.communication-item:hover {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.05) 100%);
+  border-color: rgba(102, 126, 234, 0.3);
+  transform: translateX(4px);
+}
+
+.comm-icon {
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, #13c2c2 0%, #36cfc9 100%);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.comm-icon.unread {
+  background: linear-gradient(135deg, #1890ff 0%, #40a9ff 100%);
+  box-shadow: 0 0 0 3px rgba(24, 144, 255, 0.2);
+}
+
+.comm-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.comm-subject {
+  font-weight: 600;
+  color: #1a1a1a;
+  font-size: 15px;
+}
+
+.comm-preview {
+  font-size: 13px;
+  color: #666;
+  line-height: 1.5;
+}
+
+.comm-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.comm-time {
+  font-size: 12px;
+  color: #999;
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #999;
+}
+
+.empty-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+  color: #d9d9d9;
+}
+
+.empty-state p {
+  font-size: 16px;
+  margin: 0;
+}
+
+.empty-hint {
+  font-size: 13px;
+  color: #bbb;
+  margin-top: 8px;
+}
+
+/* Animations */
 @keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateY(30px);
+    transform: translateY(20px);
   }
   to {
     opacity: 1;
@@ -797,23 +1435,37 @@ const getShiftColor = (shift) => {
   }
 }
 
-@keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
-}
-
 /* Responsive */
 @media (max-width: 768px) {
-  .home-page {
-    padding: 0;
+  .welcome-banner {
+    padding: 32px 24px;
   }
 
-  .home-page :deep(.ant-card-body) {
-    padding: 16px;
+  .welcome-title {
+    font-size: 28px;
+  }
+
+  .banner-content {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .stat-card {
+    padding: 24px 20px;
+  }
+
+  .preview-card {
+    padding: 24px 20px;
+  }
+
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .progress-stats {
+    flex-direction: column;
+    gap: 16px;
   }
 }
 </style>

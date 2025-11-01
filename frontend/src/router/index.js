@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { getMe, getInviteStatus } from '../services/userService'
 
+import Landing from '../views/Landing.vue'
 import Login from '../views/Login.vue'
 import Register from '../views/Register.vue'
 import ForgotPassword from '../views/Forget.vue'
@@ -15,7 +16,7 @@ function isAuthed() {
 
 
 const routes = [
-  { path: '/', redirect: '/login' },
+  { path: '/', component: Landing },
   { path: '/login', component: Login },
   { path: '/register', component: Register },
   { path: '/forgot-password', component: ForgotPassword },

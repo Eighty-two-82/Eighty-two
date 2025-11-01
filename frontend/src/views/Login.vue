@@ -1,69 +1,118 @@
 <template>
   <div class="login-container">
-    <a-form
-      :model="formState"
-      name="Login"
-      :label-col="{ span: 6 }"
-      :wrapper-col="{ span: 18 }"
-      autocomplete="off"
-      @finish="onFinish"
-      @finishFailed="onFinishFailed"
-      :disabled="loading"
-      class="login-form"
-    >
-      <h1 class="login-title">Sign in</h1>
+    <!-- Background with animated gradient -->
+    <div class="bg-gradient">
+      <div class="gradient-circle circle-1"></div>
+      <div class="gradient-circle circle-2"></div>
+      <div class="gradient-circle circle-3"></div>
+    </div>
 
-      <!-- Email -->
-      <a-form-item
-        name="email"
-        :rules="[
-          { required: true, message: 'Please input your Email!' },
-          { type: 'email', message: 'Email format is invalid' }
-        ]"
-        :wrapper-col="{ span: 24 }"
-      >
-        <a-input v-model:value="formState.email" placeholder="Enter Email">
-          <template #prefix><UserOutlined /></template>
-        </a-input>
-      </a-form-item>
-
-      <!-- Password -->
-      <a-form-item
-        name="password"
-        :rules="[{ required: true, message: 'Please input your password!' }]"
-        :wrapper-col="{ span: 24 }"
-      >
-        <a-input-password v-model:value="formState.password" placeholder="Enter password">
-          <template #prefix><LockOutlined /></template>
-        </a-input-password>
-      </a-form-item>
-
-      <!-- Remember + Forgot -->
-      <a-form-item :wrapper-col="{ span: 24 }">
-        <div class="row-between">
-          <a-checkbox v-model:checked="formState.remember">Remember me</a-checkbox>
-          <a class="login-form-forgot" @click="onForgot">Forgot password?</a>
+    <!-- Content -->
+    <div class="login-content">
+      <!-- Logo Section -->
+      <div class="logo-section">
+        <div class="logo-icon">
+          <HeartOutlined />
         </div>
-      </a-form-item>
-
-      <!-- Submit -->
-      <a-form-item :wrapper-col="{ span: 24 }">
-        <a-button type="primary" html-type="submit" :loading="loading" block>Sign in</a-button>
-      </a-form-item>
-
-      <!-- Sign up -->
-      <div class="muted">
-        Don't have an account?
-        <a-typography-link @click="onRegister">Register</a-typography-link>
+        <h1 class="logo-text">CareTrack</h1>
+        <p class="logo-subtitle">Welcome back! Sign in to continue</p>
       </div>
-    </a-form>
+
+      <!-- Login Form -->
+      <div class="form-wrapper">
+        <a-form
+          :model="formState"
+          name="Login"
+          autocomplete="off"
+          @finish="onFinish"
+          @finishFailed="onFinishFailed"
+          :disabled="loading"
+          class="login-form"
+        >
+          <h2 class="form-title">Sign In</h2>
+
+          <!-- Email -->
+          <a-form-item
+            name="email"
+            :rules="[
+              { required: true, message: 'Please input your Email!' },
+              { type: 'email', message: 'Email format is invalid' }
+            ]"
+          >
+            <a-input 
+              v-model:value="formState.email" 
+              placeholder="Enter your email"
+              size="large"
+              class="form-input"
+            >
+              <template #prefix><MailOutlined class="input-icon" /></template>
+            </a-input>
+          </a-form-item>
+
+          <!-- Password -->
+          <a-form-item
+            name="password"
+            :rules="[{ required: true, message: 'Please input your password!' }]"
+          >
+            <a-input-password 
+              v-model:value="formState.password" 
+              placeholder="Enter your password"
+              size="large"
+              class="form-input"
+            >
+              <template #prefix><LockOutlined class="input-icon" /></template>
+            </a-input-password>
+          </a-form-item>
+
+          <!-- Remember + Forgot -->
+          <a-form-item class="remember-forgot">
+            <div class="row-between">
+              <a-checkbox v-model:checked="formState.remember" class="remember-checkbox">
+                Remember me
+              </a-checkbox>
+              <a class="forgot-link" @click="onForgot">Forgot password?</a>
+            </div>
+          </a-form-item>
+
+          <!-- Submit -->
+          <a-form-item>
+            <a-button 
+              type="primary" 
+              html-type="submit" 
+              :loading="loading" 
+              block
+              size="large"
+              class="submit-button"
+            >
+              Sign In
+            </a-button>
+          </a-form-item>
+
+          <!-- Divider -->
+          <div class="divider">
+            <span>or</span>
+          </div>
+
+          <!-- Sign up -->
+          <div class="signup-link">
+            Don't have an account?
+            <a class="link-text" @click="onRegister">Create Account</a>
+          </div>
+        </a-form>
+      </div>
+
+      <!-- Footer -->
+      <div class="footer-text">
+        <a @click="goToLanding" class="back-link">← Back to Home</a>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { reactive, ref } from 'vue'
 import { message } from 'ant-design-vue'
-import { UserOutlined, LockOutlined } from '@ant-design/icons-vue'
+import { MailOutlined, LockOutlined, HeartOutlined } from '@ant-design/icons-vue'
 import { useRouter, useRoute } from 'vue-router'
 import { login } from '@/services/userService'
 
@@ -88,45 +137,30 @@ const onFinish = async () => {
 
     const token = res?.data?.token
     if (token) {
-      // Always use sessionStorage for security (no persistent storage)
       sessionStorage.setItem('token', token)
     }
-    message.success('Signed in')
+    message.success('Signed in successfully!')
 
-    // Clear router cache to ensure fresh data
     if (window.clearRouterCache) {
       window.clearRouterCache()
     }
 
-    //check user role and invite code status
     try {
       const userInfo = res?.data?.user || { role: 'user' }
       const role = userInfo.role
       
       if (role === 'worker' || role === 'manager') {
         const inviteStatus = res?.data?.inviteStatus || { valid: false }
-        console.log('🔍 Login - User role:', role)
-        console.log('🔍 Login - Invite status:', inviteStatus)
-        console.log('🔍 Login - User ID:', userInfo.id)
         
-        // Only redirect to invite code page if user hasn't used any invite code yet
         if (!inviteStatus.valid && inviteStatus.reason === 'missing') {
-          console.log('🔄 Login - User needs to submit invite code, redirecting...')
           router.replace('/invitecode')
           return
-        } else if (inviteStatus.valid || inviteStatus.reason === 'already_used') {
-          console.log('✅ Login - User has already used invite code, proceeding to app...')
-        } else {
-          console.log('⚠️ Login - Unknown invite status, proceeding to app...')
         }
       }
       
-      // regular users or users with valid invite codes, redirect to target page
       const redirect = route.query.redirect || '/app/menu'
       router.replace(String(redirect))
     } catch (e) {
-      console.error('❌ Login - Error checking invite status:', e)
-      // if getting user info fails, redirect to default page
       const redirect = route.query.redirect || '/app/menu'
       router.replace(String(redirect))
     }
@@ -149,39 +183,276 @@ const onForgot = () => {
 const onRegister = () => {
   router.push('/register')
 }
+
+const goToLanding = () => {
+  router.push('/')
+}
 </script>
 
 <style scoped>
 .login-container {
+  min-height: 100vh;
   display: flex;
-  justify-content: center;
   align-items: center;
-  height: 100vh;
-  background: #f0f2f5;
+  justify-content: center;
+  padding: 24px;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
-.login-form {
-  width: 450px;
-  padding: 36px 32px;
-  background: white;
-  border-radius: 14px;
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.12);
+
+.bg-gradient {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  z-index: 0;
 }
-.login-title {
+
+.gradient-circle {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  opacity: 0.4;
+  animation: float 15s infinite ease-in-out;
+}
+
+.circle-1 {
+  width: 300px;
+  height: 300px;
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  top: -100px;
+  right: -100px;
+  animation-delay: 0s;
+}
+
+.circle-2 {
+  width: 400px;
+  height: 400px;
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  bottom: -150px;
+  left: -150px;
+  animation-delay: 5s;
+}
+
+.circle-3 {
+  width: 250px;
+  height: 250px;
+  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  animation-delay: 10s;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(30px, -30px) scale(1.1);
+  }
+}
+
+.login-content {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 480px;
+}
+
+.logo-section {
   text-align: center;
-  font-size: 24px;
-  font-weight: bold;
-  margin-bottom: 20px;
+  margin-bottom: 40px;
 }
+
+.logo-icon {
+  width: 64px;
+  height: 64px;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(20px);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+  font-size: 32px;
+  color: white;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.logo-text {
+  font-size: 36px;
+  font-weight: 700;
+  color: white;
+  margin: 0 0 8px;
+  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.2);
+}
+
+.logo-subtitle {
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.9);
+  margin: 0;
+}
+
+.form-wrapper {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-radius: 24px;
+  padding: 48px 40px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.form-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1a1a1a;
+  text-align: center;
+  margin: 0 0 32px;
+}
+
+.login-form :deep(.ant-form-item) {
+  margin-bottom: 24px;
+}
+
+.form-input {
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-size: 16px;
+  border: 2px solid #e0e0e0;
+  transition: all 0.3s ease;
+}
+
+.form-input:hover {
+  border-color: #667eea;
+}
+
+.form-input:focus,
+.form-input-focused {
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.input-icon {
+  color: #999;
+  font-size: 16px;
+}
+
+.remember-forgot {
+  margin-bottom: 8px;
+}
+
 .row-between {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 13px;
+  width: 100%;
 }
-.muted {
+
+.remember-checkbox {
+  color: #666;
+}
+
+.forgot-link {
+  color: #667eea;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.3s ease;
+}
+
+.forgot-link:hover {
+  color: #764ba2;
+}
+
+.submit-button {
+  height: 52px;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
+  transition: all 0.3s ease;
+}
+
+.submit-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.divider {
   text-align: center;
-  color: #6b7280;
-  font-size: 13px;
-  margin: 8px 0 6px;
+  margin: 32px 0;
+  position: relative;
+}
+
+.divider::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: #e0e0e0;
+}
+
+.divider span {
+  background: rgba(255, 255, 255, 0.95);
+  padding: 0 16px;
+  color: #999;
+  position: relative;
+}
+
+.signup-link {
+  text-align: center;
+  color: #666;
+  font-size: 15px;
+}
+
+.link-text {
+  color: #667eea;
+  font-weight: 600;
+  cursor: pointer;
+  margin-left: 8px;
+  transition: color 0.3s ease;
+}
+
+.link-text:hover {
+  color: #764ba2;
+}
+
+.footer-text {
+  text-align: center;
+  margin-top: 24px;
+}
+
+.back-link {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 14px;
+  cursor: pointer;
+  transition: color 0.3s ease;
+  text-decoration: none;
+}
+
+.back-link:hover {
+  color: white;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .form-wrapper {
+    padding: 32px 24px;
+  }
+
+  .form-title {
+    font-size: 24px;
+  }
+
+  .logo-text {
+    font-size: 28px;
+  }
 }
 </style>
