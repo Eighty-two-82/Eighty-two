@@ -604,7 +604,7 @@
         <!-- Worker Photo and Basic Info -->
         <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 24px; padding: 16px; background: #f6ffed; border-radius: 8px;">
           <a-avatar
-ma a            :size="80"
+            :size="80"
             :src="selectedWorkerDetail.photo"
             :alt="selectedWorkerDetail.name"
             style="border: 3px solid #52c41a;"
@@ -2017,6 +2017,9 @@ const loadWorkers = async () => {
     console.error('❌ Failed to load workers:', error)
     console.error('❌ Error details:', error.response?.data || error.message)
     message.error('Failed to load workers: ' + (error.message || 'Unknown error'))
+    // Set empty array to ensure table still displays
+    workers.value = []
+    availableWorkers.value = []
   }
 }
 
