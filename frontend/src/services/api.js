@@ -7,11 +7,14 @@ const getApiBaseUrl = () => {
     // Check for explicit environment variable (highest priority)
     if (import.meta.env.VITE_API_BASE_URL) {
         let url = import.meta.env.VITE_API_BASE_URL.trim();
-        // Remove trailing slash if present
+        // Remove all trailing slashes
         url = url.replace(/\/+$/, '');
-        // Add /api suffix if not already present
-        const finalUrl = url.endsWith('/api') ? url : `${url}/api`;
+        // Remove /api suffix if already present (we'll add it back)
+        url = url.replace(/\/api\/?$/, '');
+        // Now add /api suffix (single slash)
+        const finalUrl = `${url}/api`;
         console.log('🔧 API Base URL from VITE_API_BASE_URL:', finalUrl);
+        console.log('🔧 Original VITE_API_BASE_URL value:', import.meta.env.VITE_API_BASE_URL);
         return finalUrl;
     }
     
