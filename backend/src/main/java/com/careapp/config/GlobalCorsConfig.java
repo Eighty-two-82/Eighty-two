@@ -15,8 +15,23 @@ public class GlobalCorsConfig {
         return new WebMvcConfigurer() {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
+                // Get allowed origins from environment variable or use defaults
+                String allowedOrigins = System.getenv("CORS_ALLOWED_ORIGINS");
+                String[] origins;
+                
+                if (allowedOrigins != null && !allowedOrigins.isEmpty()) {
+                    origins = allowedOrigins.split(",");
+                } else {
+                    // Default origins: localhost for development and production frontend URL
+                    origins = new String[]{
+                        "http://localhost:5173",
+                        "http://localhost:5174",
+                        "https://care-track-e2ca875a8e53.herokuapp.com"
+                    };
+                }
+                
                 registry.addMapping("/**")
-                        .allowedOriginPatterns("http://localhost:5173", "http://localhost:5174")
+                        .allowedOriginPatterns(origins)
                         .allowCredentials(true)
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                         .allowedHeaders("*")

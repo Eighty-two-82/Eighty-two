@@ -1,11 +1,30 @@
 // src/services/api.js
 import axios from "axios";
 
-// Switch API address based on environment
-const API_BASE_URL =
-    import.meta.env.MODE === "production"
-        ? "https://care-scheduling-app-e8951cd9f9c6.herokuapp.com/api"
-        : "http://localhost:8081/api";
+// Get API base URL from environment variable or fallback to defaults
+// Priority: VITE_API_BASE_URL > import.meta.env.MODE > default
+const getApiBaseUrl = () => {
+    // Check for explicit environment variable (highest priority)
+    if (import.meta.env.VITE_API_BASE_URL) {
+        const url = import.meta.env.VITE_API_BASE_URL;
+        return url.endsWith('/api') ? url : `${url}/api`;
+    }
+    
+    // Fallback to mode-based detection
+    if (import.meta.env.MODE === "production" || import.meta.env.PROD) {
+        return "https://care-scheduling-app-e8951cd9f9c6.herokuapp.com/api";
+    }
+    
+    // Default to localhost for development
+    return "http://localhost:8081/api";
+};
+
+const API_BASE_URL = getApiBaseUrl();
+
+// Export function to get base URL without /api suffix (for file serving)
+export const getBaseUrl = () => {
+    return API_BASE_URL.replace('/api', '');
+};
 
 const api = axios.create({
     baseURL: API_BASE_URL,
