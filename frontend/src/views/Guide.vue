@@ -312,14 +312,17 @@ const show = async (autoShow = false) => {
       
       if (autoShow && seenGuides[userRole]) {
         // Auto-show but user has already seen guide, don't show
+        console.log('Guide already seen for role:', userRole, '- skipping auto-show')
         visible.value = false
         return
       }
       
       if (autoShow && !seenGuides[userRole]) {
         // Auto-show for first time, auto-select role and show guide
+        console.log('First time showing guide for role:', userRole)
         selectedRole.value = userRole
         currentStep.value = 'guide'
+        visible.value = true
       } else if (!autoShow) {
         // Manual show (from Guide button), check if they've seen the guide
         if (seenGuides[userRole]) {
@@ -331,19 +334,22 @@ const show = async (autoShow = false) => {
           selectedRole.value = userRole
           currentStep.value = 'guide'
         }
+        visible.value = true
       }
     } else {
       // No role or unknown role, show role selection
+      console.log('No valid role found, showing role selection')
       currentStep.value = 'role-selection'
       selectedRole.value = null
+      visible.value = true
     }
   } catch (error) {
+    console.error('Error in show guide:', error)
     // On error, show role selection
     currentStep.value = 'role-selection'
     selectedRole.value = null
+    visible.value = true
   }
-  
-  visible.value = true
 }
 
 // Show guide on mount if needed (for automatic display)

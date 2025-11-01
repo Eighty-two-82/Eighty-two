@@ -292,8 +292,8 @@
       console.log('Set userRole to:', userRole.value)
       console.log('Set userName to:', userName.value)
       
-      // Check if this is the first visit and show guide
-      checkFirstVisit()
+      // Check if this is the first visit and show guide (pass userInfo to avoid duplicate call)
+      checkFirstVisit(userInfo)
       
       // Load notifications from backend API
       await loadNotifications()
@@ -303,12 +303,14 @@
   })
   
   // Check if this is the user's first visit
-  const checkFirstVisit = async () => {
+  const checkFirstVisit = async (userInfo) => {
     try {
-      const userInfo = await getMe()
-      const userRoleFromAPI = userInfo?.data?.role
+      // Use provided userInfo or fetch if not provided
+      const userData = userInfo || await getMe()
+      const userRoleFromAPI = userData?.data?.role
       
       if (!userRoleFromAPI) {
+        console.log('No user role found, skipping guide')
         return
       }
       
@@ -316,14 +318,31 @@
       const seenGuides = JSON.parse(localStorage.getItem('user_guide_seen') || '{}')
       const hasSeenGuide = seenGuides[userRoleFromAPI]
       
+      console.log('Guide check - Role:', userRoleFromAPI, 'Has seen:', hasSeenGuide)
+      
       // Only show guide once - on the first visit for this role
       if (!hasSeenGuide) {
         // First time seeing guide for this role - auto show
+        // Use longer delay to ensure component is fully mounted and UI is ready
         setTimeout(() => {
           if (guideRef.value) {
+            console.log('First visit detected, showing guide for role:', userRoleFromAPI)
             guideRef.value.show(true) // true = autoShow
+          } else {
+            // If ref is not ready yet, try again after a short delay
+            console.log('Guide ref not ready, retrying...')
+            setTimeout(() => {
+              if (guideRef.value) {
+                console.log('Retrying to show guide for role:', userRoleFromAPI)
+                guideRef.value.show(true)
+              } else {
+                console.warn('Guide ref still not available after retry')
+              }
+            }, 500)
           }
-        }, 500)
+        }, 1000) // Increased delay to 1000ms for better reliability
+      } else {
+        console.log('User has already seen guide for role:', userRoleFromAPI)
       }
     } catch (error) {
       console.error('Failed to check first visit:', error)
