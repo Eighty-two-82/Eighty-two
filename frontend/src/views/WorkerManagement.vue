@@ -133,6 +133,7 @@
                     :src="worker.photo || worker.photoUrl"
                     :alt="worker.name"
                     style="border: 2px solid #f0f0f0;"
+                    @error="() => { worker.photo = null; worker.photoUrl = null; }"
                   >
                     {{ worker.name.charAt(0).toUpperCase() }}
                   </a-avatar>
@@ -179,6 +180,7 @@
                 :size="40"
                 :src="record.photo || record.photoUrl"
                 :alt="record.name"
+                @error="() => { record.photo = null; record.photoUrl = null; }"
               >
                 {{ record.name?.charAt(0)?.toUpperCase() || 'W' }}
               </a-avatar>
@@ -426,7 +428,11 @@
                 </template>
                 <template #option="{ value, label }">
                   <div style="display: flex; align-items: center; gap: 8px;">
-                    <a-avatar :size="20" :src="getWorkerById(value)?.photo || getWorkerById(value)?.photoUrl">
+                    <a-avatar 
+                      :size="20" 
+                      :src="getWorkerById(value)?.photo || getWorkerById(value)?.photoUrl"
+                      @error="(e) => { const w = getWorkerById(value); if (w) { w.photo = null; w.photoUrl = null; } }"
+                    >
                       {{ getWorkerById(value)?.name?.charAt(0)?.toUpperCase() }}
                     </a-avatar>
                     <span>{{ label }}</span>
@@ -457,7 +463,11 @@
                 </template>
                 <template #option="{ value, label }">
                   <div style="display: flex; align-items: center; gap: 8px;">
-                    <a-avatar :size="20" :src="getWorkerById(value)?.photo || getWorkerById(value)?.photoUrl">
+                    <a-avatar 
+                      :size="20" 
+                      :src="getWorkerById(value)?.photo || getWorkerById(value)?.photoUrl"
+                      @error="(e) => { const w = getWorkerById(value); if (w) { w.photo = null; w.photoUrl = null; } }"
+                    >
                       {{ getWorkerById(value)?.name?.charAt(0)?.toUpperCase() }}
                     </a-avatar>
                     <span>{{ label }}</span>
@@ -488,7 +498,11 @@
                 </template>
                 <template #option="{ value, label }">
                   <div style="display: flex; align-items: center; gap: 8px;">
-                    <a-avatar :size="20" :src="getWorkerById(value)?.photo || getWorkerById(value)?.photoUrl">
+                    <a-avatar 
+                      :size="20" 
+                      :src="getWorkerById(value)?.photo || getWorkerById(value)?.photoUrl"
+                      @error="(e) => { const w = getWorkerById(value); if (w) { w.photo = null; w.photoUrl = null; } }"
+                    >
                       {{ getWorkerById(value)?.name?.charAt(0)?.toUpperCase() }}
                     </a-avatar>
                     <span>{{ label }}</span>
@@ -508,7 +522,11 @@
           <a-form-item label="Upload Photo for Selected Worker">
               <div v-if="selectedWorkerForPhoto" style="margin-bottom: 16px; padding: 12px; background: #f6ffed; border-radius: 6px;">
                 <div style="display: flex; align-items: center; gap: 12px;">
-                  <a-avatar :size="40" :src="selectedWorkerForPhoto.photo || selectedWorkerForPhoto.photoUrl">
+                  <a-avatar 
+                    :size="40" 
+                    :src="selectedWorkerForPhoto.photo || selectedWorkerForPhoto.photoUrl"
+                    @error="() => { selectedWorkerForPhoto.photo = null; selectedWorkerForPhoto.photoUrl = null; }"
+                  >
                     {{ selectedWorkerForPhoto.name.charAt(0).toUpperCase() }}
                   </a-avatar>
                   <div>
@@ -716,7 +734,11 @@ ma a            :size="80"
     >
       <div v-if="selectedWorkerDetail" style="margin-bottom: 20px;">
         <div style="display: flex; align-items: center; gap: 12px; padding: 12px; background: #f6ffed; border-radius: 6px;">
-          <a-avatar :size="40" :src="selectedWorkerDetail.photo">
+          <a-avatar 
+            :size="40" 
+            :src="selectedWorkerDetail.photo || selectedWorkerDetail.photoUrl"
+            @error="() => { selectedWorkerDetail.photo = null; selectedWorkerDetail.photoUrl = null; }"
+          >
             {{ selectedWorkerDetail.name.charAt(0).toUpperCase() }}
           </a-avatar>
           <div>
@@ -818,7 +840,11 @@ ma a            :size="80"
     >
       <div v-if="selectedWorkerDetail" style="margin-bottom: 20px;">
         <div style="display: flex; align-items: center; gap: 12px; padding: 12px; background: #fff2e8; border-radius: 6px;">
-          <a-avatar :size="40" :src="selectedWorkerDetail.photo">
+          <a-avatar 
+            :size="40" 
+            :src="selectedWorkerDetail.photo || selectedWorkerDetail.photoUrl"
+            @error="() => { selectedWorkerDetail.photo = null; selectedWorkerDetail.photoUrl = null; }"
+          >
             {{ selectedWorkerDetail.name.charAt(0).toUpperCase() }}
           </a-avatar>
           <div>
@@ -1716,7 +1742,46 @@ const confirmDailyManagement = async () => {
   try {
     const dateStr = scheduleForm.value.date.format('YYYY-MM-DD')
     
-    // Combine all selected workers from all shifts
+    // Prepare schedule data for API
+    // Frontend shifts: 
+    //   - morningShift (8:00-16:00) → morningShiftWorkerIds
+    //   - eveningShift (16:00-24:00, labeled as "Afternoon Shift") → afternoonShiftWorkerIds  
+    //   - nightShift (24:00-8:00, labeled as "Evening Shift") → eveningShiftWorkerIds
+    const scheduleData = {
+      scheduleDate: dateStr,
+      morningShiftWorkerIds: scheduleForm.value.morningShift || [],
+      afternoonShiftWorkerIds: scheduleForm.value.eveningShift || [], // Frontend's "Afternoon Shift" (16:00-24:00)
+      eveningShiftWorkerIds: scheduleForm.value.nightShift || [], // Frontend's "Night Shift" / "Evening Shift" (24:00-8:00)
+      scheduleNotes: scheduleForm.value.notes || ''
+    }
+    
+    // Get manager ID from current user
+    if (!currentUser.value?.id) {
+      message.error('User not authenticated. Please login again.')
+      return
+    }
+    
+    const managerId = currentUser.value.id
+    
+    // Call API to save schedule to backend
+    message.loading('Saving schedule...', 0)
+    try {
+      await createDailySchedule(scheduleData, managerId)
+      message.destroy()
+      message.success('Schedule saved successfully!')
+      
+      // After successful save, reload the schedule for the selected date
+      if (dateStr === selectedDate.value?.format('YYYY-MM-DD')) {
+        await loadDailySchedule(dateStr)
+      }
+    } catch (apiError) {
+      message.destroy()
+      console.error('Failed to save schedule to backend:', apiError)
+      message.error(`Failed to save schedule: ${apiError.message || 'Unknown error'}`)
+      return // Don't continue if API call fails
+    }
+    
+    // Combine all selected workers from all shifts for local state
     const allSelectedWorkers = [
       ...scheduleForm.value.morningShift,
       ...scheduleForm.value.eveningShift,
@@ -1724,11 +1789,6 @@ const confirmDailyManagement = async () => {
     ]
     
     dailySchedules.value[dateStr] = allSelectedWorkers
-    
-    // Update daily workers if it's the selected date
-    if (dateStr === selectedDate.value?.format('YYYY-MM-DD')) {
-      updateDailyWorkers(dateStr)
-    }
     
     // Handle photo upload if there are files (do this BEFORE closing modal)
     if (fileList.value.length > 0 && selectedWorkerForPhoto.value) {
@@ -1813,9 +1873,10 @@ const confirmDailyManagement = async () => {
       }
     }
     
-    message.success('Daily schedule updated successfully!')
+    // Success message is already shown after API call
   } catch (error) {
-    message.error('Failed to update schedule')
+    console.error('Error in confirmDailyManagement:', error)
+    message.error(error.message || 'Failed to update schedule')
   }
   
   // Reset forms
