@@ -93,8 +93,8 @@ public class UserServiceImpl implements UserService {
         }
         System.out.println("🔍 bindWorkerToPatient - Worker found: " + worker.getEmail() + ", Current patientId: " + worker.getPatientId());
         worker.setPatientId(patientId);
-        // 注意：不再修改 status 字段，status 应该用于表示 worker 的实际状态（active, inactive, pending 等）
-        // 绑定状态可以通过 patientId != null 来判断
+        // Note: We no longer modify the status field. Status should be used to represent the worker's actual state (active, inactive, pending, etc.)
+        // Binding status can be determined by checking if patientId != null
         User savedWorker = userRepository.save(worker);
         if (savedWorker != null) {
             System.out.println("✅ bindWorkerToPatient - Worker saved successfully, patientId: " + savedWorker.getPatientId());
@@ -118,8 +118,8 @@ public class UserServiceImpl implements UserService {
         User manager = userRepository.findById(managerId).orElse(null);
         if (manager == null) return false;
         manager.setPatientId(patientId);
-        // 注意：不再修改 status 字段，status 应该用于表示 worker 的实际状态（active, inactive, pending 等）
-        // 绑定状态可以通过 patientId != null 来判断
+        // Note: We no longer modify the status field. Status should be used to represent the worker's actual state (active, inactive, pending, etc.)
+        // Binding status can be determined by checking if patientId != null
         userRepository.save(manager);
         return true;
     }

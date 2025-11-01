@@ -151,7 +151,7 @@ public class BudgetServiceImpl implements BudgetService {
         Budget budget;
         
         if (!budgetOpt.isPresent()) {
-            // 创建一个新预算防止崩溃（防御式修复）
+            // Create a new budget to prevent crash (defensive fix)
             budget = new Budget();
             budget.setPatientId(patientId);
             budget.setTotalBudget(0);

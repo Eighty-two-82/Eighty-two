@@ -131,8 +131,8 @@ public class WorkerController {
     }
 
 
-    // 注意：移除了assign-patient和remove-patient端点
-    // 因为Worker应该通过Task分配来访问Patient数据，而不是直接分配Patient
+    // Note: Removed assign-patient and remove-patient endpoints
+    // because Workers should access Patient data through Task assignments, not direct assignment
 
     // Allocate worker to a shift (management uploads staff ID for shift)
     @PostMapping("/{id}/allocate-shift")
@@ -339,7 +339,7 @@ public class WorkerController {
     }
     
     /**
-     * Upload worker photo (兼容旧版本 - 接收JSON)
+     * Upload worker photo (compatible with old version - receives JSON)
      * POST /api/workers/{id}/photo
      * @param id Worker ID
      * @param body Map containing photoUrl
